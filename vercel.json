@@ -1,13 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "env": {
-    "VERCEL_SUPPORT_LARGE_FUNCTIONS": "1"
-  },
   "services": {
     "app": {
-      "root": "backend",
+      "root": ".",
       "framework": "fastapi",
-      "entrypoint": "main.py"
+      "entrypoint": "api/index.py",
+      "functions": {
+        "api/index.py": {
+          "excludeFiles": "{frontend,backend/tests,backend/exports,backend/uploads,.pytest_cache}/**"
+        }
+      }
     },
     "frontend": {
       "root": "frontend",
