@@ -6,3 +6,4 @@ Disallow: /static/uploads/
 
 # Sitemaps
 Sitemap: https://2builders.ai/sitemap.xml
+
