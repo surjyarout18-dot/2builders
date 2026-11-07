@@ -177,8 +177,8 @@ def convert_floorplan(
     1-Click Floor Plan to 3D Model:
     Uploads drawing, runs deterministic extraction, constructs walls & rooms, and generates 3D building.
     """
-    upload_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
-    os.makedirs(upload_dir, exist_ok=True)
+    from ..paths import UPLOAD_DIR
+    upload_dir = UPLOAD_DIR
 
     file_id = str(uuid.uuid4())
     ext = os.path.splitext(file.filename)[1].lower()

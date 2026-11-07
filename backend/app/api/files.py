@@ -12,8 +12,7 @@ from ..services.geometry_engine import DXFProcessor
 
 router = APIRouter(prefix="/api", tags=["files"])
 
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from ..paths import UPLOAD_DIR
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".dxf", ".svg", ".pdf"}
 

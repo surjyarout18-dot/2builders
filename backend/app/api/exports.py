@@ -14,8 +14,7 @@ from .projects import serialize_project
 
 router = APIRouter(prefix="/api", tags=["exports"])
 
-EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "exports"))
-os.makedirs(EXPORT_DIR, exist_ok=True)
+from ..paths import EXPORT_DIR
 
 def generate_dxf_export(project_data: dict, out_path: str):
     doc = ezdxf.new('R2010')

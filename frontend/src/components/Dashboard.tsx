@@ -65,8 +65,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       });
 
       if (!upRes.ok) {
-        const err = await upRes.json();
-        throw new Error(err.detail || 'Upload failed');
+        let errorMsg = `Upload failed (${upRes.status})`;
+        try {
+          const err = await upRes.json();
+          errorMsg = err.detail || errorMsg;
+        } catch {
+          const raw = await upRes.text();
+          if (raw) errorMsg = raw.slice(0, 200);
+        }
+        throw new Error(errorMsg);
       }
 
       const upData = await upRes.json();
@@ -94,8 +101,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       setStatusMessage('Reading dimension annotations and classifying rooms...');
 
       if (!anaRes.ok) {
-        const err = await anaRes.json();
-        throw new Error(err.detail || 'Analysis failed');
+        let errorMsg = `Analysis failed (${anaRes.status})`;
+        try {
+          const err = await anaRes.json();
+          errorMsg = err.detail || errorMsg;
+        } catch {
+          const raw = await anaRes.text();
+          if (raw) errorMsg = raw.slice(0, 200);
+        }
+        throw new Error(errorMsg);
       }
 
       setAnalysisStep('vectorising');

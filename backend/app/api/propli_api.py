@@ -16,10 +16,7 @@ from ..services.vastu_engine import VastuEngine
 
 router = APIRouter(prefix="/api/v1", tags=["Propli Plan to 3D"])
 
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
-EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "exports"))
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(EXPORT_DIR, exist_ok=True)
+from ..paths import UPLOAD_DIR, EXPORT_DIR
 
 class AnalyseRequest(BaseModel):
     interiorStyle: str = "Modern"

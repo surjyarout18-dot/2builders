@@ -6,8 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
 from .api import projects, files, calibration, extraction, geometry, exports, propli_api
 
-# Initialize database schema
-Base.metadata.create_all(bind=engine)
+# Initialize database schema safely
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Database schema init warning: {e}")
 
 app = FastAPI(
     title="2builders API",
@@ -33,19 +36,17 @@ app.include_router(geometry.router)
 app.include_router(exports.router)
 app.include_router(propli_api.router)
 
-if os.getenv("VERCEL"):
-    UPLOAD_DIR = "/tmp/uploads"
-    EXPORT_DIR = "/tmp/exports"
-else:
-    UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-    EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports"))
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(EXPORT_DIR, exist_ok=True)
+from .paths import UPLOAD_DIR, EXPORT_DIR
 
-app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/static/exports", StaticFiles(directory=EXPORT_DIR), name="exports")
+try:
+    app.mount("/static/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+    app.mount("/static/exports", StaticFiles(directory=EXPORT_DIR), name="exports")
+except Exception as e:
+    print(f"Static directories mount warning: {e}")
 
 @app.get("/")
+@app.get("/api")
+@app.get("/api/health")
 def health_check():
     return {
         "status": "online",
