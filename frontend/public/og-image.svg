@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="50%" stop-color="#0b1329"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <!-- Subtle Grid lines -->
+  <g stroke="#1e293b" stroke-width="1" opacity="0.6">
+    <line x1="100" y1="0" x2="100" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="500" y1="0" x2="500" y2="630"/>
+    <line x1="700" y1="0" x2="700" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="1100" y1="0" x2="1100" y2="630"/>
+    <line x1="0" y1="150" x2="1200" y2="150"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="480" x2="1200" y2="480"/>
+  </g>
+  
+  <!-- Logo Icon -->
+  <g transform="translate(120, 140)">
+    <rect width="80" height="80" rx="20" fill="url(#accent)"/>
+    <polygon points="40 18 16 32 40 46 64 32 40 18" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="16 46 40 60 64 46" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Brand text -->
+  <text x="225" y="195" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="900" fill="#ffffff" letter-spacing="1">2BUILDERS</text>
+  <text x="490" y="195" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#38bdf8" letter-spacing="3">PLAN TO 3D</text>
+
+  <!-- Tagline -->
+  <text x="120" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="800" fill="#f8fafc">
+    2D Floor Plan to 3D Building &amp; Vastu
+  </text>
+  
+  <text x="120" y="360" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="400" fill="#94a3b8">
+    Deterministic Computer Vision • Exact Room Dimensions • Interactive Walkthrough
+  </text>
+  
+  <!-- Feature Badges -->
+  <g transform="translate(120, 440)">
+    <rect x="0" y="0" width="220" height="48" rx="24" fill="#1e293b" stroke="#334155"/>
+    <text x="110" y="30" font-family="sans-serif" font-size="16" font-weight="600" fill="#38bdf8" text-anchor="middle">⚡ Under 60 Seconds</text>
+    
+    <rect x="240" y="0" width="220" height="48" rx="24" fill="#1e293b" stroke="#334155"/>
+    <text x="350" y="30" font-family="sans-serif" font-size="16" font-weight="600" fill="#a78bfa" text-anchor="middle">☸ Vastu Shastra Zones</text>
+    
+    <rect x="480" y="0" width="220" height="48" rx="24" fill="#1e293b" stroke="#334155"/>
+    <text x="590" y="30" font-family="sans-serif" font-size="16" font-weight="600" fill="#34d399" text-anchor="middle">📦 GLB, OBJ, PDF Export</text>
+  </g>
+</svg>

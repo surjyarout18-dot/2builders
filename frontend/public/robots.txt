@@ -1,0 +1,8 @@
+# Robots.txt for 2builders (https://2builders.ai)
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /static/uploads/
+
+# Sitemaps
+Sitemap: https://2builders.ai/sitemap.xml

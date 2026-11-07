@@ -1,0 +1,94 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+backend/venv/
+ENV/
+env/
+.venv/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Node.js dependencies
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+frontend/dist/
+frontend/dist-ssr/
+*.tsbuildinfo
+.eslintcache
+
+# Local Databases & storage
+*.db
+*.sqlite
+*.sqlite3
+floorplan3d.db
+send_log.db
+backend/uploads/
+backend/exports/
+uploads/
+exports/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
+# IDE & OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.exe
+corepack*
+nodevars.bat
+install_tools.bat
+npm*
+npx*
+
+# Scratch and test debug artifacts
+backend/tests/debug_*.py
+backend/tests/inspect_*.py
+backend/tests/test_room_*.py
+backend/tests/test_shapely.py
+backend/tests/test_wall_rooms.py
+backend/tests/check_room_bounds.py
+backend/tests/print_walls.py

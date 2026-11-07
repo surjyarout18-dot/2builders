@@ -1,0 +1,17 @@
+{
+  "name": "2builders — 2D Floor Plan to 3D Building & Vastu",
+  "short_name": "2builders",
+  "description": "Convert 2D architectural floor plans into interactive, dimensionally accurate 3D building models, walkthroughs, and Vastu compliance analysis.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
