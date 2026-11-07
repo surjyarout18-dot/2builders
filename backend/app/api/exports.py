@@ -116,7 +116,7 @@ def generate_obj_export(project_data: dict, out_path: str):
             add_quad(b2, t2, t1, b1)  # end cap 2
 
     with open(out_path, "w", encoding="utf-8") as f:
-        f.write("# FloorPlan3D Generated Model\n")
+        f.write("# 2builders Generated Model\n")
         f.write(f"# Project: {project_data.get('name', 'Building')}\n")
         for v in vertices:
             f.write(f"v {v[0]:.4f} {v[1]:.4f} {v[2]:.4f}\n")
@@ -146,7 +146,7 @@ def generate_stl_export(project_data: dict, out_path: str):
         os.remove(obj_tmp)
 
     with open(out_path, "w", encoding="utf-8") as f:
-        f.write("solid floorplan3d_model\n")
+        f.write("solid twobuilders_model\n")
         for tri in triangles:
             v1 = vertices[tri[0]]
             v2 = vertices[tri[1]]
@@ -173,7 +173,7 @@ def generate_stl_export(project_data: dict, out_path: str):
             f.write(f"      vertex {v3[0]:.4f} {v3[1]:.4f} {v3[2]:.4f}\n")
             f.write("    endloop\n")
             f.write("  endfacet\n")
-        f.write("endsolid floorplan3d_model\n")
+        f.write("endsolid twobuilders_model\n")
 
 def generate_svg_export(project_data: dict, out_path: str):
     """
@@ -277,7 +277,7 @@ def generate_svg_export(project_data: dict, out_path: str):
                     svg_lines.append(f'  <line x1="{ox1}" y1="{oy1}" x2="{ox2}" y2="{oy2}" stroke="#38bdf8" stroke-width="2" />')
 
     svg_lines.append(f'  <text x="30" y="{height_px - 25}" fill="#f8fafc" font-size="14" font-weight="bold">{project_data.get("name", "Floor Plan")}</text>')
-    svg_lines.append(f'  <text x="30" y="{height_px - 10}" fill="#64748b" font-size="10">FloorPlan3D Deterministic Architectural Vector Blueprint • Scale: 1m = {int(scale)}px</text>')
+    svg_lines.append(f'  <text x="30" y="{height_px - 10}" fill="#64748b" font-size="10">2builders Deterministic Architectural Vector Blueprint • Scale: 1m = {int(scale)}px</text>')
     svg_lines.append('</svg>')
 
     with open(out_path, "w", encoding="utf-8") as f:

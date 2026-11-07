@@ -158,7 +158,7 @@ export const ExportModal: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Code size={24} className="text-emerald-400" />
                 <div>
-                  <div className="font-bold text-slate-100 text-sm">JSON (FloorPlan3D Schema)</div>
+                  <div className="font-bold text-slate-100 text-sm">JSON (2builders Schema)</div>
                   <div className="text-[11px] text-slate-400">Full normalized geometric snapshot backup</div>
                 </div>
               </div>
