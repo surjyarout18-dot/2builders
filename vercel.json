@@ -4,7 +4,12 @@
     "app": {
       "root": ".",
       "framework": "fastapi",
-      "entrypoint": "api/index.py"
+      "entrypoint": "api/index.py",
+      "functions": {
+        "api/index.py": {
+          "excludeFiles": "{frontend,backend/tests,backend/exports,backend/uploads,.pytest_cache}/**"
+        }
+      }
     },
     "frontend": {
       "root": "frontend",
@@ -40,4 +45,3 @@
     }
   ]
 }
-

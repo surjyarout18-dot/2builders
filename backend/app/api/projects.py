@@ -207,14 +207,25 @@ def convert_floorplan(
     elif fmt in ("png", "jpg", "jpeg", "pdf"):
         image_to_process = dest_path
         if fmt == "pdf":
-            import fitz
-            doc = fitz.open(dest_path)
-            if len(doc) > 0:
-                page = doc.load_page(0)
-                pix = page.get_pixmap(dpi=200)
-                image_to_process = dest_path + "_page0.png"
-                pix.save(image_to_process)
-            doc.close()
+            image_to_process = dest_path + "_page0.png"
+            try:
+                import pypdfium2 as pdfium
+                pdf = pdfium.PdfDocument(dest_path)
+                if len(pdf) > 0:
+                    page = pdf[0]
+                    rendered = page.render(scale=2.0).to_pil()
+                    rendered.save(image_to_process)
+            except Exception:
+                try:
+                    import fitz
+                    doc = fitz.open(dest_path)
+                    if len(doc) > 0:
+                        page = doc.load_page(0)
+                        pix = page.get_pixmap(dpi=200)
+                        pix.save(image_to_process)
+                    doc.close()
+                except Exception as e:
+                    print(f"PDF rasterization error: {e}")
 
         from PIL import Image
         with Image.open(image_to_process) as im:

@@ -63,17 +63,25 @@ def upload_plan_file(
     # Render first page if PDF
     img_path = dest_path
     if ext == ".pdf":
+        img_path = dest_path + "_page0.png"
         try:
-            import fitz
-            doc = fitz.open(dest_path)
-            if len(doc) > 0:
-                page = doc.load_page(0)
-                pix = page.get_pixmap(dpi=200)
-                img_path = dest_path + "_page0.png"
-                pix.save(img_path)
-            doc.close()
-        except Exception as e:
-            print(f"PDF rasterization warning: {e}")
+            import pypdfium2 as pdfium
+            pdf = pdfium.PdfDocument(dest_path)
+            if len(pdf) > 0:
+                page = pdf[0]
+                rendered = page.render(scale=2.0).to_pil()
+                rendered.save(img_path)
+        except Exception:
+            try:
+                import fitz
+                doc = fitz.open(dest_path)
+                if len(doc) > 0:
+                    page = doc.load_page(0)
+                    pix = page.get_pixmap(dpi=200)
+                    pix.save(img_path)
+                doc.close()
+            except Exception as e:
+                print(f"PDF rasterization warning: {e}")
 
     source_url = f"/api/files/{file_id}/download"
 
