@@ -33,8 +33,12 @@ app.include_router(geometry.router)
 app.include_router(exports.router)
 app.include_router(propli_api.router)
 
-UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
-EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports"))
+if os.getenv("VERCEL"):
+    UPLOAD_DIR = "/tmp/uploads"
+    EXPORT_DIR = "/tmp/exports"
+else:
+    UPLOAD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
+    EXPORT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(EXPORT_DIR, exist_ok=True)
 

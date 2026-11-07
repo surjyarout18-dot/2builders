@@ -2,7 +2,8 @@ import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./twobuilders.db")
+default_db = "/tmp/twobuilders.db" if os.getenv("VERCEL") else "./twobuilders.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{default_db}")
 
 engine = create_engine(
     DATABASE_URL,
