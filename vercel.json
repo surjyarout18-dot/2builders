@@ -2,14 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
     "app": {
-      "root": ".",
+      "root": "backend",
       "framework": "fastapi",
-      "entrypoint": "api/index.py",
-      "functions": {
-        "api/index.py": {
-          "excludeFiles": "{frontend,backend/tests,backend/exports,backend/uploads,.pytest_cache}/**"
-        }
-      }
+      "entrypoint": "main:app"
     },
     "frontend": {
       "root": "frontend",
