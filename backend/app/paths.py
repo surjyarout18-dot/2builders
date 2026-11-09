@@ -24,3 +24,4 @@ try:
     os.makedirs(EXPORT_DIR, exist_ok=True)
 except Exception as e:
     print(f"Warning initializing directories: {e}")
+
