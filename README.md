@@ -13,7 +13,7 @@ Built with **pure deterministic geometry algorithms, computer vision, and real-t
    - Deterministic double-line cavity closing, skeletonization, and wall centerline vectorization.
    - 100% exact pixel-to-meter registration with zero shift and accurate right-side-up orientation.
 
-2. **`propli.plan/1` Schema Specification**:
+2. **`2builders.plan/1` Schema Specification**:
    - Industry-standard millimeter coordinate frame ($x$ right, $y$ down, origin at plan's top-left).
    - Shared wall graph nodes ($a \to b$).
    - Parametric openings living on walls by offset.

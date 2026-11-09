@@ -4,16 +4,16 @@ sys.path.insert(0, os.path.abspath('.'))
 import io
 from fastapi import UploadFile
 from backend.app.database import SessionLocal
-from backend.app.api.propli_api import upload_plan_file, start_plan_analysis, AnalyseRequest, get_plan_details, apply_review_answers, AnswersPayload, AnswerItem
+from backend.app.api.twobuilders_api import upload_plan_file, start_plan_analysis, AnalyseRequest, get_plan_details, apply_review_answers, AnswersPayload, AnswerItem
 
-img_path = r'C:/Users/surjy/.gemini/antigravity/brain/2a9b51af-0336-4a18-9bc2-ffe4e7ff7e6e/.user_uploaded/media_1794032952424_93a7f716.jpg'
+img_path = r'backend/uploads/pl_daf0cc53_floor.jpg'
 
 db = SessionLocal()
 try:
     with open(img_path, 'rb') as f:
         file_bytes = f.read()
 
-    upload = UploadFile(file=io.BytesIO(file_bytes), filename="propli_2bhk.jpg")
+    upload = UploadFile(file=io.BytesIO(file_bytes), filename="twobuilders_plan.jpg")
 
     # Step 1: Upload
     up_res = upload_plan_file(file=upload, db=db)
@@ -42,7 +42,7 @@ try:
     print("Fixtures count:", len(plan_doc["fixtures"]))
     print("Review questions count:", len(plan_doc["review"]["questions"]))
     for q in plan_doc["review"]["questions"]:
-        print(f"  Question: {q['question']} | Selected: {q['selected']}")
+        print(f"  Question: {q.get('prompt')} | Default: {q.get('default')}")
 
     print("Vastu Score:", plan_doc["vastu"]["score"], f"({plan_doc['vastu']['grade']})")
     for r in plan_doc["vastu"]["rooms"]:

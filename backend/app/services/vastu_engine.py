@@ -58,7 +58,7 @@ class VastuEngine:
 
         for r in rooms:
             boundary = r.get("boundary", [])
-            if boundary:
+            if boundary and len(boundary) > 0 and isinstance(boundary[0], (list, tuple)) and len(boundary[0]) >= 2:
                 rx = sum(p[0] for p in boundary) / len(boundary)
                 ry = sum(p[1] for p in boundary) / len(boundary)
             else:

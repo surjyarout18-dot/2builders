@@ -347,7 +347,28 @@ def apply_review_answers(
     # Recalculate Vastu
     outer_bounds = plan_doc.get("outerBounds", {})
     north_deg = plan_doc.get("north", {}).get("deg", 0.0)
-    vastu_report = VastuEngine.analyze_plan(rooms, outer_bounds, north_deg=north_deg)
+    nodes = plan_doc.get("nodes", [])
+    node_dict = {n["id"]: n for n in nodes if "id" in n}
+
+    vastu_rooms = []
+    for r in rooms:
+        b_nids = r.get("boundary", [])
+        r_pts = [node_dict[nid] for nid in b_nids if nid in node_dict]
+        if r_pts:
+            rx = sum(p["x"] for p in r_pts) / len(r_pts)
+            ry = sum(p["y"] for p in r_pts) / len(r_pts)
+        else:
+            rx = r.get("x", 4500.0)
+            ry = r.get("y", 4500.0)
+        vastu_rooms.append({
+            "name": r.get("name", "Room"),
+            "type": r.get("type", "room"),
+            "x": rx,
+            "y": ry,
+            "area": r.get("areaM2", 0)
+        })
+
+    vastu_report = VastuEngine.analyze_plan(vastu_rooms, outer_bounds, north_deg=north_deg)
     plan_doc["vastu"] = vastu_report
 
     # Update review status

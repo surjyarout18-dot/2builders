@@ -262,32 +262,49 @@ class RasterProcessor:
         diag = max(height, width)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # 1. Multi-threshold adaptive binarization
+        # 1. Multi-threshold binarization for architectural ink/strokes
         _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         _, dark = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
-        raw_walls = cv2.bitwise_or(otsu, dark)
+        raw_dark = cv2.bitwise_or(otsu, dark)
 
-        # Dynamic kernel sizes scaled to image resolution
-        kw = max(3, round(diag * 0.008))
-        kd = max(20, round(diag * 0.055))
-        kl = max(15, round(diag * 0.025))
+        # 2. Isolate building footprint and eliminate outside dimension lines & annotations
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(raw_dark)
+        if num_labels > 2:
+            areas = stats[1:, cv2.CC_STAT_AREA]
+            main_idx = 1 + int(np.argmax(areas))
+            bx, by = stats[main_idx, cv2.CC_STAT_LEFT], stats[main_idx, cv2.CC_STAT_TOP]
+            bw, bh = stats[main_idx, cv2.CC_STAT_WIDTH], stats[main_idx, cv2.CC_STAT_HEIGHT]
+            margin = max(10, round(diag * 0.01))
 
-        # Directional structural filtering to isolate genuine walls from furniture and labels
-        h_open = cv2.morphologyEx(raw_walls, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (kl, 1)))
-        v_open = cv2.morphologyEx(raw_walls, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, kl)))
+            wall_mask = np.zeros_like(raw_dark)
+            for i in range(1, num_labels):
+                x, y, cw, ch = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+                # Filter out external dimension annotations completely outside the building boundary
+                if x + cw < bx - margin or x > bx + bw + margin or y + ch < by - margin or y > by + bh + margin:
+                    continue
+                # Keep main wall network and major connected partitions (filter out small isolated furniture)
+                if i == main_idx or stats[i, cv2.CC_STAT_AREA] > 80 or cw > 25 or ch > 25:
+                    wall_mask[labels == i] = 255
+        else:
+            wall_mask = raw_dark
 
+        # 3. Dynamic kernel sizes for directional bridging across doors and windows
+        kw = max(4, round(diag * 0.01))
+        kd = max(24, round(diag * 0.055))
+        kl = max(14, round(diag * 0.022))
+
+        h_open = cv2.morphologyEx(wall_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (kl, 1)))
+        v_open = cv2.morphologyEx(wall_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, kl)))
         h_bridge = cv2.morphologyEx(h_open, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kd, 1)))
         v_bridge = cv2.morphologyEx(v_open, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, kd)))
-
-        gen_close = cv2.morphologyEx(raw_walls, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw*2, kw*2)))
+        gen_close = cv2.morphologyEx(wall_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw*2, kw*2)))
         gen_open = cv2.morphologyEx(gen_close, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (kw, kw)))
+        solid_walls = cv2.bitwise_or(cv2.bitwise_or(h_bridge, v_bridge), gen_open)
 
-        wall_mask = cv2.bitwise_or(cv2.bitwise_or(h_bridge, v_bridge), gen_open)
-
-        # 2. Skeletonize to medial centerline
+        # 4. Medial centerline skeletonization (produces single 1px centerlines for all walls)
         element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-        skel = np.zeros(wall_mask.shape, np.uint8)
-        temp = wall_mask.copy()
+        skel = np.zeros(solid_walls.shape, np.uint8)
+        temp = solid_walls.copy()
         while True:
             eroded = cv2.erode(temp, element)
             temp2 = cv2.dilate(eroded, element)
@@ -297,7 +314,10 @@ class RasterProcessor:
             if cv2.countNonZero(temp) == 0:
                 break
 
-        lines = cv2.HoughLinesP(skel, rho=1, theta=np.pi/180, threshold=12, minLineLength=15, maxLineGap=20)
+        # 5. Extract structural centerline lines with adaptive Hough Transform
+        min_wall_len = max(14, round(diag * 0.016))
+        max_gap = max(22, round(diag * 0.022))
+        lines = cv2.HoughLinesP(skel, rho=1, theta=np.pi/180, threshold=14, minLineLength=min_wall_len, maxLineGap=max_gap)
         if lines is None:
             return {"imageDimensions": {"width": width, "height": height}, "walls": [], "rooms": [], "scale": scale}
 
@@ -306,50 +326,94 @@ class RasterProcessor:
             pts = l.reshape(-1)
             x1, y1, x2, y2 = int(pts[0]), int(pts[1]), int(pts[2]), int(pts[3])
             dx, dy = abs(x2 - x1), abs(y2 - y1)
-            if np.hypot(dx, dy) < 14:
+            length = np.hypot(dx, dy)
+            if length < min_wall_len:
                 continue
-            if dx > 0 and (dy / dx) <= 0.22:
+            if dx > 0 and (dy / dx) <= 0.16:
                 y_avg = round((y1 + y2) / 2)
                 h_lines.append((min(x1, x2), max(x1, x2), y_avg))
-            elif dy > 0 and (dx / dy) <= 0.22:
+            elif dy > 0 and (dx / dy) <= 0.16:
                 x_avg = round((x1 + x2) / 2)
                 v_lines.append((min(y1, y2), max(y1, y2), x_avg))
-            else:
+            elif length >= min_wall_len * 1.5:
                 d_lines.append(((x1, y1), (x2, y2)))
 
-        def cluster_merge(segs, tol=10, bridge_gap=40, min_len=18):
-            groups = {}
+        # 6. Collinear grouping & gap bridging across door/window openings
+        def bridge_collinear(segs, tol=10, bridge_gap=60, min_l=25):
+            segs.sort(key=lambda s: (s[2], s[0]))
+            groups = []
             for s1, s2, c in segs:
                 matched = False
-                for k in groups:
-                    if abs(k - c) <= tol:
-                        groups[k].append((s1, s2))
+                for g in groups:
+                    if abs(g['c'] - c) <= tol:
+                        g['items'].append((s1, s2, c))
+                        g['c'] = round(sum(it[2] for it in g['items']) / len(g['items']))
                         matched = True
                         break
                 if not matched:
-                    groups[c] = [(s1, s2)]
+                    groups.append({'c': c, 'items': [(s1, s2, c)]})
             res = []
-            for c, spans in groups.items():
-                spans.sort(key=lambda x: x[0])
-                cs, ce = spans[0]
-                for s1, s2 in spans[1:]:
+            for g in groups:
+                c = g['c']
+                items = sorted(g['items'], key=lambda x: x[0])
+                cs, ce = items[0][0], items[0][1]
+                for s1, s2, _ in items[1:]:
                     if s1 <= ce + bridge_gap:
                         ce = max(ce, s2)
                     else:
-                        if ce - cs >= min_len:
-                            res.append((cs, ce, c))
+                        if ce - cs >= min_l:
+                            res.append([cs, ce, c])
                         cs, ce = s1, s2
-                if ce - cs >= min_len:
-                    res.append((cs, ce, c))
+                if ce - cs >= min_l:
+                    res.append([cs, ce, c])
             return res
 
-        h_merged = cluster_merge(h_lines)
-        v_merged = cluster_merge(v_lines)
+        bridge_gap_px = max(40, round(diag * 0.05))
+        tol_px = max(8, round(diag * 0.012))
+        h_merged = bridge_collinear(h_lines, tol=tol_px, bridge_gap=bridge_gap_px, min_l=min_wall_len)
+        v_merged = bridge_collinear(v_lines, tol=tol_px, bridge_gap=bridge_gap_px, min_l=min_wall_len)
 
-        cand_h = [[cs, ce, y] for cs, ce, y in h_merged]
-        cand_v = [[cs, ce, x] for cs, ce, x in v_merged]
-        snap = max(20, round(diag * 0.035))
+        # 7. Consolidate any remaining parallel double-walls into a SINGLE centerline wall
+        def consolidate_double_walls(segs, max_sep=26):
+            current = list(segs)
+            changed = True
+            while changed:
+                changed = False
+                current.sort(key=lambda s: (s[2], s[0]))
+                used = set()
+                out = []
+                for i in range(len(current)):
+                    if i in used:
+                        continue
+                    s1, e1, c1 = current[i]
+                    matched = None
+                    for j in range(i + 1, len(current)):
+                        if j in used:
+                            continue
+                        s2, e2, c2 = current[j]
+                        if c2 - c1 > max_sep:
+                            break
+                        overlap = min(e1, e2) - max(s1, s2)
+                        min_span = min(e1 - s1, e2 - s2)
+                        if min_span > 0 and (overlap > 0.20 * min_span or abs(s1 - s2) < 30 or abs(e1 - e2) < 30):
+                            matched = j
+                            break
+                    if matched is not None:
+                        used.add(matched)
+                        s2, e2, c2 = current[matched]
+                        out.append([min(s1, s2), max(e1, e2), round((c1 + c2) / 2)])
+                        changed = True
+                    else:
+                        out.append([s1, e1, c1])
+                current = out
+            return current
 
+        max_cavity = max(20, round(diag * 0.040))
+        cand_h = consolidate_double_walls(h_merged, max_sep=max_cavity)
+        cand_v = consolidate_double_walls(v_merged, max_sep=max_cavity)
+
+        # 8. Snap T-junctions and L-corners
+        snap = max(18, round(diag * 0.03))
         for hw in cand_h:
             for vw in cand_v:
                 vx, vy1, vy2 = vw[2], vw[0], vw[1]
@@ -370,28 +434,29 @@ class RasterProcessor:
                             hw[he] = vx
                             vw[ve] = hy
 
-        def merge_touching(cands, is_h=True):
-            by_coord = {}
+        # 9. Clean deduplication of touching collinear segments
+        def dedupe_collinear(cands, is_h=True):
+            by_c = {}
             for item in cands:
                 c = item[2]
-                by_coord.setdefault(c, []).append((item[0], item[1]))
-            merged = []
-            for c, spans in by_coord.items():
-                spans.sort(key=lambda x: x[0])
+                by_c.setdefault(c, []).append((item[0], item[1]))
+            out = []
+            for c, spans in by_c.items():
+                spans.sort(key=lambda s: s[0])
                 cs, ce = spans[0]
                 for s1, s2 in spans[1:]:
                     if s1 <= ce + 10:
                         ce = max(ce, s2)
                     else:
                         if ce - cs >= 15:
-                            merged.append((cs, ce, c) if is_h else (c, cs, ce))
+                            out.append((cs, ce, c) if is_h else (c, cs, ce))
                         cs, ce = s1, s2
                 if ce - cs >= 15:
-                    merged.append((cs, ce, c) if is_h else (c, cs, ce))
-            return merged
+                    out.append((cs, ce, c) if is_h else (c, cs, ce))
+            return out
 
-        final_h = merge_touching(cand_h, is_h=True)
-        final_v = merge_touching(cand_v, is_h=False)
+        final_h = dedupe_collinear(cand_h, is_h=True)
+        final_v = dedupe_collinear(cand_v, is_h=False)
 
         # Scale calibration
         all_xs = [s[0] for s in final_h] + [s[1] for s in final_h] + [s[0] for s in final_v]
@@ -420,7 +485,7 @@ class RasterProcessor:
                 sx = int(round(px1 + ux * d))
                 sy = int(round(py1 + uy * d))
                 if 0 <= sx < width and 0 <= sy < height:
-                    val = raw_walls[sy, sx]
+                    val = wall_mask[sy, sx]
                     samples.append((d, val > 0))
             
             openings = []
@@ -484,9 +549,10 @@ class RasterProcessor:
                 "openings": ops
             })
 
-        # Add diagonal walls if any
-        for (x1, y1), (x2, y2) in d_lines[:15]:
-            if np.hypot(x2 - x1, y2 - y1) >= 25:
+        # Only add genuine architectural diagonal walls (e.g. >= 40px)
+        min_diag_len = max(35, round(diag * 0.04))
+        for (x1, y1), (x2, y2) in d_lines:
+            if np.hypot(x2 - x1, y2 - y1) >= min_diag_len:
                 wx1, wy1 = round(x1 * scale, 3), round(y1 * scale, 3)
                 wx2, wy2 = round(x2 * scale, 3), round(y2 * scale, 3)
                 shapely_lines.append(LineString([(x1, y1), (x2, y2)]))
