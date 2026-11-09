@@ -10,6 +10,7 @@ import { ValidationReportModal } from './components/ValidationReportModal';
 import { ExportModal } from './components/ExportModal';
 import { PropliReviewModal } from './components/PropliReviewModal';
 import { PropliShareModal } from './components/PropliShareModal';
+import { FileViewerGuideModal } from './components/FileViewerGuideModal';
 import { Dashboard } from './components/Dashboard';
 import { useProjectStore } from './store/useProjectStore';
 
@@ -118,6 +119,7 @@ export function App() {
       <ExportModal />
       <PropliReviewModal />
       <PropliShareModal />
+      <FileViewerGuideModal />
     </div>
   );
 }

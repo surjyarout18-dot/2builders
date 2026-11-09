@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, Clock, Trash2, Box, ArrowRight, Building2, Check, Sparkles, Upload, FileText, Compass, Footprints, Layers, ShieldCheck } from 'lucide-react';
+import { Plus, Folder, Clock, Trash2, Box, ArrowRight, Building2, Check, Sparkles, Upload, FileText, Compass, Footprints, Layers, ShieldCheck, HelpCircle } from 'lucide-react';
 import { Project } from '../types';
 import { useProjectStore } from '../store/useProjectStore';
+import { FileViewerGuideModal } from './FileViewerGuideModal';
 
 interface DashboardProps {
   onSelectProject: (projectId: string) => void;
@@ -47,14 +48,68 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
     fetchProjects();
   }, []);
 
+  // Helper to downscale large camera / phone images client-side before uploading
+  const compressImageIfNeeded = async (file: File): Promise<File> => {
+    if (!file.type.startsWith('image/')) return file;
+    if (file.size <= 3 * 1024 * 1024) return file;
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.onload = () => {
+          const maxDim = 2048;
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob && blob.size < file.size) {
+                resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.88
+          );
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // 2builders 6-Step Pipeline Execution
-  const handleUploadAndAnalyse = async (file: File) => {
+  const handleUploadAndAnalyse = async (inputFile: File) => {
     setIsUploading(true);
     setAnalysisStep('preprocessing');
     setAnalysisPercent(15);
-    setStatusMessage(`Uploading "${file.name}" to 2builders...`);
+    setStatusMessage(`Preparing "${inputFile.name}" for upload...`);
 
     try {
+      // Auto-compress large phone/camera images so they never exceed serverless payload limits
+      const file = await compressImageIfNeeded(inputFile);
+
+      if (file.size > 4.5 * 1024 * 1024) {
+        throw new Error(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 4.5MB serverless limit. Please upload a compressed JPG/PNG or PDF.`);
+      }
+
+      setStatusMessage(`Uploading "${file.name}" to 2builders...`);
+
       // 1. Upload
       const formData = new FormData();
       formData.append('file', file);
@@ -67,11 +122,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       if (!upRes.ok) {
         let errorMsg = `Upload failed (${upRes.status})`;
         try {
-          const err = await upRes.json();
-          errorMsg = err.detail || errorMsg;
-        } catch {
-          const raw = await upRes.text();
-          if (raw) errorMsg = raw.slice(0, 200);
+          const rawText = await upRes.text();
+          try {
+            const err = JSON.parse(rawText);
+            errorMsg = err.detail || err.message || errorMsg;
+          } catch {
+            if (upRes.status === 413 || rawText.includes('413') || rawText.toLowerCase().includes('too large')) {
+              errorMsg = 'File is too large for serverless processing (max 4.5MB). Please upload a smaller image or compressed PDF.';
+            } else if (rawText) {
+              errorMsg = rawText.slice(0, 200);
+            }
+          }
+        } catch (e: any) {
+          errorMsg = e.message || errorMsg;
         }
         throw new Error(errorMsg);
       }
@@ -103,11 +166,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       if (!anaRes.ok) {
         let errorMsg = `Analysis failed (${anaRes.status})`;
         try {
-          const err = await anaRes.json();
-          errorMsg = err.detail || errorMsg;
-        } catch {
-          const raw = await anaRes.text();
-          if (raw) errorMsg = raw.slice(0, 200);
+          const rawText = await anaRes.text();
+          try {
+            const err = JSON.parse(rawText);
+            errorMsg = err.detail || err.message || errorMsg;
+          } catch {
+            if (rawText) errorMsg = rawText.slice(0, 200);
+          }
+        } catch (e: any) {
+          errorMsg = e.message || errorMsg;
         }
         throw new Error(errorMsg);
       }
@@ -178,6 +245,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
         </div>
 
         <div className="flex items-center gap-3 text-xs">
+          <button
+            onClick={() => {
+              useProjectStore.getState().setViewerGuideFormat('glb');
+              useProjectStore.getState().setViewerGuideOpen(true);
+            }}
+            className="flex items-center gap-1.5 text-sky-300 hover:text-sky-200 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/40 px-3 py-1.5 rounded-full font-semibold transition-colors"
+            title="Learn how to view downloaded 3D models and blueprints locally"
+          >
+            <HelpCircle size={14} className="text-sky-400" />
+            <span>Viewer Guide</span>
+          </button>
           <span className="flex items-center gap-1.5 text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
             <ShieldCheck size={14} />
             <span>Non-AI Geometry Engine</span>
@@ -400,6 +478,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           )}
         </div>
       </main>
+
+      {/* Global File Viewer Guide Modal */}
+      <FileViewerGuideModal />
     </div>
   );
 };

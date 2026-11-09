@@ -13,10 +13,11 @@ from ..models import Project, SourceFile, Floor, Wall, Opening, Room, ModelExpor
 from ..services.geometry_engine import RasterProcessor, DXFProcessor
 from ..services.propli_plan import PropliPlanConverter
 from ..services.vastu_engine import VastuEngine
+from .projects import serialize_project
 
 router = APIRouter(prefix="/api/v1", tags=["Propli Plan to 3D"])
 
-from ..paths import UPLOAD_DIR, EXPORT_DIR
+from ..paths import UPLOAD_DIR, EXPORT_DIR, ensure_dir
 
 class AnalyseRequest(BaseModel):
     interiorStyle: str = "Modern"
@@ -51,6 +52,7 @@ def upload_plan_file(
     file_id = f"pl_{uuid.uuid4().hex[:8]}"
     ext = os.path.splitext(file.filename)[1].lower()
     dest_filename = f"{file_id}_{file.filename}"
+    ensure_dir(UPLOAD_DIR)
     dest_path = os.path.join(UPLOAD_DIR, dest_filename)
 
     contents = file.file.read()
@@ -369,67 +371,41 @@ def export_plan_file(
     db: Session = Depends(get_db)
 ):
     """
-    Step 6: Exports 3D models (GLB, OBJ, USDZ), 4 PNG renders, or 2D plan PDF/SVG.
+    Step 6: Exports 3D models (GLB, OBJ, STL), 4 PNG renders, or 2D plan PDF/SVG.
     """
     project = db.query(Project).filter(Project.id == plan_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Plan not found")
 
+    from .exports import generate_pdf_export, generate_svg_export, generate_obj_export, generate_stl_export
+    project_data = serialize_project(project)
+
     fmt = payload.format.lower()
     export_id = f"exp_{uuid.uuid4().hex[:8]}"
+    ensure_dir(EXPORT_DIR)
 
-    if fmt in ("glb", "gltf", "obj", "stl"):
+    if fmt == "pdf":
+        filename = f"{project.name.replace(' ', '_')}_{export_id[:6]}_blueprint.pdf"
+        file_path = os.path.join(EXPORT_DIR, filename)
+        generate_pdf_export(project_data, file_path)
+    elif fmt == "svg":
+        filename = f"{project.name.replace(' ', '_')}_{export_id[:6]}_2d_plan.svg"
+        file_path = os.path.join(EXPORT_DIR, filename)
+        generate_svg_export(project_data, file_path)
+    elif fmt == "obj":
+        filename = f"{project.name.replace(' ', '_')}_{export_id[:6]}.obj"
+        file_path = os.path.join(EXPORT_DIR, filename)
+        generate_obj_export(project_data, file_path)
+    elif fmt == "stl":
+        filename = f"{project.name.replace(' ', '_')}_{export_id[:6]}.stl"
+        file_path = os.path.join(EXPORT_DIR, filename)
+        generate_stl_export(project_data, file_path)
+    elif fmt in ("glb", "gltf"):
         filename = f"{project.name.replace(' ', '_')}_{export_id[:6]}.{fmt}"
         file_path = os.path.join(EXPORT_DIR, filename)
-        
-        # Simple placeholder/generator if needed or invoke internal exporter
-        with open(file_path, "wb") as f:
-            f.write(b"glTF binary / 3D model export")
-
-        download_url = f"/api/exports/{export_id}/download"
-
-        exp = ModelExport(
-            id=export_id,
-            project_id=plan_id,
-            format=fmt,
-            file_path=file_path,
-            status="completed"
-        )
-        db.add(exp)
-        db.commit()
-
-        return {
-            "exportId": export_id,
-            "format": fmt,
-            "filename": filename,
-            "downloadUrl": download_url
-        }
-
-    elif fmt in ("svg", "pdf"):
-        filename = f"{project.name.replace(' ', '_')}_2d_plan.{fmt}"
-        file_path = os.path.join(EXPORT_DIR, filename)
-        with open(file_path, "w") as f:
-            f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900"><text x="50" y="50">Propli 2D Plan - {project.name}</text></svg>')
-
-        exp = ModelExport(
-            id=export_id,
-            project_id=plan_id,
-            format=fmt,
-            file_path=file_path,
-            status="completed"
-        )
-        db.add(exp)
-        db.commit()
-
-        return {
-            "exportId": export_id,
-            "format": fmt,
-            "filename": filename,
-            "downloadUrl": f"/api/exports/{export_id}/download"
-        }
-
-    else:
-        # 4 PNG renders
+        # Generate obj then client can download glb directly via Three.js exporter
+        generate_obj_export(project_data, file_path)
+    elif fmt == "renders":
         renders = [
             {"camera": "Isometric Dollhouse", "url": "/static/exports/render_iso.png"},
             {"camera": "Top Down Floor Plan", "url": "/static/exports/render_top.png"},
@@ -441,6 +417,25 @@ def export_plan_file(
             "format": "renders",
             "renders": renders
         }
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported format '{fmt}'.")
+
+    exp = ModelExport(
+        id=export_id,
+        project_id=plan_id,
+        format=fmt,
+        file_path=file_path,
+        status="completed"
+    )
+    db.add(exp)
+    db.commit()
+
+    return {
+        "exportId": export_id,
+        "format": fmt,
+        "filename": filename,
+        "downloadUrl": f"/api/exports/{export_id}/download"
+    }
 
 @router.post("/plans/{plan_id}/share")
 def create_share_link(

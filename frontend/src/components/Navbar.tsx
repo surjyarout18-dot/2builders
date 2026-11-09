@@ -12,7 +12,8 @@ import {
   Eye,
   Grid,
   Camera,
-  FolderOpen
+  FolderOpen,
+  HelpCircle
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 import { ViewMode, CameraPreset } from '../types';
@@ -199,6 +200,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
         >
           <CheckCircle2 size={14} className="text-emerald-400" />
           <span>Validate</span>
+        </button>
+
+        {/* Viewer Help Guide */}
+        <button
+          onClick={() => {
+            useProjectStore.getState().setViewerGuideFormat('glb');
+            useProjectStore.getState().setViewerGuideOpen(true);
+          }}
+          className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-sky-400 text-xs rounded font-medium transition-colors"
+          title="Guide on how to open 3D models and CAD blueprints locally"
+        >
+          <HelpCircle size={14} />
+          <span>Viewer Guide</span>
         </button>
 
         {/* Save to Backend */}

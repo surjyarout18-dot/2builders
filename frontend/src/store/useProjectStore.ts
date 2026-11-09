@@ -63,6 +63,10 @@ interface ProjectState {
   setAnalyzingPercent: (percent: number) => void;
   isShareModalOpen: boolean;
   setShareModalOpen: (open: boolean) => void;
+  isViewerGuideOpen: boolean;
+  setViewerGuideOpen: (open: boolean) => void;
+  viewerGuideFormat: string;
+  setViewerGuideFormat: (fmt: string) => void;
   validationReport: ValidationReport | null;
   isLoading: boolean;
   statusMessage: string;
@@ -163,6 +167,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   isCalibrateModalOpen: false,
   isValidationModalOpen: false,
   isExportModalOpen: false,
+  isViewerGuideOpen: false,
+  viewerGuideFormat: 'glb',
+  setViewerGuideOpen: (open: boolean) => set({ isViewerGuideOpen: open }),
+  setViewerGuideFormat: (fmt: string) => set({ viewerGuideFormat: fmt }),
   validationReport: null,
   isLoading: false,
   statusMessage: 'Ready',

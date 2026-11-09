@@ -8,7 +8,8 @@ import { FloorMesh } from './FloorMesh';
 import { FurnitureMesh } from './FurnitureMesh';
 import { VastuOverlay } from './VastuOverlay';
 import { ModelExporter } from './ModelExporter';
-import { Download, Camera, Eye, Layers, Maximize2, Compass, Box, Sparkles, Ruler, Footprints } from 'lucide-react';
+import { Download, Camera, Eye, Layers, Maximize2, Compass, Box, Sparkles, Ruler, Footprints, FileText, HelpCircle } from 'lucide-react';
+import { triggerFileDownload } from '../utils/downloadHelper';
 
 function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
   const project = useProjectStore((s) => s.project);
@@ -246,7 +247,7 @@ export const BuildingScene: React.FC = () => {
     }
   };
 
-  const handleExportDirect = async (format: 'obj' | 'stl' | 'svg') => {
+  const handleExportDirect = async (format: 'pdf' | 'obj' | 'stl' | 'dxf' | 'svg') => {
     if (!project) return;
     try {
       const res = await fetch(`/api/projects/${project.id}/export`, {
@@ -256,7 +257,8 @@ export const BuildingScene: React.FC = () => {
       });
       if (!res.ok) throw new Error('Export generation failed');
       const data = await res.json();
-      window.open(data.downloadUrl, '_blank');
+      triggerFileDownload(data.downloadUrl, data.filename);
+      useProjectStore.getState().setStatusMessage(`Downloaded ${data.filename}`);
     } catch (e: any) {
       alert(`Export error: ${e.message}`);
     }
@@ -361,6 +363,14 @@ export const BuildingScene: React.FC = () => {
             <span>{isExporting ? 'Exporting...' : 'GLB 3D'}</span>
           </button>
           <button
+            onClick={() => handleExportDirect('pdf')}
+            className="flex items-center gap-1 px-2 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/50 text-emerald-300 rounded font-bold transition-colors"
+            title="Download ISO A4 Vector PDF Blueprint"
+          >
+            <FileText size={12} />
+            <span>PDF 2D</span>
+          </button>
+          <button
             onClick={() => handleExportDirect('obj')}
             className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded font-semibold transition-colors"
             title="Download Wavefront OBJ format"
@@ -379,7 +389,18 @@ export const BuildingScene: React.FC = () => {
             className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded font-semibold transition-colors"
             title="Download 2D Architectural SVG Blueprint"
           >
-            SVG 2D
+            SVG
+          </button>
+          <button
+            onClick={() => {
+              useProjectStore.getState().setViewerGuideFormat('glb');
+              useProjectStore.getState().setViewerGuideOpen(true);
+            }}
+            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded font-semibold transition-colors flex items-center gap-1"
+            title="How to view downloaded files on your computer"
+          >
+            <HelpCircle size={12} />
+            <span>Help</span>
           </button>
         </div>
 
