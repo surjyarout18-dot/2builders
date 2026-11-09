@@ -45,8 +45,12 @@ export const WallMesh: React.FC<WallMeshProps> = ({ wall, elevation }) => {
       {/* Solid wall pieces */}
       {segments.map((seg, idx) => {
         const segLen = seg.endOffset - seg.startOffset;
+        // In dollhouse cutaway mode, skip lintels above doors/windows so doorways remain open walkthroughs
+        if (wallCutaway && seg.bottomElevation > 1.0) return null;
+
         const rawH = seg.topElevation - seg.bottomElevation;
-        const segH = wallCutaway ? Math.min(rawH, 0.9) : rawH;
+        const isSill = seg.bottomElevation === 0 && seg.topElevation < 1.0;
+        const segH = wallCutaway ? (isSill ? 0.55 : 1.15) : rawH;
         if (segLen < 1e-3 || segH < 1e-3) return null;
 
         const midOffset = (seg.startOffset + seg.endOffset) / 2.0;
@@ -81,8 +85,8 @@ export const WallMesh: React.FC<WallMeshProps> = ({ wall, elevation }) => {
         );
       })}
 
-      {/* Opening details: Door frames and Window glass */}
-      {(wall.openings || []).map((op) => {
+      {/* Opening details: Door frames and Window glass (only in full height view) */}
+      {!wallCutaway && (wall.openings || []).map((op) => {
         const isOpSelected = selectedEntity?.type === 'opening' && selectedEntity.id === op.id;
         const midOffset = op.offset + op.width / 2.0;
         const posX = wall.start[0] + dirX * midOffset;

@@ -243,74 +243,84 @@ class RasterProcessor:
     def process_image(image_path: str, scale: float = 0.01, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Enhanced deterministic 2builders architectural recognition pipeline:
-        1. Multi-threshold adaptive binarization (Otsu + dark stroke union).
-        2. Directional morphological filtering to preserve long continuous structural walls while filtering out furniture, text, and dimension noise.
-        3. Wall opening bridging to connect walls across doors and windows.
-        4. Medial skeletonization & adaptive probabilistic Hough Transform for orthogonal and diagonal walls.
-        5. Smart collinear clustering, gap bridging, and corner/T-junction snapping.
-        6. Closed room polygon extraction via planar graph topology (Shapely polygonize) with intelligent semantic labeling.
-        7. Extraction of architectural doors and windows along walls.
+        1. Adaptive background detection & automatic dark-mode/blueprint color inversion.
+        2. High-precision Otsu + adaptive threshold stroke extraction (noise resilient).
+        3. Directional morphological filtering to preserve continuous structural walls.
+        4. Strictly bounded medial skeletonization (capped at 32 iterations, preventing infinite loops).
+        5. Adaptive Hough Transform with collinear bridging across doors/windows.
+        6. Parallel double-wall consolidation (outer + inner edge -> single centerline).
+        7. Fuzzy collinear deduplication and watertight corner/T-junction snapping.
+        8. Closed room polygon extraction via planar graph topology with semantic labeling.
+        9. Architecturally bounded door and window detection.
         """
         if options is None:
             options = {}
 
-        img = cv2.imread(image_path)
-        if img is None:
+        raw_img = cv2.imread(image_path)
+        if raw_img is None:
             raise ValueError(f"Could not open or decode image: {image_path}")
+
+        orig_h, orig_w = raw_img.shape[:2]
+        # Proportional resize if image exceeds 2048px to ensure sub-100ms runtime & low memory footprint
+        max_dim = 2048
+        if max(orig_h, orig_w) > max_dim:
+            resize_ratio = max_dim / float(max(orig_h, orig_w))
+            new_w = max(100, round(orig_w * resize_ratio))
+            new_h = max(100, round(orig_h * resize_ratio))
+            img = cv2.resize(raw_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        else:
+            img = raw_img
+            resize_ratio = 1.0
 
         height, width = img.shape[:2]
         diag = max(height, width)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # 1. Multi-threshold binarization for architectural ink/strokes
-        _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        _, dark = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
-        raw_dark = cv2.bitwise_or(otsu, dark)
+        # 1. Background tone check & inversion (supports dark blueprints, dark mode screenshots, and photos)
+        edge_pixels = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
+        bg_median = float(np.median(edge_pixels))
+        is_dark_bg = bg_median < 110
+        working_gray = 255 - gray if is_dark_bg else gray
 
-        # 2. Isolate building footprint and eliminate outside dimension lines & annotations
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(raw_dark)
-        if num_labels > 2:
-            areas = stats[1:, cv2.CC_STAT_AREA]
-            main_idx = 1 + int(np.argmax(areas))
-            bx, by = stats[main_idx, cv2.CC_STAT_LEFT], stats[main_idx, cv2.CC_STAT_TOP]
-            bw, bh = stats[main_idx, cv2.CC_STAT_WIDTH], stats[main_idx, cv2.CC_STAT_HEIGHT]
-            margin = max(10, round(diag * 0.01))
+        # 2. Multi-threshold binarization (Otsu + adaptive strokes)
+        blurred = cv2.GaussianBlur(working_gray, (3, 3), 0)
+        _, otsu = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-            wall_mask = np.zeros_like(raw_dark)
-            for i in range(1, num_labels):
-                x, y, cw, ch = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
-                # Filter out external dimension annotations completely outside the building boundary
-                if x + cw < bx - margin or x > bx + bw + margin or y + ch < by - margin or y > by + bh + margin:
-                    continue
-                # Keep main wall network and major connected partitions (filter out small isolated furniture)
-                if i == main_idx or stats[i, cv2.CC_STAT_AREA] > 80 or cw > 25 or ch > 25:
-                    wall_mask[labels == i] = 255
-        else:
-            wall_mask = raw_dark
+        block_size = max(15, (round(diag * 0.02) // 2) * 2 + 1)
+        adapt = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block_size, 8)
+        raw_strokes = cv2.bitwise_or(otsu, adapt)
 
-        # 3. Dynamic kernel sizes for directional bridging across doors and windows
-        kw = max(4, round(diag * 0.01))
-        kd = max(24, round(diag * 0.055))
-        kl = max(14, round(diag * 0.022))
+        # Guard against shaded regions or non-stroke noise turning the image white
+        if cv2.countNonZero(raw_strokes) > 0.35 * height * width:
+            raw_strokes = otsu
 
-        h_open = cv2.morphologyEx(wall_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (kl, 1)))
-        v_open = cv2.morphologyEx(wall_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, kl)))
+        # 3. Clean small speckle noise (text dots, isolated furniture ticks)
+        kernel_clean = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        cleaned_strokes = cv2.morphologyEx(raw_strokes, cv2.MORPH_OPEN, kernel_clean)
+
+        # Directional bridging across door/window openings
+        kd = max(22, round(diag * 0.050))
+        kl = max(12, round(diag * 0.020))
+        kw = max(3, round(diag * 0.008))
+
+        h_open = cv2.morphologyEx(cleaned_strokes, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (kl, 1)))
+        v_open = cv2.morphologyEx(cleaned_strokes, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, kl)))
         h_bridge = cv2.morphologyEx(h_open, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kd, 1)))
         v_bridge = cv2.morphologyEx(v_open, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, kd)))
-        gen_close = cv2.morphologyEx(wall_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw*2, kw*2)))
+        gen_close = cv2.morphologyEx(cleaned_strokes, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw*2, kw*2)))
         gen_open = cv2.morphologyEx(gen_close, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (kw, kw)))
         solid_walls = cv2.bitwise_or(cv2.bitwise_or(h_bridge, v_bridge), gen_open)
 
-        # 4. Medial centerline skeletonization (produces single 1px centerlines for all walls)
+        # 4. Strictly bounded medial skeletonization (capped at 32 iterations)
         element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
         skel = np.zeros(solid_walls.shape, np.uint8)
         temp = solid_walls.copy()
-        while True:
+        for _ in range(32):
             eroded = cv2.erode(temp, element)
             temp2 = cv2.dilate(eroded, element)
             temp2 = cv2.subtract(temp, temp2)
             skel = cv2.bitwise_or(skel, temp2)
-            temp = eroded.copy()
+            temp = eroded
             if cv2.countNonZero(temp) == 0:
                 break
 
@@ -319,27 +329,27 @@ class RasterProcessor:
         max_gap = max(22, round(diag * 0.022))
         lines = cv2.HoughLinesP(skel, rho=1, theta=np.pi/180, threshold=14, minLineLength=min_wall_len, maxLineGap=max_gap)
         if lines is None:
-            return {"imageDimensions": {"width": width, "height": height}, "walls": [], "rooms": [], "scale": scale}
+            return {"imageDimensions": {"width": orig_w, "height": orig_h}, "walls": [], "rooms": [], "scale": scale}
 
         h_lines, v_lines, d_lines = [], [], []
         for l in lines:
             pts = l.reshape(-1)
             x1, y1, x2, y2 = int(pts[0]), int(pts[1]), int(pts[2]), int(pts[3])
             dx, dy = abs(x2 - x1), abs(y2 - y1)
-            length = np.hypot(dx, dy)
+            length = math.hypot(dx, dy)
             if length < min_wall_len:
                 continue
             if dx > 0 and (dy / dx) <= 0.16:
                 y_avg = round((y1 + y2) / 2)
-                h_lines.append((min(x1, x2), max(x1, x2), y_avg))
+                h_lines.append([min(x1, x2), max(x1, x2), y_avg])
             elif dy > 0 and (dx / dy) <= 0.16:
                 x_avg = round((x1 + x2) / 2)
-                v_lines.append((min(y1, y2), max(y1, y2), x_avg))
+                v_lines.append([min(y1, y2), max(y1, y2), x_avg])
             elif length >= min_wall_len * 1.5:
                 d_lines.append(((x1, y1), (x2, y2)))
 
         # 6. Collinear grouping & gap bridging across door/window openings
-        def bridge_collinear(segs, tol=10, bridge_gap=60, min_l=25):
+        def bridge_collinear(segs, tol=10, bridge_gap=60, min_l=15):
             segs.sort(key=lambda s: (s[2], s[0]))
             groups = []
             for s1, s2, c in segs:
@@ -373,11 +383,13 @@ class RasterProcessor:
         h_merged = bridge_collinear(h_lines, tol=tol_px, bridge_gap=bridge_gap_px, min_l=min_wall_len)
         v_merged = bridge_collinear(v_lines, tol=tol_px, bridge_gap=bridge_gap_px, min_l=min_wall_len)
 
-        # 7. Consolidate any remaining parallel double-walls into a SINGLE centerline wall
+        # 7. Consolidate parallel double-walls into a SINGLE centerline wall
         def consolidate_double_walls(segs, max_sep=26):
             current = list(segs)
             changed = True
-            while changed:
+            loop_guard = 0
+            while changed and loop_guard < 10:
+                loop_guard += 1
                 changed = False
                 current.sort(key=lambda s: (s[2], s[0]))
                 used = set()
@@ -395,7 +407,7 @@ class RasterProcessor:
                             break
                         overlap = min(e1, e2) - max(s1, s2)
                         min_span = min(e1 - s1, e2 - s2)
-                        if min_span > 0 and (overlap > 0.20 * min_span or abs(s1 - s2) < 30 or abs(e1 - e2) < 30):
+                        if min_span > 0 and (overlap > 0.18 * min_span or abs(s1 - s2) < 28 or abs(e1 - e2) < 28):
                             matched = j
                             break
                     if matched is not None:
@@ -412,7 +424,28 @@ class RasterProcessor:
         cand_h = consolidate_double_walls(h_merged, max_sep=max_cavity)
         cand_v = consolidate_double_walls(v_merged, max_sep=max_cavity)
 
-        # 8. Snap T-junctions and L-corners
+        # 8. Clean fuzzy deduplication of collinear walls
+        def dedupe_fuzzy(cands, tol=8):
+            out = []
+            for s1, s2, c in cands:
+                merged = False
+                for prev in out:
+                    ps1, ps2, pc = prev
+                    if abs(pc - c) <= tol:
+                        if not (s2 < ps1 - 8 or s1 > ps2 + 8):
+                            prev[0] = min(ps1, s1)
+                            prev[1] = max(ps2, s2)
+                            prev[2] = round((pc + c) / 2)
+                            merged = True
+                            break
+                if not merged:
+                    out.append([s1, s2, c])
+            return out
+
+        cand_h = dedupe_fuzzy(cand_h, tol=max(6, round(diag * 0.010)))
+        cand_v = dedupe_fuzzy(cand_v, tol=max(6, round(diag * 0.010)))
+
+        # 9. Snap T-junctions and L-corners
         snap = max(18, round(diag * 0.03))
         for hw in cand_h:
             for vw in cand_v:
@@ -434,8 +467,13 @@ class RasterProcessor:
                             hw[he] = vx
                             vw[ve] = hy
 
-        # 9. Clean deduplication of touching collinear segments
-        def dedupe_collinear(cands, is_h=True):
+        # Filter out residual tiny artifacts
+        min_final = max(16, round(diag * 0.018))
+        cand_h = [w for w in cand_h if (w[1] - w[0]) >= min_final]
+        cand_v = [w for w in cand_v if (w[1] - w[0]) >= min_final]
+
+        # 10. Clean exact deduplication
+        def dedupe_exact(cands, is_h=True):
             by_c = {}
             for item in cands:
                 c = item[2]
@@ -448,15 +486,22 @@ class RasterProcessor:
                     if s1 <= ce + 10:
                         ce = max(ce, s2)
                     else:
-                        if ce - cs >= 15:
+                        if ce - cs >= min_final:
                             out.append((cs, ce, c) if is_h else (c, cs, ce))
                         cs, ce = s1, s2
-                if ce - cs >= 15:
+                if ce - cs >= min_final:
                     out.append((cs, ce, c) if is_h else (c, cs, ce))
             return out
 
-        final_h = dedupe_collinear(cand_h, is_h=True)
-        final_v = dedupe_collinear(cand_v, is_h=False)
+        final_h = dedupe_exact(cand_h, is_h=True)
+        final_v = dedupe_exact(cand_v, is_h=False)
+
+        # Map back to original coordinate space if resized
+        if resize_ratio != 1.0:
+            inv_r = 1.0 / resize_ratio
+            final_h = [(round(x1 * inv_r), round(x2 * inv_r), round(y * inv_r)) for x1, x2, y in final_h]
+            final_v = [(round(x * inv_r), round(y1 * inv_r), round(y2 * inv_r)) for x, y1, y2 in final_v]
+            width, height = orig_w, orig_h
 
         # Scale calibration
         all_xs = [s[0] for s in final_h] + [s[1] for s in final_h] + [s[0] for s in final_v]
@@ -471,12 +516,49 @@ class RasterProcessor:
         bw = max(100, max_x - min_x)
         scale = real_width / bw
 
-        # Helper to detect openings along a wall
+        # Helper to detect genuine openings along a wall (constrained to realistic architectural sizes)
         def find_wall_openings(px1, py1, px2, py2, is_ext):
             dx = px2 - px1
             dy = py2 - py1
             length = math.hypot(dx, dy)
-            if length < 35: return []
+            length_m = length * scale
+            if length_m < 1.8: return []
+            
+            ux, uy = dx / length, dy / length
+            step = 4
+            samples = []
+            for d in range(round(15 / resize_ratio), int(length) - round(15 / resize_ratio), step):
+                sx = int(round(px1 + ux * d))
+                sy = int(round(py1 + uy * d))
+                if 0 <= sx < width and 0 <= sy < height:
+                    # In cleaned strokes, stroke = 255
+                    val = cleaned_strokes[min(sy, cleaned_strokes.shape[0]-1), min(sx, cleaned_strokes.shape[1]-1)] if resize_ratio == 1.0 else 255
+                    samples.append((d, val > 0))
+            
+            openings = []
+            in_gap = False
+            gap_start = 0
+            for d, has_wall in samples:
+                if not has_wall and not in_gap:
+                    in_gap = True
+                    gap_start = d
+                elif has_wall and in_gap:
+                    in_gap = False
+                    gap_len = d - gap_start
+                    gap_m = gap_len * scale
+                    start_m = gap_start * scale
+                    # Realistic door (0.75m-1.1m) or window (0.8m-2.4m), inset >= 0.4m from corners
+                    if 0.70 <= gap_m <= 2.40 and start_m >= 0.4 and (length_m - (start_m + gap_m)) >= 0.4:
+                        if len(openings) < 2:  # Max 2 openings per wall segment
+                            op_type = "window" if is_ext else "door"
+                            openings.append({
+                                "type": op_type,
+                                "offset": round(start_m, 2),
+                                "width": round(gap_m, 2),
+                                "height": 2.1 if op_type == "door" else 1.3,
+                                "sill_height": 0.0 if op_type == "door" else 0.9
+                            })
+            return openings
             
             ux, uy = dx / length, dy / length
             step = 3
@@ -653,7 +735,7 @@ class RasterProcessor:
             })
 
         # Building perimeter slab
-        contours, _ = cv2.findContours(wall_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(solid_walls, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         slab_boundary = []
         if contours:
             outer_c = max(contours, key=cv2.contourArea)

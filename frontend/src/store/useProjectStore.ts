@@ -143,7 +143,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   viewMode: 'split',
   renderMode: 'realistic',
   showFurniture: true,
-  showDimensions: true,
+  showDimensions: false,
   isWalkthroughActive: false,
   cameraPreset: 'isometric',
   wireframe: false,

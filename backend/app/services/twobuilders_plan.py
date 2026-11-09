@@ -29,8 +29,8 @@ class TwoBuildersPlanConverter:
         is_furnished = options.get("furnished", True)
 
         # 1. Build Shared Nodes graph from wall start and end coordinates
-        # Snapping tolerance in millimeters: ~120 mm
-        snap_dist_mm = 120.0
+        # Snapping tolerance in millimeters: ~240 mm (wall thickness scale for watertight corners)
+        snap_dist_mm = 240.0
         nodes: List[Dict[str, Any]] = []
         node_lookup: Dict[str, str] = {}  # "x_y" -> node_id
 

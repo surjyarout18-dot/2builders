@@ -20,11 +20,20 @@ import {
   Sliders,
   CheckCircle2,
   Flame,
-  Download
+  Download,
+  ChevronDown,
+  Eye,
+  Maximize2,
+  Lock,
+  Cpu,
+  Palette,
+  Sun,
+  Camera
 } from 'lucide-react';
 import { Project } from '../types';
 import { useProjectStore } from '../store/useProjectStore';
 import { FileViewerGuideModal } from './FileViewerGuideModal';
+import { BeforeAfterSlider } from './BeforeAfterSlider';
 import { toast, ToastContainer } from './Toast';
 
 interface DashboardProps {
@@ -40,11 +49,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isWindowDragging, setIsWindowDragging] = useState<boolean>(false);
 
-  // 2builders Plan to 3D Options
+  // 2builders Futuristic Options
   const [interiorStyle, setInteriorStyle] = useState<string>('Modern');
   const [ceilingHeightMm, setCeilingHeightMm] = useState<number>(3050); // 10'
   const [isFurnished, setIsFurnished] = useState<boolean>(true);
   const [northDeg, setNorthDeg] = useState<number>(0);
+  const [activeFeatureTab, setActiveFeatureTab] = useState<string>('centerlines');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const setProject = useProjectStore((s) => s.setProject);
   const setStatusMessage = useProjectStore((s) => s.setStatusMessage);
@@ -183,22 +194,76 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
     setStatusMessage(`Preparing "${inputFile.name}" for upload...`);
 
     try {
-      // Auto-compress large phone/camera images so they never exceed serverless payload limits
       const file = await compressImageIfNeeded(inputFile);
 
       if (file.size > 4.5 * 1024 * 1024) {
-        throw new Error(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 4.5MB serverless limit. Please upload a compressed JPG/PNG or PDF.`);
+        throw new Error(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 4.5MB limit. Please upload a compressed JPG/PNG or PDF.`);
       }
 
-      setStatusMessage(`Uploading "${file.name}" to 2builders...`);
+      setStatusMessage(`Analyzing "${file.name}" with 2builders geometry engine...`);
+      setAnalysisStep('segmenting');
+      setAnalysisPercent(30);
 
-      // 1. Upload
+      // 1. Try high-performance 1-step direct conversion (eliminates serverless multi-container desync)
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('interiorStyle', interiorStyle);
+      formData.append('ceilingHeightMm', String(ceilingHeightMm));
+      formData.append('furnished', String(isFurnished));
+      formData.append('northDeg', String(northDeg));
+      formData.append('realWidthM', '9.0');
+
+      let convRes: Response | null = null;
+      try {
+        convRes = await fetch('/api/v1/plans/convert', {
+          method: 'POST',
+          body: formData
+        });
+      } catch {
+        convRes = null;
+      }
+
+      if (convRes && convRes.ok) {
+        setAnalysisStep('vectorising');
+        setAnalysisPercent(90);
+        setStatusMessage('Synthesizing 3D dollhouse geometry & Vastu zones...');
+
+        const convText = await convRes.text();
+        let convData: any;
+        try {
+          convData = JSON.parse(convText);
+        } catch {
+          throw new Error(convText.slice(0, 200) || 'Invalid response from 2builders server');
+        }
+
+        const planDoc = convData.plan;
+        const projData = convData.project;
+        const planId = convData.planId;
+
+        setProject(projData);
+        setTwoBuildersPlan(planDoc);
+        setAnalysisPercent(100);
+        setAnalysisStep('needs_review');
+
+        toast.success(`Generated 3D Model: ${planDoc?.walls?.length || 0} walls & ${planDoc?.rooms?.length || 0} rooms!`);
+        useProjectStore.getState().setViewMode('3d');
+        setReviewModalOpen(true);
+        setStatusMessage(`Generated 3D Model from ${file.name}`);
+        onSelectProject(planId);
+        return;
+      }
+
+      // Fallback: Two-step upload & analyse
+      setStatusMessage(`Uploading "${file.name}" to 2builders...`);
+      setAnalysisStep('uploading');
+      setAnalysisPercent(20);
+
+      const upFormData = new FormData();
+      upFormData.append('file', file);
 
       const upRes = await fetch('/api/v1/plans/upload', {
         method: 'POST',
-        body: formData
+        body: upFormData
       });
 
       if (!upRes.ok) {
@@ -231,7 +296,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       const planId = upData.planId;
 
       setAnalysisStep('segmenting');
-      setAnalysisPercent(40);
+      setAnalysisPercent(50);
       setStatusMessage('Extracting structural walls & double-line cavities...');
 
       // 2. Start Analysis with Options
@@ -248,7 +313,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       });
 
       setAnalysisStep('reading_text');
-      setAnalysisPercent(70);
+      setAnalysisPercent(75);
       setStatusMessage('Reading dimension annotations and classifying rooms...');
 
       if (!anaRes.ok) {
@@ -289,7 +354,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
         setAnalysisPercent(100);
         setAnalysisStep('needs_review');
 
-        toast.success(`Generated 3D Model with ${planDoc.walls?.length || 0} walls & ${planDoc.rooms?.length || 0} rooms!`);
+        toast.success(`Generated 3D Model: ${planDoc?.walls?.length || 0} walls & ${planDoc?.rooms?.length || 0} rooms!`);
 
         // Open 3D View and trigger Review Modal
         useProjectStore.getState().setViewMode('3d');
@@ -341,6 +406,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
     }
   };
 
+  const stylePresets = [
+    {
+      id: 'Modern',
+      name: 'Modern Minimalist',
+      tagline: 'Carrara Marble • Matte Black • Gallery White',
+      gradient: 'from-sky-500/20 to-indigo-500/20',
+      border: 'border-sky-500/40'
+    },
+    {
+      id: 'Warm Minimalist',
+      name: 'Japandi Warm Wood',
+      tagline: 'White Oak Parquet • Linen • Soft Daylight',
+      gradient: 'from-amber-500/20 to-orange-500/20',
+      border: 'border-amber-500/40'
+    },
+    {
+      id: 'Contemporary Indian',
+      name: 'Contemporary Vastu Prime',
+      tagline: 'Teak Accents • Harmonized Energy Zones',
+      gradient: 'from-emerald-500/20 to-teal-500/20',
+      border: 'border-emerald-500/40'
+    },
+    {
+      id: 'Industrial',
+      name: 'Urban Industrial Loft',
+      tagline: 'Polished Concrete • Steel Beams • Panorama Glass',
+      gradient: 'from-purple-500/20 to-pink-500/20',
+      border: 'border-purple-500/40'
+    }
+  ];
+
   const samplePlans = [
     {
       id: 'sample_1',
@@ -348,7 +444,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       subtitle: '9 Enclosed Rooms • 142 sqm',
       vastu: 'A (85/100)',
       image: '/samples/modern_3bhk.jpg',
-      badge: 'Popular'
+      badge: 'Popular Choice'
     },
     {
       id: 'sample_2',
@@ -368,11 +464,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
     }
   ];
 
+  const faqs = [
+    {
+      q: 'How does 2builders detect walls with zero overlaps?',
+      a: 'Unlike generative AI models that hallucinate fake geometry, 2builders uses deterministic computer vision: medial axis skeletonization and iterative parallel cavity consolidation. Any parallel strokes within wall thickness are unified into a single structural centerline.'
+    },
+    {
+      q: 'Can I export the 3D model into AutoCAD, Blender, or 3D printers?',
+      a: 'Yes. 2builders offers 1-click exports to standard glTF 2.0 Binary (GLB), Wavefront OBJ, 3D printing STL, vector SVG blueprints, and publication-ready ISO A4 vector PDF documents with professional title blocks.'
+    },
+    {
+      q: 'How does the automated Vastu Shastra 8-Zone analysis work?',
+      a: 'The engine calculates the geometric energy center (Brahmasthan) of your building envelope and projects 8 directional zones (N, NE, E, SE, S, SW, W, NW) aligned to magnetic North, scoring Kitchen (Agni), Master Bedroom (Prithvi), Bathrooms, and Entryways.'
+    },
+    {
+      q: 'Is my uploaded floor plan private and secure?',
+      a: 'Absolutely. 2builders does not train public AI models on your drawings. All geometric analysis is run in isolated memory and stored only for your project sessions.'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-slate-950 relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-slate-950 relative overflow-y-auto">
       {/* Background Architectural Grid Effect */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[350px] bg-gradient-to-b from-sky-500/10 via-indigo-600/5 to-transparent blur-3xl pointer-events-none" />
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[450px] bg-gradient-to-b from-sky-500/15 via-indigo-600/10 to-transparent blur-3xl pointer-events-none" />
 
       {/* Global Full-Window Drag Drop Overlay */}
       {isWindowDragging && (
@@ -386,7 +501,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       )}
 
       {/* Top 2builders Navigation Bar */}
-      <header className="h-16 border-b border-white/[0.08] px-4 sm:px-8 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl sticky top-0 z-30">
+      <header className="h-16 border-b border-white/[0.08] px-4 sm:px-8 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/25 shrink-0 ring-1 ring-white/20">
             <Building2 size={22} />
@@ -421,41 +536,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-8 py-8 space-y-10 relative z-10">
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-8 py-8 sm:py-12 space-y-12 sm:space-y-16 relative z-10">
         
         {/* HERO TITLE & STATS PILLS */}
-        <div className="text-center space-y-3.5 max-w-3xl mx-auto pt-2">
+        <div className="text-center space-y-4 max-w-3xl mx-auto pt-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-purple-500/10 border border-sky-500/30 text-sky-300 text-xs font-semibold shadow-inner">
             <Sparkles size={14} className="text-sky-400 animate-pulse" />
-            <span>Pure Deterministic Geometry • Sub-Millimeter Accuracy</span>
+            <span>Next-Gen Architectural AI & Deterministic 3D Engine</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-[1.15]">
             Transform Any 2D Floor Plan Into a <span className="bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">Living 3D World</span>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Upload any scanned drawing, brochure page, or photo. Our deterministic algorithm extracts non-overlapping centerline walls, calculates 8-zone Vastu Shastra compliance, and builds interactive 3D models in seconds.
+          
+          <p className="text-xs sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Upload any brochure drawing, sketch, or PDF. 2builders vectorizes non-overlapping structural walls, computes 8-zone Vastu Shastra energy grids, and builds interactive 3D dollhouses in under 5 seconds.
           </p>
 
           {/* Quick Stats Ticker */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-[11px] font-mono text-slate-400">
-            <span className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1 rounded-full">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2 text-[11px] font-mono text-slate-400">
+            <span className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 px-3 py-1 rounded-full">
               <CheckCircle2 size={13} className="text-emerald-400" />
               <span>Zero Overlapping Walls</span>
             </span>
-            <span className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1 rounded-full">
+            <span className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 px-3 py-1 rounded-full">
               <Compass size={13} className="text-amber-400" />
               <span>8-Zone Vastu Shastra</span>
             </span>
-            <span className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1 rounded-full">
+            <span className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 px-3 py-1 rounded-full">
               <Zap size={13} className="text-sky-400" />
-              <span>Under 5s Synthesis</span>
+              <span>Sub-5s Synthesis</span>
             </span>
-            <span className="flex items-center gap-1.5 bg-slate-900/60 border border-slate-800 px-3 py-1 rounded-full">
+            <span className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 px-3 py-1 rounded-full">
               <Download size={13} className="text-purple-400" />
               <span>GLB • OBJ • STL • PDF</span>
             </span>
           </div>
+        </div>
+
+        {/* INTERACTIVE 2D ↔ 3D BEFORE/AFTER COMPARISON SLIDER */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-sky-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Interactive Transformation Preview (Drag to Compare)
+              </h3>
+            </div>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">Real-time vectorization & PBR 3D synthesis</span>
+          </div>
+
+          <BeforeAfterSlider
+            beforeImage="/samples/modern_3bhk.jpg"
+            afterImage="/samples/live_3d_render.jpg"
+            beforeLabel="2D Blueprint Input"
+            afterLabel="Living 3D Model Output"
+            onExploreDemo={() => handleLoadSample('/samples/modern_3bhk.jpg', 'Modern 3BHK Residence')}
+          />
         </div>
 
         {/* HERO DROPZONE & OPTIONS */}
@@ -486,31 +624,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
         >
           <div className="bg-[#0b1220]/95 backdrop-blur-xl rounded-[23px] p-5 sm:p-8 space-y-6">
             
-            {/* Options Bar above upload */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-left">
-              {/* 1. Interior Style */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Interior Style
-                </label>
-                <select
-                  value={interiorStyle}
-                  onChange={(e) => setInteriorStyle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 font-semibold"
-                >
-                  <option value="Modern">Modern Minimalist</option>
-                  <option value="Contemporary Indian">Contemporary Indian</option>
-                  <option value="Warm Minimalist">Warm Japandi Minimalist</option>
-                  <option value="Industrial">Industrial Loft</option>
-                </select>
+            {/* Visual Interior Style Cards */}
+            <div className="space-y-2 text-left">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Select Architectural & Interior Style
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                {stylePresets.map((sp) => {
+                  const isSelected = interiorStyle === sp.id;
+                  return (
+                    <button
+                      key={sp.id}
+                      type="button"
+                      onClick={() => setInteriorStyle(sp.id)}
+                      className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-sky-950/40 border-sky-400 shadow-lg shadow-sky-500/15'
+                          : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-xs text-slate-100">{sp.name}</span>
+                          {isSelected && <CheckCircle2 size={13} className="text-sky-400" />}
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight">{sp.tagline}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* 2. Ceiling Height */}
+            {/* Ceiling Height & Furnishing Mode Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 sm:p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 text-left">
+              {/* Ceiling Height */}
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
                   Ceiling Height
                 </label>
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { label: "9' (2.7m)", val: 2743 },
                     { label: "10' (3.0m)", val: 3050 },
@@ -532,12 +685,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                 </div>
               </div>
 
-              {/* 3. Furnished vs Shell */}
+              {/* Furnishing Mode */}
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
                   Furnishing Mode
                 </label>
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     onClick={() => setIsFurnished(true)}
@@ -547,7 +700,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                         : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
                     }`}
                   >
-                    Furnished
+                    🛋️ Furnished
                   </button>
                   <button
                     type="button"
@@ -558,7 +711,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                         : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
                     }`}
                   >
-                    Empty Shell
+                    🏢 Empty Shell
                   </button>
                 </div>
               </div>
@@ -575,23 +728,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
             />
             <label
               htmlFor="hero-file-upload"
-              className={`cursor-pointer flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all duration-200 text-center ${
+              className={`cursor-pointer flex flex-col items-center justify-center p-8 sm:p-10 rounded-2xl border-2 border-dashed transition-all duration-200 text-center ${
                 isDragging
                   ? 'border-sky-400 bg-sky-500/10'
                   : 'border-slate-700/80 hover:border-sky-500/60 bg-slate-950/40 hover:bg-slate-900/50'
               }`}
             >
               <div className="p-4 rounded-2xl bg-gradient-to-tr from-sky-500/20 to-indigo-600/20 border border-sky-500/30 text-sky-400 shadow-inner group-hover:scale-110 transition-transform mb-3">
-                <Upload size={38} className={isUploading ? 'animate-bounce' : isDragging ? 'scale-125 transition-transform' : 'animate-pulse'} />
+                <Upload size={40} className={isUploading ? 'animate-bounce' : isDragging ? 'scale-125 transition-transform' : 'animate-pulse'} />
               </div>
               
               <div className="space-y-1.5">
-                <h3 className="text-lg sm:text-xl font-bold text-slate-100 flex items-center justify-center gap-2">
+                <h3 className="text-lg sm:text-2xl font-black text-slate-100 flex items-center justify-center gap-2">
                   <span>{isDragging ? 'Drop Your Floor Plan File Here' : 'Drag & Drop Floor Plan Here or Browse'}</span>
-                  <Sparkles size={18} className="text-sky-400" />
+                  <Sparkles size={20} className="text-sky-400" />
                 </h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                  Supports brochure photos, scans, CAD drawings, JPG, PNG, WebP, or vector PDF (up to 10MB).
+                <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Brochure scans, hand drawings, photos, JPG, PNG, WebP, or vector PDF (up to 10MB).
                 </p>
               </div>
 
@@ -611,15 +764,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                 </div>
               ) : (
                 <div className="pt-4">
-                  <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-xl shadow-sky-500/25 transition-all transform active:scale-95">
-                    <Upload size={14} />
-                    <span>Select Floor Plan Image or PDF</span>
+                  <span className="inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-xl shadow-sky-500/25 transition-all transform active:scale-95">
+                    <Upload size={16} />
+                    <span>Upload & Generate 3D Model</span>
                   </span>
                 </div>
               )}
 
               <div className="text-[11px] text-slate-500 font-mono pt-3">
-                100% Client-Safe • Non-AI Geometry • Zero Image Training
+                Deterministic Geometry Engine • Exact Sub-Millimeter Scale • 100% Client-Safe
               </div>
             </label>
           </div>
@@ -631,10 +784,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-amber-400" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Or Try With Instant 1-Click Samples
+                Or Try With Instant 1-Click Demos
               </h3>
             </div>
-            <span className="text-[11px] text-slate-500 hidden sm:inline">No file? Click any demo below to generate 3D instantly</span>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">No file on hand? Click any sample below to build 3D instantly</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
@@ -644,8 +797,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                 onClick={() => !isUploading && handleLoadSample(s.image, s.title)}
                 className="group relative bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/60 rounded-2xl p-3.5 cursor-pointer transition-all shadow-md hover:shadow-xl hover:shadow-sky-500/10 flex flex-col justify-between"
               >
-                <div className="space-y-2">
-                  <div className="relative h-28 rounded-xl overflow-hidden bg-slate-950 border border-slate-800/80">
+                <div className="space-y-2.5">
+                  <div className="relative h-32 rounded-xl overflow-hidden bg-slate-950 border border-slate-800/80">
                     <img
                       src={s.image}
                       alt={s.title}
@@ -654,10 +807,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                     <div className="absolute top-2 right-2 bg-slate-950/80 backdrop-blur px-2 py-0.5 rounded-full border border-slate-700/80 text-[10px] font-bold text-amber-300">
                       Vastu {s.vastu}
                     </div>
+                    <div className="absolute top-2 left-2 bg-sky-500/20 backdrop-blur border border-sky-400/40 text-sky-300 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase">
+                      {s.badge}
+                    </div>
                   </div>
 
                   <div>
-                    <h4 className="font-bold text-xs text-slate-100 group-hover:text-sky-300 transition-colors">
+                    <h4 className="font-bold text-xs sm:text-sm text-slate-100 group-hover:text-sky-300 transition-colors">
                       {s.title}
                     </h4>
                     <p className="text-[11px] text-slate-400 font-mono">{s.subtitle}</p>
@@ -666,10 +822,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
 
                 <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-sky-400 font-semibold">
                   <span className="flex items-center gap-1 group-hover:text-sky-300">
-                    <Play size={11} className="fill-sky-400" />
-                    <span>Try 1-Click 3D Demo</span>
+                    <Play size={12} className="fill-sky-400" />
+                    <span>Launch 1-Click 3D</span>
                   </span>
-                  <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             ))}
@@ -681,7 +837,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
               <Folder size={15} className="text-sky-400" />
-              <span>Your 3D Projects ({projects.length})</span>
+              <span>Your Saved 3D Homes ({projects.length})</span>
             </h3>
           </div>
 
@@ -756,57 +912,241 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           )}
         </div>
 
-        {/* ARCHITECTURAL ENGINE CAPABILITIES SHOWCASE */}
-        <div className="pt-6 border-t border-slate-800/80 space-y-4">
-          <div className="text-center space-y-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Why Architectural Teams Choose 2builders
+        {/* FUTURISTIC INTERACTIVE FEATURE DEEP DIVE */}
+        <div className="pt-8 border-t border-slate-800/80 space-y-6">
+          <div className="text-center space-y-1.5 max-w-2xl mx-auto">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-sky-400">
+              Architectural Engine Capabilities
             </h3>
-            <p className="text-xs text-slate-500">Engineered with pure mathematical geometry for real-world construction precision</p>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              Built Like Professional CAD, Automated with Vision
+            </h2>
+            <p className="text-xs text-slate-400">Select any feature below to inspect how 2builders synthesizes your architectural data</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-sky-400">
-                <CheckCircle2 size={16} />
-              </div>
-              <h4 className="font-bold text-xs text-slate-200">Consolidated Centerlines</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Automatically detects double cavity strokes and unifies them into single structural centerlines with 0 overlaps.
-              </p>
-            </div>
+          {/* Feature Tabs */}
+          <div className="flex flex-wrap items-center justify-center gap-2 border-b border-slate-800 pb-4">
+            {[
+              { id: 'centerlines', label: 'Centerline Vectorization', icon: CheckCircle2 },
+              { id: 'dollhouse', label: '3D Dollhouse View', icon: Box },
+              { id: 'walkthrough', label: 'First-Person Walkthrough', icon: Footprints },
+              { id: 'vastu', label: '8-Zone Vastu Shastra', icon: Compass },
+              { id: 'exports', label: 'Universal CAD Exports', icon: Download }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeFeatureTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveFeatureTab(tab.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-sky-500/20 text-sky-300 border border-sky-400/50 shadow-lg shadow-sky-500/10'
+                      : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon size={14} className={isActive ? 'text-sky-400' : 'text-slate-500'} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
-                <Compass size={16} />
+          {/* Active Feature Content Card */}
+          <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8">
+            {activeFeatureTab === 'centerlines' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                    <span>Zero Overlaps Guarantee</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Consolidated Single Centerlines from Double-Line Cavity Drawings
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Most architectural floor plans draw walls with double parallel strokes representing the cavity. 2builders uses medial axis skeletonization and iterative parallel consolidation to merge both strokes into a single, clean architectural centerline, eliminating intersecting wall meshes and z-fighting in 3D.
+                  </p>
+                  <ul className="space-y-1.5 text-xs text-slate-300 font-medium">
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-400" />
+                      <span>Filters external dimension lines and outside measurement arrows</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-400" />
+                      <span>Snaps T-junctions and L-corners with sub-millimeter precision</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-400" />
+                      <span>Forms closed room polygons with automated square meter & sqft calculation</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 p-4 font-mono text-[11px] text-sky-300 space-y-2">
+                  <div className="text-slate-500">// Deterministic Centerline Pipeline</div>
+                  <div className="text-emerald-400">✓ Cavity Closing: [kw: 12px, bridge: 48px]</div>
+                  <div className="text-cyan-400">✓ Centerline Extraction: 48 walls detected</div>
+                  <div className="text-amber-400">✓ Overlapping Wall Colliders: 0 (Zero)</div>
+                  <div className="text-indigo-400">✓ Planar Rooms: 9 Enclosed Polygons</div>
+                </div>
               </div>
-              <h4 className="font-bold text-xs text-slate-200">8-Zone Vastu Shastra</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Computes energy center Brahmasthan and 8 directional zones with real-time room compliance scoring.
-              </p>
-            </div>
+            )}
 
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
-                <Footprints size={16} />
+            {activeFeatureTab === 'dollhouse' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-[10px] font-bold">
+                    <span>Interactive 3D Dollhouse</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Cut-Away 900mm Walls & PBR Realistic Lighting
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Switch between full ceiling height walls and low cut-away dollhouse views to inspect floor layouts, furniture arrangements, and spatial circulation from any orbital perspective.
+                  </p>
+                  <div className="flex gap-2 pt-2">
+                    <span className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 font-semibold">OrbitControls 360°</span>
+                    <span className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 font-semibold">Isometric Camera</span>
+                    <span className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 font-semibold">PBR Sun Lighting</span>
+                  </div>
+                </div>
+                <div className="h-44 rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 relative">
+                  <img src="/samples/live_3d_render.jpg" alt="Dollhouse" className="w-full h-full object-cover opacity-80" />
+                </div>
               </div>
-              <h4 className="font-bold text-xs text-slate-200">First-Person Walkthrough</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Step inside with eye-level camera navigation, realistic PBR materials, and cutaway dollhouse views.
-              </p>
-            </div>
+            )}
 
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
-                <FileText size={16} />
+            {activeFeatureTab === 'walkthrough' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-bold">
+                    <span>First-Person Exploration</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Walk Through Your Floor Plan at Eye-Level (1600mm)
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Experience your architectural drawing from the human perspective. WASD keyboard navigation, mouse look, and instant room teleportation give you the exact feel of being inside the completed home.
+                  </p>
+                  <div className="flex gap-2 pt-2 font-mono text-[11px] text-slate-400">
+                    <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800">[W][A][S][D] Move</span>
+                    <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800">[Mouse] Look</span>
+                    <span className="bg-slate-950 px-2 py-1 rounded border border-slate-800">1600mm Eye Height</span>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-xs text-indigo-300 space-y-2">
+                  <div>&gt; camera.position.set(rx, 1.6, rz);</div>
+                  <div>&gt; collisionDetection: active [mesh bounding boxes]</div>
+                  <div>&gt; miniMap: live [interactive architectural compass]</div>
+                </div>
               </div>
-              <h4 className="font-bold text-xs text-slate-200">CAD & Vector Exports</h4>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Instant vector PDF blueprints with title block, WebGL glTF/GLB, Wavefront OBJ, and 3D printing STL.
-              </p>
-            </div>
+            )}
+
+            {activeFeatureTab === 'vastu' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold">
+                    <span>Vastu Shastra Intelligence</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    Automated Brahmasthan & 8 Directional Energy Zones
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Evaluates directional alignments for Kitchen (Agni/SE), Master Bedroom (Earth/SW), Bathrooms, and Entryways with dosha detection and architectural score card from A+ to C.
+                  </p>
+                  <div className="flex gap-2 pt-2 text-[11px] font-bold text-amber-300">
+                    <span>☸ 8 Sectors Aligned to Magnetic North</span>
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+                  <div className="flex justify-between items-center text-amber-400 font-bold">
+                    <span>Overall Vastu Compliance</span>
+                    <span>92/100 (A+)</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono">Brahmasthan (Center): Clear • Agni (SE): Kitchen Optimal</div>
+                </div>
+              </div>
+            )}
+
+            {activeFeatureTab === 'exports' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-400 text-[10px] font-bold">
+                    <span>Production Deliverables</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-white">
+                    One-Click Exports to CAD, 3D Print, and Vector PDF
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Deliver files immediately to clients, structural engineers, or 3D visualizers in industry-standard formats with clean naming and title blocks.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono text-slate-300 pt-1">
+                    <span className="p-2 rounded-lg bg-slate-950 border border-slate-800">📄 Vector PDF Blueprint</span>
+                    <span className="p-2 rounded-lg bg-slate-950 border border-slate-800">📦 WebGL GLB 3D</span>
+                    <span className="p-2 rounded-lg bg-slate-950 border border-slate-800">📐 Wavefront OBJ</span>
+                    <span className="p-2 rounded-lg bg-slate-950 border border-slate-800">🖨️ 3D Printing STL</span>
+                  </div>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-2">
+                  <Download size={32} className="mx-auto text-purple-400 animate-pulse" />
+                  <span className="text-xs font-bold text-slate-200 block">Instant Download Ready</span>
+                  <span className="text-[10px] text-slate-500 font-mono">Direct browser download, no cloud waiting</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* FREQUENTLY ASKED QUESTIONS ACCORDION */}
+        <div className="pt-8 border-t border-slate-800/80 space-y-4">
+          <div className="text-center space-y-1">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Frequently Asked Questions
+            </h3>
+            <p className="text-xs text-slate-500">Everything you need to know about the 2builders Plan-to-3D engine</p>
+          </div>
+
+          <div className="space-y-2.5 max-w-2xl mx-auto">
+            {faqs.map((faq, idx) => {
+              const isOpen = openFaq === idx;
+              return (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden transition-all"
+                >
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : idx)}
+                    className="w-full p-4 text-left flex items-center justify-between text-xs sm:text-sm font-bold text-slate-200 hover:text-white"
+                  >
+                    <span>{faq.q}</span>
+                    <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180 text-sky-400' : ''}`} />
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-3 animate-in fade-in duration-150">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <footer className="pt-8 pb-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <Building2 size={16} className="text-sky-400" />
+            <span className="font-bold text-slate-300">2BUILDERS</span>
+            <span>— The Deterministic Plan to 3D Platform</span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[11px]">
+            <span>100% Deterministic Geometry</span>
+            <span>•</span>
+            <span>Vastu Shastra AI</span>
+            <span>•</span>
+            <span>v2.0 Engine</span>
+          </div>
+        </footer>
 
       </main>
 

@@ -44,6 +44,202 @@ def get_plan_doc_from_project(project: Project) -> Optional[Dict[str, Any]]:
     settings = project.settings or {}
     return settings.get("twobuilders_plan")
 
+def _process_and_save_plan(project_id: str, clean_name: str, img_path: str, payload_dict: dict, db: Session):
+    """Core deterministic processing pipeline shared across endpoints."""
+    real_w = payload_dict.get("realWidthM") or 9.0
+    ceiling_mm = payload_dict.get("ceilingHeightMm") or 3050
+    interior_style = payload_dict.get("interiorStyle") or "Modern"
+    furnished = payload_dict.get("furnished", True)
+    north_deg = payload_dict.get("northDeg", 0.0)
+
+    raster_res = RasterProcessor.process_image(
+        img_path,
+        scale=0.0125,
+        options={"realWidth": real_w}
+    )
+
+    scale_m_per_px = raster_res.get("scale", 0.0125)
+    extracted_walls = raster_res.get("walls", [])
+    extracted_rooms = raster_res.get("rooms", [])
+
+    plan_doc = TwoBuildersPlanConverter.from_raster_extraction(
+        plan_id=project_id,
+        image_url=f"/api/files/{project_id}/download",
+        extracted_walls=extracted_walls,
+        extracted_rooms=extracted_rooms,
+        scale_m_per_px=scale_m_per_px,
+        options={
+            "ceilingMm": ceiling_mm,
+            "northDeg": north_deg,
+            "interiorStyle": interior_style,
+            "furnished": furnished
+        }
+    )
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        proj_name = os.path.splitext(clean_name)[0].replace("_", " ").title()
+        project = Project(
+            id=project_id,
+            name=proj_name,
+            unit="meters",
+            scale=scale_m_per_px,
+            settings={
+                "twobuilders_plan": plan_doc,
+                "raster_path": img_path
+            }
+        )
+        db.add(project)
+    else:
+        project.scale = scale_m_per_px
+        project_settings = dict(project.settings or {})
+        project_settings["twobuilders_plan"] = plan_doc
+        project.settings = project_settings
+
+    target_floor = db.query(Floor).filter(Floor.project_id == project_id).first()
+    if not target_floor:
+        target_floor = Floor(
+            id=f"fl_{project_id[:8]}",
+            project_id=project_id,
+            name="Ground Floor",
+            elevation=0.0,
+            wall_height=round(ceiling_mm / 1000.0, 2),
+            order_index=0
+        )
+        db.add(target_floor)
+        db.flush()
+
+    wall_ids = [w.id for w in db.query(Wall).filter(Wall.floor_id == target_floor.id).all()]
+    if wall_ids:
+        db.query(Opening).filter(Opening.wall_id.in_(wall_ids)).delete(synchronize_session=False)
+    db.query(Wall).filter(Wall.floor_id == target_floor.id).delete(synchronize_session=False)
+    db.query(Room).filter(Room.floor_id == target_floor.id).delete(synchronize_session=False)
+
+    for w in extracted_walls:
+        w_id = w.get("id") or f"wall_{uuid.uuid4().hex[:8]}"
+        wall_model = Wall(
+            id=w_id,
+            floor_id=target_floor.id,
+            start_x=w["start"][0],
+            start_y=w["start"][1],
+            end_x=w["end"][0],
+            end_y=w["end"][1],
+            thickness=w.get("thickness", 0.20),
+            height=round(ceiling_mm / 1000.0, 2),
+            wall_type=w.get("type", "external"),
+            layer="WALLS"
+        )
+        db.add(wall_model)
+
+        for op in w.get("openings", []):
+            op_model = Opening(
+                id=f"op_{uuid.uuid4().hex[:8]}",
+                wall_id=w_id,
+                type=op.get("type", "door"),
+                offset=op.get("offset", 1.0),
+                width=op.get("width", 0.9),
+                height=op.get("height", 2.1),
+                sill_height=op.get("sill_height", 0.0)
+            )
+            db.add(op_model)
+
+    for r in extracted_rooms:
+        room_model = Room(
+            id=r.get("id") or f"rm_{uuid.uuid4().hex[:8]}",
+            floor_id=target_floor.id,
+            name=r.get("name", "Room"),
+            boundary=r.get("boundary", []),
+            area=r.get("area", 0.0)
+        )
+        db.add(room_model)
+
+    db.commit()
+    return project, plan_doc
+
+@router.post("/plans/convert")
+def convert_plan_direct(
+    file: UploadFile = File(...),
+    interiorStyle: str = Form("Modern"),
+    ceilingHeightMm: int = Form(3050),
+    furnished: bool = Form(True),
+    northDeg: float = Form(0.0),
+    realWidthM: float = Form(9.0),
+    db: Session = Depends(get_db)
+):
+    """
+    All-in-one 1-step endpoint: upload, analyze, and build 3D geometry in a single request.
+    Prevents serverless multi-container filesystem desynchronization.
+    """
+    try:
+        file_id = f"pl_{uuid.uuid4().hex[:8]}"
+        clean_name = os.path.basename(file.filename or "floor_plan.png")
+        ext = os.path.splitext(clean_name)[1].lower()
+        dest_filename = f"{file_id}_{clean_name}"
+        ensure_dir(UPLOAD_DIR)
+        dest_path = os.path.join(UPLOAD_DIR, dest_filename)
+
+        contents = file.file.read()
+        with open(dest_path, "wb") as f:
+            f.write(contents)
+
+        img_path = dest_path
+        if ext == ".pdf":
+            img_path = dest_path + "_page0.png"
+            try:
+                import pypdfium2 as pdfium
+                pdf = pdfium.PdfDocument(dest_path)
+                if len(pdf) > 0:
+                    page = pdf[0]
+                    rendered = page.render(scale=2.0).to_pil()
+                    rendered.save(img_path)
+            except Exception:
+                try:
+                    import fitz
+                    doc = fitz.open(dest_path)
+                    if len(doc) > 0:
+                        page = doc.load_page(0)
+                        pix = page.get_pixmap(dpi=200)
+                        pix.save(img_path)
+                    doc.close()
+                except Exception as e:
+                    print(f"PDF rasterization warning: {e}")
+
+        source_file = SourceFile(
+            id=file_id,
+            project_id=file_id,
+            filename=clean_name,
+            format=ext.lstrip("."),
+            file_path=img_path,
+            file_size=len(contents),
+            metadata_json={"dest_path": dest_path, "image_path": img_path}
+        )
+        db.add(source_file)
+        db.commit()
+
+        project, plan_doc = _process_and_save_plan(
+            project_id=file_id,
+            clean_name=clean_name,
+            img_path=img_path,
+            payload_dict={
+                "realWidthM": realWidthM,
+                "ceilingHeightMm": ceilingHeightMm,
+                "interiorStyle": interiorStyle,
+                "furnished": furnished,
+                "northDeg": northDeg
+            },
+            db=db
+        )
+
+        return {
+            "planId": file_id,
+            "project": serialize_project(project),
+            "plan": plan_doc
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
+
 @router.post("/plans/upload")
 def upload_plan_file(
     file: UploadFile = File(...),
@@ -149,102 +345,17 @@ def start_plan_analysis(
 
         job_id = f"job_{uuid.uuid4().hex[:8]}"
 
-        # Execute deterministic extraction
+        # Execute deterministic extraction via shared core pipeline
         img_path = source_file.file_path
-        real_w = payload.realWidthM or 9.0
-
-        raster_res = RasterProcessor.process_image(
-            img_path,
-            scale=0.0125,
-            options={"realWidth": real_w}
+        project, plan_doc = _process_and_save_plan(
+            project_id=plan_id,
+            clean_name=source_file.filename,
+            img_path=img_path,
+            payload_dict=payload.model_dump() if hasattr(payload, "model_dump") else payload.dict(),
+            db=db
         )
 
-        scale_m_per_px = raster_res.get("scale", 0.0125)
-        extracted_walls = raster_res.get("walls", [])
-        extracted_rooms = raster_res.get("rooms", [])
-
-        # Convert to 2builders.plan/1 schema
-        plan_doc = TwoBuildersPlanConverter.from_raster_extraction(
-            plan_id=plan_id,
-            image_url=f"/api/files/{plan_id}/download",
-            extracted_walls=extracted_walls,
-            extracted_rooms=extracted_rooms,
-            scale_m_per_px=scale_m_per_px,
-            options={
-                "ceilingMm": payload.ceilingHeightMm,
-                "northDeg": payload.northDeg,
-                "interiorStyle": payload.interiorStyle,
-                "furnished": payload.furnished
-            }
-        )
-
-        # Save to project settings
-        project.scale = scale_m_per_px
-        project_settings = dict(project.settings or {})
-        project_settings["twobuilders_plan"] = plan_doc
-        project.settings = project_settings
-
-        # Also sync into standard Floor/Wall/Opening/Room models so 2D Canvas & 3D Three.js scene can render directly
-        target_floor = db.query(Floor).filter(Floor.project_id == plan_id).first()
-        if not target_floor:
-            target_floor = Floor(
-                id=f"fl_{plan_id[:8]}",
-                project_id=plan_id,
-                name="Ground Floor",
-                elevation=0.0,
-                wall_height=round(payload.ceilingHeightMm / 1000.0, 2),
-                order_index=0
-            )
-            db.add(target_floor)
-            db.flush()
-
-        # Delete existing child openings before walls to satisfy foreign key constraints
-        wall_ids = [w.id for w in db.query(Wall).filter(Wall.floor_id == target_floor.id).all()]
-        if wall_ids:
-            db.query(Opening).filter(Opening.wall_id.in_(wall_ids)).delete(synchronize_session=False)
-        db.query(Wall).filter(Wall.floor_id == target_floor.id).delete(synchronize_session=False)
-        db.query(Room).filter(Room.floor_id == target_floor.id).delete(synchronize_session=False)
-
-        for w in extracted_walls:
-            w_id = w.get("id") or f"wall_{uuid.uuid4().hex[:8]}"
-            wall_model = Wall(
-                id=w_id,
-                floor_id=target_floor.id,
-                start_x=w["start"][0],
-                start_y=w["start"][1],
-                end_x=w["end"][0],
-                end_y=w["end"][1],
-                thickness=w.get("thickness", 0.20),
-                height=round(payload.ceilingHeightMm / 1000.0, 2),
-                wall_type=w.get("type", "external"),
-                layer="WALLS"
-            )
-            db.add(wall_model)
-
-            # Insert openings associated with this wall
-            for op in w.get("openings", []):
-                op_model = Opening(
-                    id=f"op_{uuid.uuid4().hex[:8]}",
-                    wall_id=w_id,
-                    type=op.get("type", "door"),
-                    offset=op.get("offset", 1.0),
-                    width=op.get("width", 0.9),
-                    height=op.get("height", 2.1),
-                    sill_height=op.get("sill_height", 0.0)
-                )
-                db.add(op_model)
-
-        for r in extracted_rooms:
-            room_model = Room(
-                id=r.get("id") or f"rm_{uuid.uuid4().hex[:8]}",
-                floor_id=target_floor.id,
-                name=r.get("name", "Room"),
-                boundary=r.get("boundary", []),
-                area=r.get("area", 0.0)
-            )
-            db.add(room_model)
-
-        # Create completed processing job
+        job_id = f"job_{uuid.uuid4().hex[:8]}"
         job = ProcessingJob(
             id=job_id,
             project_id=plan_id,
@@ -254,9 +365,9 @@ def start_plan_analysis(
                 "state": "needs_review",
                 "step": "vectorising",
                 "percent": 100,
-                "wallsCount": len(extracted_walls),
-                "roomsCount": len(extracted_rooms),
-                "scale": scale_m_per_px
+                "wallsCount": len(plan_doc.get("walls", [])),
+                "roomsCount": len(plan_doc.get("rooms", [])),
+                "scale": project.scale
             }
         )
         db.add(job)
@@ -266,7 +377,8 @@ def start_plan_analysis(
             "jobId": job_id,
             "planId": plan_id,
             "status": "completed",
-            "plan": plan_doc
+            "plan": plan_doc,
+            "project": serialize_project(project)
         }
     except HTTPException:
         raise
