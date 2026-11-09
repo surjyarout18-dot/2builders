@@ -10,6 +10,7 @@ import { VastuOverlay } from './VastuOverlay';
 import { ModelExporter } from './ModelExporter';
 import { Download, Camera, Eye, Layers, Maximize2, Compass, Box, Sparkles, Ruler, Footprints, FileText, HelpCircle, Grid3X3 } from 'lucide-react';
 import { triggerFileDownload } from '../utils/downloadHelper';
+import { toast } from '../components/Toast';
 
 function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
   const project = useProjectStore((s) => s.project);
@@ -241,8 +242,9 @@ export const BuildingScene: React.FC = () => {
     try {
       const blob = await ModelExporter.exportGLB(project);
       ModelExporter.downloadBlob(blob, `${project.name.replace(/\s+/g, '_')}_model.glb`);
+      toast.success(`Exported ${project.name}_model.glb successfully!`);
     } catch (e: any) {
-      alert(`GLB Export error: ${e.message}`);
+      toast.error(`GLB Export error: ${e.message}`);
     } finally {
       setIsExporting(false);
     }
@@ -260,8 +262,9 @@ export const BuildingScene: React.FC = () => {
       const data = await res.json();
       triggerFileDownload(data.downloadUrl, data.filename);
       useProjectStore.getState().setStatusMessage(`Downloaded ${data.filename}`);
+      toast.success(`Downloaded ${data.filename}`);
     } catch (e: any) {
-      alert(`Export error: ${e.message}`);
+      toast.error(`Export error: ${e.message}`);
     }
   };
 

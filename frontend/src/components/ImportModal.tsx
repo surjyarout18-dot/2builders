@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload, FileText, CheckCircle2, AlertTriangle, Layers, ArrowRight } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
+import { toast } from './Toast';
 
 export const ImportModal: React.FC = () => {
   const isImportModalOpen = useProjectStore((s) => s.isImportModalOpen);
@@ -69,8 +70,9 @@ export const ImportModal: React.FC = () => {
       }
       setUploadedSource(data);
       setStatusMessage(`File uploaded: ${data.filename} (${data.format.toUpperCase()})`);
+      toast.success(`File uploaded: ${data.filename}`);
     } catch (err: any) {
-      alert(`Upload error: ${err.message}`);
+      toast.error(`Upload error: ${err.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -128,12 +130,14 @@ export const ImportModal: React.FC = () => {
       if (applyToFloor) {
         await loadProject(project.id);
         setStatusMessage(`Successfully extracted ${data.wallsExtracted} walls and added to floor!`);
+        toast.success(`Extracted ${data.wallsExtracted} walls and added to floor!`);
         setImportModalOpen(false);
       } else {
         setStatusMessage(`Extracted ${data.wallsExtracted} candidate walls.`);
+        toast.info(`Extracted ${data.wallsExtracted} candidate walls.`);
       }
     } catch (err: any) {
-      alert(`Extraction error: ${err.message}`);
+      toast.error(`Extraction error: ${err.message}`);
     } finally {
       setIsExtracting(false);
     }

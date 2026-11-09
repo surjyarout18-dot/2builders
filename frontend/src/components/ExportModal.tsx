@@ -3,6 +3,7 @@ import { X, Download, Box, Layers, Code, CheckCircle2, FileText, Printer, HelpCi
 import { useProjectStore } from '../store/useProjectStore';
 import { ModelExporter } from '../three/ModelExporter';
 import { triggerFileDownload } from '../utils/downloadHelper';
+import { toast } from './Toast';
 
 export const ExportModal: React.FC = () => {
   const isExportModalOpen = useProjectStore((s) => s.isExportModalOpen);
@@ -32,8 +33,9 @@ export const ExportModal: React.FC = () => {
 
       setDownloadSuccess({ filename, format: 'glb' });
       setStatusMessage(`Exported ${filename}`);
+      toast.success(`Exported ${filename}`);
     } catch (err: any) {
-      alert(`GLB Export Error: ${err.message}`);
+      toast.error(`GLB Export Error: ${err.message}`);
     } finally {
       setIsExporting(false);
     }
@@ -53,8 +55,9 @@ export const ExportModal: React.FC = () => {
       triggerFileDownload(data.downloadUrl, data.filename);
       setDownloadSuccess({ filename: data.filename, format });
       setStatusMessage(`Exported ${data.filename}`);
+      toast.success(`Exported ${data.filename}`);
     } catch (err: any) {
-      alert(`Export error: ${err.message}`);
+      toast.error(`Export error: ${err.message}`);
     } finally {
       setIsExporting(false);
     }

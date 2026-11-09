@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Ruler, CheckCircle2, Calculator } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 import { UnitType } from '../types';
+import { toast } from './Toast';
 
 export const CalibrationModal: React.FC = () => {
   const isCalibrateModalOpen = useProjectStore((s) => s.isCalibrateModalOpen);
@@ -26,7 +27,7 @@ export const CalibrationModal: React.FC = () => {
 
   const handleSave = async () => {
     if (pixelDistance <= 0 || realDistance <= 0) {
-      alert("Invalid distance values");
+      toast.error("Please enter a valid real-world distance greater than 0");
       return;
     }
     setIsSaving(true);
@@ -50,9 +51,10 @@ export const CalibrationModal: React.FC = () => {
       const data = await res.json();
       setResultMessage(data.message);
       setStatusMessage(data.message);
+      toast.success(data.message || 'Calibration saved!');
       await loadProject(project.id);
     } catch (err: any) {
-      alert(`Error saving calibration: ${err.message}`);
+      toast.error(`Error saving calibration: ${err.message}`);
     } finally {
       setIsSaving(false);
     }

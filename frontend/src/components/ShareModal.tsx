@@ -3,6 +3,7 @@ import { X, Share2, Copy, Check, Download, Box, FileText, Image as ImageIcon, He
 import { useProjectStore } from '../store/useProjectStore';
 import { ModelExporter } from '../three/ModelExporter';
 import { triggerFileDownload, triggerBlobDownload } from '../utils/downloadHelper';
+import { toast } from './Toast';
 
 export const ShareModal: React.FC = () => {
   const isShareModalOpen = useProjectStore((s) => s.isShareModalOpen);
@@ -33,8 +34,9 @@ export const ShareModal: React.FC = () => {
       const filename = `${project.name.replace(/\s+/g, '_')}_3D.glb`;
       triggerBlobDownload(blob, filename);
       setDownloadSuccess({ filename, format: 'glb' });
+      toast.success(`Downloaded ${filename}!`);
     } catch (err: any) {
-      alert(`GLB Export Error: ${err.message}`);
+      toast.error(`GLB Export Error: ${err.message}`);
     } finally {
       setIsExporting(null);
     }
@@ -53,14 +55,15 @@ export const ShareModal: React.FC = () => {
         if (data.downloadUrl) {
           triggerFileDownload(data.downloadUrl, data.filename);
           setDownloadSuccess({ filename: data.filename, format });
+          toast.success(`Downloaded ${data.filename}`);
         } else if (data.renders) {
-          alert("4 High-Resolution PNG Renders generated! Check Downloads.");
+          toast.success("4 High-Resolution PNG Renders generated! Check Downloads.");
         }
       } else {
         throw new Error(`Export failed (${res.status})`);
       }
     } catch (err: any) {
-      alert(`Export error: ${err.message}`);
+      toast.error(`Export error: ${err.message}`);
     } finally {
       setIsExporting(null);
     }

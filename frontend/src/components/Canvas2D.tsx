@@ -4,6 +4,8 @@ import { Point2D, Wall, Opening } from '../types';
 import { CoordinateSystem } from '../geometry/CoordinateSystem';
 import { WallBuilder } from '../geometry/WallBuilder';
 import { RoomDetector } from '../geometry/RoomDetector';
+import { toast } from './Toast';
+import { Upload } from 'lucide-react';
 
 export const Canvas2D: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -55,6 +57,46 @@ export const Canvas2D: React.FC = () => {
   const [snappedPoint, setSnappedPoint] = useState<Point2D | null>(null);
   const [measureStart, setMeasureStart] = useState<Point2D | null>(null);
   const [measuredDist, setMeasuredDist] = useState<number | null>(null);
+  const [isCanvasDragging, setIsCanvasDragging] = useState<boolean>(false);
+
+  const handleCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCanvasDragging(true);
+  };
+
+  const handleCanvasDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCanvasDragging(false);
+  };
+
+  const handleCanvasDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsCanvasDragging(false);
+    if (!project || !e.dataTransfer.files || !e.dataTransfer.files[0]) return;
+
+    const file = e.dataTransfer.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setStatusMessage(`Uploading "${file.name}" as blueprint underlay...`);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      useProjectStore.getState().setBackgroundImageUrl(data.file_path);
+      useProjectStore.getState().setShowBackground(true);
+      toast.success(`Loaded blueprint underlay "${file.name}"!`);
+      setStatusMessage(`Loaded blueprint underlay "${file.name}"`);
+    } catch (err: any) {
+      toast.error(`Failed to load blueprint: ${err.message}`);
+    }
+  };
 
   const activeFloor = project?.floors.find((f) => f.id === activeFloorId) || project?.floors[0];
 
@@ -592,7 +634,23 @@ export const Canvas2D: React.FC = () => {
   ]);
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-cad-dark">
+    <div
+      onDragOver={handleCanvasDragOver}
+      onDragLeave={handleCanvasDragLeave}
+      onDrop={handleCanvasDrop}
+      className="w-full h-full relative overflow-hidden bg-cad-dark"
+    >
+      {/* Canvas Drop Overlay */}
+      {isCanvasDragging && (
+        <div className="absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-md border-4 border-dashed border-sky-400 flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150">
+          <div className="p-4 rounded-2xl bg-sky-500/20 text-sky-400 mb-3 animate-bounce">
+            <Upload size={38} />
+          </div>
+          <span className="text-base font-bold text-white tracking-tight">Drop Floor Plan Image Here</span>
+          <span className="text-xs text-sky-300 font-mono mt-1">Loads instantly as blueprint tracing layer</span>
+        </div>
+      )}
+
       <canvas
         ref={canvasRef}
         onWheel={handleWheel}

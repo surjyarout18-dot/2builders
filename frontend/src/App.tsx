@@ -12,6 +12,7 @@ import { ReviewModal } from './components/ReviewModal';
 import { ShareModal } from './components/ShareModal';
 import { FileViewerGuideModal } from './components/FileViewerGuideModal';
 import { Dashboard } from './components/Dashboard';
+import { ToastContainer } from './components/Toast';
 import { useProjectStore } from './store/useProjectStore';
 
 export function App() {
@@ -128,6 +129,7 @@ export function App() {
       <ReviewModal />
       <ShareModal />
       <FileViewerGuideModal />
+      <ToastContainer />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Project, Floor, Wall, Opening, Room, StructuralObject, EditorTool, ViewMode, CameraPreset, Point2D, ValidationReport } from '../types';
 import { GeometryValidator } from '../geometry/GeometryValidator';
+import { toast } from '../components/Toast';
 
 interface HistorySnapshot {
   floors: Floor[];
@@ -611,8 +612,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         statusMessage: 'Project saved successfully',
         validationReport: data.validation
       });
+      toast.success('Project saved successfully!');
     } catch (err: any) {
       set({ isLoading: false, statusMessage: `Save error: ${err.message}` });
+      toast.error(`Save error: ${err.message}`);
     }
   }
 }));
