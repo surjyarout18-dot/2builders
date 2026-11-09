@@ -20,21 +20,21 @@ export const FileViewerGuideModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-4 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400">
+            <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
               <HelpCircle size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <span>How to View Your Downloaded Files Locally</span>
+              <h3 className="font-bold text-sm sm:text-base text-slate-100 flex items-center gap-2">
+                <span>View Downloaded Files</span>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
-                  Free Viewers
+                  Free
                 </span>
               </h3>
-              <p className="text-xs text-slate-400">Open 3D models, CAD drawings, and blueprints on Windows, Mac, or online</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">Open 3D models, CAD drawings, and blueprints on phone or PC</p>
             </div>
           </div>
 
@@ -47,12 +47,12 @@ export const FileViewerGuideModal: React.FC = () => {
         </div>
 
         {/* Quick Location Tip */}
-        <div className="px-5 py-2.5 bg-sky-950/40 border-b border-sky-800/40 flex items-center justify-between text-xs text-sky-200">
+        <div className="px-4 sm:px-5 py-2.5 bg-sky-950/40 border-b border-sky-800/40 flex items-center justify-between text-xs text-sky-200">
           <div className="flex items-center gap-2">
             <FolderDown size={16} className="text-sky-400 shrink-0" />
-            <span>Downloaded files are saved in your default <strong>Downloads</strong> folder.</span>
+            <span className="text-[11px] sm:text-xs">Downloaded files are saved in your <strong>Downloads</strong> folder.</span>
           </div>
-          <span className="text-[11px] font-mono bg-sky-900/60 px-2 py-0.5 rounded border border-sky-700/60 text-sky-300">
+          <span className="hidden sm:inline text-[11px] font-mono bg-sky-900/60 px-2 py-0.5 rounded border border-sky-700/60 text-sky-300">
             Windows: Ctrl + J | Mac: Cmd + Option + L
           </span>
         </div>

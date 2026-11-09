@@ -45,6 +45,8 @@ interface ProjectState {
   isCalibrateModalOpen: boolean;
   isValidationModalOpen: boolean;
   isExportModalOpen: boolean;
+  isPropertiesPanelOpen: boolean;
+  setIsPropertiesPanelOpen: (open: boolean) => void;
   showVastuZones: boolean;
   setShowVastuZones: (val: boolean) => void;
   wallCutaway: boolean;
@@ -167,6 +169,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   isCalibrateModalOpen: false,
   isValidationModalOpen: false,
   isExportModalOpen: false,
+  isPropertiesPanelOpen: false,
+  setIsPropertiesPanelOpen: (open: boolean) => set({ isPropertiesPanelOpen: open }),
   isViewerGuideOpen: false,
   viewerGuideFormat: 'glb',
   setViewerGuideOpen: (open: boolean) => set({ isViewerGuideOpen: open }),
@@ -184,7 +188,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   setActiveFloorId: (activeFloorId) => set({ activeFloorId, selectedEntity: null }),
-  setSelectedEntity: (selectedEntity) => set({ selectedEntity }),
+  setSelectedEntity: (selectedEntity) => set({ 
+    selectedEntity, 
+    ...(selectedEntity ? { isPropertiesPanelOpen: true } : {}) 
+  }),
   setActiveTool: (activeTool) => set({ activeTool, drawingPoints: [], measurePoints: [] }),
   setViewMode: (viewMode) => set({ viewMode }),
   setRenderMode: (renderMode) => set({ renderMode }),

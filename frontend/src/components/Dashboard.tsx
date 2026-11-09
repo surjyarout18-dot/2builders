@@ -240,35 +240,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top 2builders Navigation Bar */}
-      <header className="h-16 border-b border-slate-800 px-8 flex items-center justify-between bg-slate-900/80 backdrop-blur sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
-            <Building2 size={22} />
+      <header className="h-16 border-b border-slate-800 px-4 sm:px-8 flex items-center justify-between bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 shrink-0">
+            <Building2 size={20} className="sm:w-[22px] sm:h-[22px]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-black tracking-tight text-white">2BUILDERS</h1>
-              <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-2 py-0.5 rounded-full font-bold">
+              <h1 className="text-sm sm:text-base font-black tracking-tight text-white">2BUILDERS</h1>
+              <span className="text-[9px] sm:text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
                 PLAN TO 3D
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Deterministic Architectural 3D Reconstruction & Vastu Engine</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">Deterministic Architectural 3D Reconstruction & Vastu Engine</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs">
           <button
             onClick={() => {
               useProjectStore.getState().setViewerGuideFormat('glb');
               useProjectStore.getState().setViewerGuideOpen(true);
             }}
-            className="flex items-center gap-1.5 text-sky-300 hover:text-sky-200 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/40 px-3 py-1.5 rounded-full font-semibold transition-colors"
+            className="flex items-center gap-1.5 text-sky-300 hover:text-sky-200 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/40 px-2.5 sm:px-3 py-1.5 rounded-full font-semibold transition-colors text-[11px] sm:text-xs"
             title="Learn how to view downloaded 3D models and blueprints locally"
           >
-            <HelpCircle size={14} className="text-sky-400" />
+            <HelpCircle size={13} className="text-sky-400" />
             <span>Viewer Guide</span>
           </button>
-          <span className="flex items-center gap-1.5 text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
+          <span className="hidden md:flex items-center gap-1.5 text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-xs">
             <ShieldCheck size={14} />
             <span>Non-AI Geometry Engine</span>
           </span>
@@ -276,13 +276,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-8 space-y-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8 space-y-6 sm:space-y-8">
         
         {/* HERO DROPZONE & OPTIONS */}
-        <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border-2 border-dashed border-sky-500/40 hover:border-sky-400 p-8 shadow-2xl transition-all group">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-slate-900/90 border-2 border-dashed border-sky-500/40 hover:border-sky-400 p-4 sm:p-8 shadow-2xl transition-all group">
           
           {/* Options Bar above upload */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 rounded-2xl bg-slate-950/60 border border-slate-800 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-950/60 border border-slate-800 text-left">
             {/* 1. Interior Style */}
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
@@ -426,7 +426,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
               <p className="text-xs text-slate-400">No projects yet. Upload a plan above to see your furnished 3D home!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {projects.map((p) => {
                 const wallCount = p.floors.reduce((acc, f) => acc + f.walls.length, 0);
                 const roomCount = p.floors.reduce((acc, f) => acc + f.rooms.length, 0);

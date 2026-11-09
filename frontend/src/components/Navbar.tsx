@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Layers,
   Save,
@@ -13,7 +13,10 @@ import {
   Grid,
   Camera,
   FolderOpen,
-  HelpCircle
+  HelpCircle,
+  Menu,
+  X,
+  Sliders
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 import { ViewMode, CameraPreset } from '../types';
@@ -23,6 +26,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const project = useProjectStore((s) => s.project);
   const activeFloorId = useProjectStore((s) => s.activeFloorId);
   const setActiveFloorId = useProjectStore((s) => s.setActiveFloorId);
@@ -42,198 +46,392 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
   const setCalibrateModalOpen = useProjectStore((s) => s.setCalibrateModalOpen);
   const validateCurrentGeometry = useProjectStore((s) => s.validateCurrentGeometry);
   const setExportModalOpen = useProjectStore((s) => s.setExportModalOpen);
+  const isPropertiesPanelOpen = useProjectStore((s) => s.isPropertiesPanelOpen);
+  const setIsPropertiesPanelOpen = useProjectStore((s) => s.setIsPropertiesPanelOpen);
   const statusMessage = useProjectStore((s) => s.statusMessage);
   const isLoading = useProjectStore((s) => s.isLoading);
 
   return (
-    <header className="h-14 bg-cad-panel border-b border-cad-border px-4 flex items-center justify-between z-20 select-none">
-      {/* Left: Brand & Project Name */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onOpenDashboard}
-          title="All 2builders Projects"
-          className="p-1.5 rounded hover:bg-cad-surface text-sky-400 transition-colors flex items-center gap-2"
-        >
-          <Box size={20} className="animate-pulse text-sky-400" />
-          <span className="font-black text-sm tracking-wider text-slate-100 flex items-center gap-1.5">
-            <span>2BUILDERS</span>
-            <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1.5 py-0.5 rounded font-bold">3D</span>
-          </span>
-        </button>
+    <header className="relative bg-cad-panel border-b border-cad-border z-30 select-none">
+      <div className="h-14 px-3 sm:px-4 flex items-center justify-between">
+        {/* Left: Brand & Project Name */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={onOpenDashboard}
+            title="All 2builders Projects"
+            className="p-1 rounded hover:bg-cad-surface text-sky-400 transition-colors flex items-center gap-1.5"
+          >
+            <Box size={20} className="animate-pulse text-sky-400 shrink-0" />
+            <span className="font-black text-sm tracking-wider text-slate-100 flex items-center gap-1">
+              <span>2BUILDERS</span>
+              <span className="text-[9px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1 py-0.2 rounded font-bold">3D</span>
+            </span>
+          </button>
 
-        <div className="h-4 w-[1px] bg-cad-border" />
+          <div className="hidden sm:block h-4 w-[1px] bg-cad-border" />
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Project:</span>
-          <span className="text-xs font-bold text-slate-200 bg-cad-surface px-2.5 py-1 rounded border border-cad-border">
-            {project?.name || 'Untitled Project'}
-          </span>
+          <div className="hidden md:flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Project:</span>
+            <span className="text-xs font-bold text-slate-200 bg-cad-surface px-2.5 py-1 rounded border border-cad-border max-w-[120px] lg:max-w-xs truncate">
+              {project?.name || 'Untitled Project'}
+            </span>
+          </div>
+
+          {/* Floor selector (Desktop) */}
+          {project && (
+            <div className="hidden xl:flex items-center gap-1 ml-1">
+              <Layers size={14} className="text-slate-400" />
+              <select
+                value={activeFloorId || ''}
+                onChange={(e) => setActiveFloorId(e.target.value)}
+                className="bg-cad-surface border border-cad-border text-xs rounded px-2 py-1 text-slate-200 outline-none focus:border-cad-accent font-semibold"
+              >
+                {project.floors.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} (Elev: {f.elevation.toFixed(1)}m)
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => addFloor()}
+                title="Add Next Floor"
+                className="px-2 py-1 bg-cad-surface hover:bg-cad-border text-cad-accent text-xs rounded font-bold border border-cad-border"
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Floor selector */}
-        {project && (
-          <div className="flex items-center gap-1 ml-2">
-            <Layers size={14} className="text-slate-400" />
-            <select
-              value={activeFloorId || ''}
-              onChange={(e) => setActiveFloorId(e.target.value)}
-              className="bg-cad-surface border border-cad-border text-xs rounded px-2 py-1 text-slate-200 outline-none focus:border-cad-accent font-semibold"
-            >
-              {project.floors.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} (Elev: {f.elevation.toFixed(1)}m)
-                </option>
-              ))}
-            </select>
+        {/* Center: View Mode Tabs */}
+        <div className="flex items-center bg-cad-dark border border-cad-border rounded-lg p-0.5">
+          {(['split', '2d', '3d'] as ViewMode[]).map((mode) => (
             <button
-              onClick={() => addFloor()}
-              title="Add Next Floor"
-              className="px-2 py-1 bg-cad-surface hover:bg-cad-border text-cad-accent text-xs rounded font-bold border border-cad-border"
-            >
-              +
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Middle: View Mode Tabs */}
-      <div className="flex items-center bg-cad-dark border border-cad-border rounded-lg p-0.5">
-        {(['split', '2d', '3d'] as ViewMode[]).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            className={`px-3 py-1 rounded text-xs font-semibold capitalize transition-all ${
-              viewMode === mode
-                ? 'bg-cad-accent text-slate-950 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {mode === 'split' ? 'Split 2D/3D' : mode === '2d' ? '2D Plan' : '3D Model'}
-          </button>
-        ))}
-      </div>
-
-      {/* Right: Actions & Tools */}
-      <div className="flex items-center gap-1.5">
-        {/* Undo / Redo */}
-        <button
-          onClick={undo}
-          disabled={undoStack.length === 0}
-          title="Undo (Ctrl+Z)"
-          className="p-1.5 rounded hover:bg-cad-surface text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <Undo2 size={16} />
-        </button>
-        <button
-          onClick={redo}
-          disabled={redoStack.length === 0}
-          title="Redo (Ctrl+Y)"
-          className="p-1.5 rounded hover:bg-cad-surface text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent"
-        >
-          <Redo2 size={16} />
-        </button>
-
-        <div className="h-4 w-[1px] bg-cad-border mx-1" />
-
-        {/* 3D View Presets (when 3D or split view is active) */}
-        {viewMode !== '2d' && (
-          <div className="flex items-center gap-1">
-            <select
-              value={cameraPreset}
-              onChange={(e) => setCameraPreset(e.target.value as CameraPreset)}
-              className="bg-cad-surface border border-cad-border text-[11px] rounded px-2 py-1 text-slate-300 outline-none"
-              title="Camera Preset"
-            >
-              <option value="orbit">Orbit Camera</option>
-              <option value="isometric">Isometric View</option>
-              <option value="top">Top View</option>
-              <option value="front">Front View</option>
-              <option value="side">Side View</option>
-            </select>
-
-            <button
-              onClick={() => setWireframe(!wireframe)}
-              title="Toggle Wireframe"
-              className={`p-1.5 rounded border border-cad-border text-xs ${
-                wireframe ? 'bg-cad-accent text-slate-950 font-bold' : 'bg-cad-surface text-slate-300'
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-2.5 sm:px-3 py-1 rounded text-[11px] sm:text-xs font-semibold capitalize transition-all ${
+                viewMode === mode
+                  ? 'bg-cad-accent text-slate-950 shadow-sm font-bold'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Grid size={14} />
+              {mode === 'split' ? 'Split' : mode === '2d' ? '2D' : '3D'}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: Desktop Actions & Tools */}
+        <div className="hidden lg:flex items-center gap-1.5">
+          {/* Undo / Redo */}
+          <button
+            onClick={undo}
+            disabled={undoStack.length === 0}
+            title="Undo (Ctrl+Z)"
+            className="p-1.5 rounded hover:bg-cad-surface text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <Undo2 size={16} />
+          </button>
+          <button
+            onClick={redo}
+            disabled={redoStack.length === 0}
+            title="Redo (Ctrl+Y)"
+            className="p-1.5 rounded hover:bg-cad-surface text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <Redo2 size={16} />
+          </button>
+
+          <div className="h-4 w-[1px] bg-cad-border mx-1" />
+
+          {/* 3D View Presets (when 3D or split view is active) */}
+          {viewMode !== '2d' && (
+            <div className="flex items-center gap-1">
+              <select
+                value={cameraPreset}
+                onChange={(e) => setCameraPreset(e.target.value as CameraPreset)}
+                className="bg-cad-surface border border-cad-border text-[11px] rounded px-2 py-1 text-slate-300 outline-none"
+                title="Camera Preset"
+              >
+                <option value="orbit">Orbit Camera</option>
+                <option value="isometric">Isometric View</option>
+                <option value="top">Top View</option>
+                <option value="front">Front View</option>
+                <option value="side">Side View</option>
+              </select>
+
+              <button
+                onClick={() => setWireframe(!wireframe)}
+                title="Toggle Wireframe"
+                className={`p-1.5 rounded border border-cad-border text-xs ${
+                  wireframe ? 'bg-cad-accent text-slate-950 font-bold' : 'bg-cad-surface text-slate-300'
+                }`}
+              >
+                <Grid size={14} />
+              </button>
+            </div>
+          )}
+
+          <div className="h-4 w-[1px] bg-cad-border mx-1" />
+
+          {/* Import Floor Plan */}
+          <button
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+          >
+            <Upload size={14} className="text-cad-accent" />
+            <span>Import</span>
+          </button>
+
+          {/* Calibrate Scale */}
+          <button
+            onClick={() => setCalibrateModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+          >
+            <Ruler size={14} className="text-yellow-400" />
+            <span>Calibrate</span>
+          </button>
+
+          {/* 2builders Review Questions */}
+          <button
+            onClick={() => useProjectStore.getState().setReviewModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs rounded font-medium transition-colors"
+            title="Open Plan Verification Review"
+          >
+            <CheckCircle2 size={14} className="text-sky-400" />
+            <span>Review</span>
+          </button>
+
+          {/* Validate Geometry */}
+          <button
+            onClick={() => validateCurrentGeometry()}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+          >
+            <CheckCircle2 size={14} className="text-emerald-400" />
+            <span>Validate</span>
+          </button>
+
+          {/* Viewer Help Guide */}
+          <button
+            onClick={() => {
+              useProjectStore.getState().setViewerGuideFormat('glb');
+              useProjectStore.getState().setViewerGuideOpen(true);
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-sky-400 text-xs rounded font-medium transition-colors"
+            title="Guide on how to open 3D models and CAD blueprints locally"
+          >
+            <HelpCircle size={14} />
+            <span>Viewer Guide</span>
+          </button>
+
+          {/* Save to Backend */}
+          <button
+            onClick={() => saveToBackend()}
+            disabled={isLoading}
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-semibold shadow transition-colors"
+          >
+            <Save size={14} />
+            <span>Save</span>
+          </button>
+
+          {/* Share & Export 3D */}
+          <button
+            onClick={() => useProjectStore.getState().setShareModalOpen(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded font-semibold shadow transition-colors"
+          >
+            <Download size={14} />
+            <span>Share / Export</span>
+          </button>
+        </div>
+
+        {/* Right: Mobile Compact Controls */}
+        <div className="flex lg:hidden items-center gap-1.5">
+          {/* Mobile Inspector Toggle */}
+          <button
+            onClick={() => setIsPropertiesPanelOpen(!isPropertiesPanelOpen)}
+            className={`p-2 rounded-lg border text-xs transition-colors flex items-center justify-center ${
+              isPropertiesPanelOpen 
+                ? 'bg-sky-500/20 text-sky-300 border-sky-400' 
+                : 'bg-cad-surface text-slate-300 border-cad-border hover:bg-cad-border'
+            }`}
+            title="Properties Inspector"
+          >
+            <Sliders size={16} />
+          </button>
+
+          {/* Mobile Share Button */}
+          <button
+            onClick={() => useProjectStore.getState().setShareModalOpen(true)}
+            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg font-bold shadow transition-colors flex items-center gap-1"
+            title="Share & Export"
+          >
+            <Download size={14} />
+            <span>Share</span>
+          </button>
+
+          {/* Mobile Menu Hamburger */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-lg bg-cad-surface border border-cad-border text-slate-200 hover:bg-cad-border transition-colors"
+            title="More Options"
+          >
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Drawer Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden border-t border-cad-border bg-slate-900/98 backdrop-blur-md p-4 space-y-3.5 shadow-2xl animate-in slide-in-from-top-2 duration-150 text-xs">
+          {/* Floor selection on mobile */}
+          {project && (
+            <div className="flex items-center justify-between p-2.5 bg-cad-surface rounded-xl border border-cad-border">
+              <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                <Layers size={16} className="text-cad-accent" />
+                <span>Floor:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={activeFloorId || ''}
+                  onChange={(e) => setActiveFloorId(e.target.value)}
+                  className="bg-slate-900 border border-cad-border text-xs rounded-lg px-2 py-1 text-slate-200 outline-none"
+                >
+                  {project.floors.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} (Elev: {f.elevation.toFixed(1)}m)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => addFloor()}
+                  className="px-2 py-1 bg-slate-800 text-cad-accent rounded-lg border border-cad-border font-bold"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Tools Grid on mobile */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                undo();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={undoStack.length === 0}
+              className="p-2.5 rounded-xl bg-cad-surface border border-cad-border text-slate-300 hover:text-white flex items-center justify-center gap-2 font-medium disabled:opacity-30"
+            >
+              <Undo2 size={16} />
+              <span>Undo</span>
+            </button>
+            <button
+              onClick={() => {
+                redo();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={redoStack.length === 0}
+              className="p-2.5 rounded-xl bg-cad-surface border border-cad-border text-slate-300 hover:text-white flex items-center justify-center gap-2 font-medium disabled:opacity-30"
+            >
+              <Redo2 size={16} />
+              <span>Redo</span>
             </button>
           </div>
-        )}
 
-        <div className="h-4 w-[1px] bg-cad-border mx-1" />
+          {/* Camera presets in mobile menu */}
+          {viewMode !== '2d' && (
+            <div className="p-2.5 bg-cad-surface rounded-xl border border-cad-border space-y-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">3D Camera Preset</span>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['orbit', 'isometric', 'top'] as CameraPreset[]).map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => {
+                      setCameraPreset(preset);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`py-1.5 rounded-lg text-[11px] font-semibold capitalize border ${
+                      cameraPreset === preset
+                        ? 'bg-cad-accent text-slate-950 border-cad-accent'
+                        : 'bg-slate-900 border-cad-border text-slate-300'
+                    }`}
+                  >
+                    {preset === 'orbit' ? 'Orbit' : preset === 'isometric' ? 'Isometric' : 'Top View'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Import Floor Plan */}
-        <button
-          onClick={() => setImportModalOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
-        >
-          <Upload size={14} className="text-cad-accent" />
-          <span>Import</span>
-        </button>
+          {/* Modal Actions */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              onClick={() => {
+                useProjectStore.getState().setReviewModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-400/40 text-sky-300 flex items-center gap-2 font-medium"
+            >
+              <CheckCircle2 size={16} className="text-sky-400" />
+              <span>Review Plan</span>
+            </button>
+            <button
+              onClick={() => {
+                setCalibrateModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 rounded-xl bg-cad-surface border border-cad-border text-slate-200 flex items-center gap-2 font-medium"
+            >
+              <Ruler size={16} className="text-yellow-400" />
+              <span>Calibrate</span>
+            </button>
+            <button
+              onClick={() => {
+                setImportModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 rounded-xl bg-cad-surface border border-cad-border text-slate-200 flex items-center gap-2 font-medium"
+            >
+              <Upload size={16} className="text-cad-accent" />
+              <span>Import Plan</span>
+            </button>
+            <button
+              onClick={() => {
+                validateCurrentGeometry();
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 rounded-xl bg-cad-surface border border-cad-border text-slate-200 flex items-center gap-2 font-medium"
+            >
+              <CheckCircle2 size={16} className="text-emerald-400" />
+              <span>Validate</span>
+            </button>
+          </div>
 
-        {/* Calibrate Scale */}
-        <button
-          onClick={() => setCalibrateModalOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
-        >
-          <Ruler size={14} className="text-yellow-400" />
-          <span>Calibrate</span>
-        </button>
-
-        {/* 2builders Review Questions */}
-        <button
-          onClick={() => useProjectStore.getState().setReviewModalOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs rounded font-medium transition-colors"
-          title="Open Plan Verification Review"
-        >
-          <CheckCircle2 size={14} className="text-sky-400" />
-          <span>Review</span>
-        </button>
-
-        {/* Validate Geometry */}
-        <button
-          onClick={() => validateCurrentGeometry()}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
-        >
-          <CheckCircle2 size={14} className="text-emerald-400" />
-          <span>Validate</span>
-        </button>
-
-        {/* Viewer Help Guide */}
-        <button
-          onClick={() => {
-            useProjectStore.getState().setViewerGuideFormat('glb');
-            useProjectStore.getState().setViewerGuideOpen(true);
-          }}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-sky-400 text-xs rounded font-medium transition-colors"
-          title="Guide on how to open 3D models and CAD blueprints locally"
-        >
-          <HelpCircle size={14} />
-          <span>Viewer Guide</span>
-        </button>
-
-        {/* Save to Backend */}
-        <button
-          onClick={() => saveToBackend()}
-          disabled={isLoading}
-          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-semibold shadow transition-colors"
-        >
-          <Save size={14} />
-          <span>Save</span>
-        </button>
-
-        {/* Share & Export 3D */}
-        <button
-          onClick={() => useProjectStore.getState().setShareModalOpen(true)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded font-semibold shadow transition-colors"
-        >
-          <Download size={14} />
-          <span>Share / Export</span>
-        </button>
-      </div>
+          {/* Viewer Guide & Save */}
+          <div className="flex items-center gap-2 pt-1 border-t border-cad-border">
+            <button
+              onClick={() => {
+                useProjectStore.getState().setViewerGuideFormat('glb');
+                useProjectStore.getState().setViewerGuideOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex-1 py-2 rounded-xl bg-cad-surface border border-cad-border text-sky-400 font-medium flex items-center justify-center gap-1.5"
+            >
+              <HelpCircle size={15} />
+              <span>Viewer Guide</span>
+            </button>
+            <button
+              onClick={() => {
+                saveToBackend();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={isLoading}
+              className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center justify-center gap-1.5 shadow"
+            >
+              <Save size={15} />
+              <span>Save Project</span>
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

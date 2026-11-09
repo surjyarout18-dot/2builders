@@ -75,17 +75,25 @@ export function App() {
         {viewMode !== '3d' && <Toolbar2D />}
 
         {/* Viewport Container */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className={`flex-1 flex overflow-hidden ${viewMode === 'split' ? 'flex-col md:flex-row' : ''}`}>
           {/* 2D Plan Canvas */}
           {(viewMode === '2d' || viewMode === 'split') && (
-            <div className={`h-full relative ${viewMode === 'split' ? 'w-1/2 border-r border-cad-border' : 'w-full'}`}>
+            <div className={`relative ${
+              viewMode === 'split' 
+                ? 'h-1/2 md:h-full w-full md:w-1/2 border-b md:border-b-0 md:border-r border-cad-border' 
+                : 'h-full w-full'
+            }`}>
               <Canvas2D />
             </div>
           )}
 
           {/* 3D Model Viewport */}
           {(viewMode === '3d' || viewMode === 'split') && (
-            <div className={`h-full relative ${viewMode === 'split' ? 'w-1/2' : 'w-full'}`}>
+            <div className={`relative ${
+              viewMode === 'split' 
+                ? 'h-1/2 md:h-full w-full md:w-1/2' 
+                : 'h-full w-full'
+            }`}>
               <BuildingScene />
             </div>
           )}
@@ -96,19 +104,19 @@ export function App() {
       </div>
 
       {/* Bottom Status Bar */}
-      <footer className="h-6 bg-cad-panel border-t border-cad-border px-3 flex items-center justify-between text-[11px] text-slate-400 font-mono z-20">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-200">{statusMessage}</span>
+      <footer className="h-6 bg-cad-panel border-t border-cad-border px-3 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 font-mono z-20 select-none">
+        <div className="flex items-center gap-2 truncate">
+          <span className="flex items-center gap-1.5 truncate">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-slate-200 truncate">{statusMessage}</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-slate-500">
+        <div className="hidden md:flex items-center gap-4 text-slate-500 shrink-0">
           <span>Engine: <strong className="text-slate-300">Deterministic Geometry</strong></span>
           <span>Units: <strong className="text-slate-300">{project.unit.toUpperCase()}</strong></span>
           <span>Scale: <strong className="text-slate-300">1px = {project.scale.toFixed(4)}m</strong></span>
-          <span>Shortcuts: <strong>[W]all [D]oor [N]Window [R]oom [M]easure [V]Select</strong></span>
+          <span className="hidden lg:inline">Shortcuts: <strong>[W]all [D]oor [N]Window [R]oom [M]easure [V]Select</strong></span>
         </div>
       </footer>
 

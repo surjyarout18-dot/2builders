@@ -8,7 +8,7 @@ import { FloorMesh } from './FloorMesh';
 import { FurnitureMesh } from './FurnitureMesh';
 import { VastuOverlay } from './VastuOverlay';
 import { ModelExporter } from './ModelExporter';
-import { Download, Camera, Eye, Layers, Maximize2, Compass, Box, Sparkles, Ruler, Footprints, FileText, HelpCircle } from 'lucide-react';
+import { Download, Camera, Eye, Layers, Maximize2, Compass, Box, Sparkles, Ruler, Footprints, FileText, HelpCircle, Grid3X3 } from 'lucide-react';
 import { triggerFileDownload } from '../utils/downloadHelper';
 
 function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
@@ -225,6 +225,7 @@ export const BuildingScene: React.FC = () => {
   const setShowDimensions = useProjectStore((s) => s.setShowDimensions);
   const isWalkthroughActive = useProjectStore((s) => s.isWalkthroughActive);
   const setIsWalkthroughActive = useProjectStore((s) => s.setIsWalkthroughActive);
+  const cameraPreset = useProjectStore((s) => s.cameraPreset);
   const setCameraPreset = useProjectStore((s) => s.setCameraPreset);
   const showVastuZones = useProjectStore((s) => s.showVastuZones);
   const setShowVastuZones = useProjectStore((s) => s.setShowVastuZones);
@@ -270,8 +271,88 @@ export const BuildingScene: React.FC = () => {
         <SceneContent showRoomLabels={showRoomLabels} />
       </Canvas>
 
-      {/* Left Dual-Output Mode Switcher */}
-      <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+      {/* Mobile Top Scrollable Controls Bar */}
+      <div className="md:hidden absolute top-2 left-2 right-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 z-10 pointer-events-auto bg-cad-panel/95 backdrop-blur border border-cad-border rounded-xl p-1 shadow-xl text-[11px] font-medium text-slate-300">
+        <button
+          onClick={() => setRenderMode(renderMode === 'realistic' ? 'engineering' : 'realistic')}
+          className="flex items-center gap-1 px-2.5 py-1 rounded bg-cad-surface text-slate-200 border border-cad-border shrink-0 font-semibold"
+        >
+          {renderMode === 'realistic' ? <Sparkles size={12} className="text-sky-400" /> : <Box size={12} className="text-amber-400" />}
+          <span>{renderMode === 'realistic' ? 'Realistic' : 'CAD Mode'}</span>
+        </button>
+
+        <button
+          onClick={() => setWallCutaway(!wallCutaway)}
+          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
+            wallCutaway ? 'bg-sky-500/20 border-sky-400 text-sky-300' : 'bg-slate-900 border-cad-border text-slate-400'
+          }`}
+        >
+          <span>{wallCutaway ? 'Cutaway (900mm)' : 'Full Walls'}</span>
+        </button>
+
+        <button
+          onClick={() => setShowVastuZones(!showVastuZones)}
+          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
+            showVastuZones ? 'bg-amber-400 border-amber-300 text-slate-950 font-bold' : 'bg-slate-900 border-cad-border text-slate-400'
+          }`}
+        >
+          <span>☸ Vastu</span>
+        </button>
+
+        <button
+          onClick={() => setIsWalkthroughActive(!isWalkthroughActive)}
+          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
+            isWalkthroughActive ? 'bg-amber-400 border-amber-300 text-slate-950' : 'bg-slate-900 border-cad-border text-slate-400'
+          }`}
+        >
+          <Footprints size={12} />
+          <span>Walk</span>
+        </button>
+
+        <button
+          onClick={() => setCameraPreset(cameraPreset === 'top' ? 'isometric' : 'top')}
+          className="flex items-center gap-1 px-2 py-1 rounded bg-slate-900 border border-cad-border text-slate-300 shrink-0 font-semibold"
+        >
+          <span>{cameraPreset === 'top' ? '3D Orbit' : 'Top View'}</span>
+        </button>
+
+        <button
+          onClick={() => setWireframe(!wireframe)}
+          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
+            wireframe ? 'bg-cad-accent text-slate-950 border-cad-accent' : 'bg-slate-900 border-cad-border text-slate-400'
+          }`}
+        >
+          <Grid3X3 size={12} />
+          <span>Wireframe</span>
+        </button>
+
+        <button
+          onClick={handleExportGLB}
+          disabled={isExporting}
+          className="flex items-center gap-1 px-2.5 py-1 bg-cad-accent text-slate-950 font-bold rounded shrink-0 shadow-sm"
+        >
+          <Download size={12} />
+          <span>GLB</span>
+        </button>
+
+        <button
+          onClick={() => handleExportDirect('pdf')}
+          className="flex items-center gap-1 px-2 py-1 bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 font-bold rounded shrink-0"
+        >
+          <FileText size={12} />
+          <span>PDF</span>
+        </button>
+
+        <button
+          onClick={() => setShareModalOpen(true)}
+          className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 text-white font-bold rounded shrink-0"
+        >
+          <span>🔗 Share</span>
+        </button>
+      </div>
+
+      {/* Left Dual-Output Mode Switcher (Desktop) */}
+      <div className="hidden md:flex absolute top-3 left-3 items-center gap-2 z-10">
         <div className="bg-cad-panel/90 backdrop-blur border border-cad-border rounded-lg p-1 flex items-center gap-1 shadow-lg text-[11px] font-medium text-slate-300">
           <button
             onClick={() => setRenderMode('realistic')}
@@ -339,8 +420,8 @@ export const BuildingScene: React.FC = () => {
         </button>
       </div>
 
-      {/* Floating 3D Viewport Controls & Quick Export */}
-      <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+      {/* Floating 3D Viewport Controls & Quick Export (Desktop) */}
+      <div className="hidden md:flex absolute top-3 right-3 items-center gap-2 z-10">
         {/* Share Link Button */}
         <button
           onClick={() => setShareModalOpen(true)}

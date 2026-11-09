@@ -107,27 +107,27 @@ export const ReviewModal: React.FC = () => {
         </div>
 
         {/* Plan Summary Stat Tiles */}
-        <div className="grid grid-cols-4 gap-3 p-5 bg-slate-950/30 border-b border-slate-800 text-center">
-          <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3.5 sm:p-5 bg-slate-950/30 border-b border-slate-800 text-center">
+          <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Rooms</span>
-            <span className="text-lg font-black text-sky-400">{planDoc.rooms?.length || 0}</span>
+            <span className="text-base sm:text-lg font-black text-sky-400">{planDoc.rooms?.length || 0}</span>
           </div>
-          <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
+          <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Walls</span>
-            <span className="text-lg font-black text-slate-200">{planDoc.walls?.length || 0}</span>
+            <span className="text-base sm:text-lg font-black text-slate-200">{planDoc.walls?.length || 0}</span>
           </div>
-          <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
+          <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Openings</span>
-            <span className="text-lg font-black text-emerald-400">{planDoc.openings?.length || 0}</span>
+            <span className="text-base sm:text-lg font-black text-emerald-400">{planDoc.openings?.length || 0}</span>
           </div>
-          <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
+          <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Outer Size</span>
-            <span className="text-sm font-black text-amber-300">{widthM}m × {heightM}m</span>
+            <span className="text-xs sm:text-sm font-black text-amber-300">{widthM}m × {heightM}m</span>
           </div>
         </div>
 
         {/* Verification Questions */}
-        <div className="p-5 flex flex-col gap-4 max-h-[45vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 flex flex-col gap-3.5 sm:gap-4 max-h-[42vh] overflow-y-auto">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
             <HelpCircle size={15} className="text-amber-400" />
             <span>Verification Questions ({questions.length})</span>
@@ -136,7 +136,7 @@ export const ReviewModal: React.FC = () => {
           {questions.map((q: any, idx: number) => {
             const currentSel = answers[q.id] || q.selected;
             return (
-              <div key={q.id} className="bg-slate-800/40 border border-slate-700/80 rounded-xl p-3.5 flex flex-col gap-2.5">
+              <div key={q.id} className="bg-slate-800/40 border border-slate-700/80 rounded-xl p-3 sm:p-3.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-200">
                     {idx + 1}. {q.question}
@@ -146,7 +146,7 @@ export const ReviewModal: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-2">
                   {(q.options || []).map((opt: string) => {
                     const isSelected = currentSel === opt;
                     return (
@@ -170,10 +170,10 @@ export const ReviewModal: React.FC = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between">
+        <div className="p-3.5 sm:p-4 bg-slate-950/80 border-t border-slate-800 flex flex-col-reverse sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
           <button
             onClick={handleOpenEditor}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold transition-all shadow"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold transition-all shadow"
           >
             <Edit3 size={15} />
             <span>Fix in 2D Editor</span>
@@ -182,7 +182,7 @@ export const ReviewModal: React.FC = () => {
           <button
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-500/25 transition-all transform active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-500/25 transition-all transform active:scale-95"
           >
             <span>{isSubmitting ? 'Generating 3D...' : 'Confirm & View 3D'}</span>
             <ArrowRight size={15} />

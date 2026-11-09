@@ -73,16 +73,16 @@ export const ShareModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-4 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shrink-0">
               <Share2 size={18} />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-100">Share & Export 3D Model</h3>
-              <p className="text-xs text-slate-400">Download blueprints, 3D files, or share interactive links</p>
+              <h3 className="font-bold text-sm sm:text-base text-slate-100">Share & Export 3D Model</h3>
+              <p className="text-[11px] sm:text-xs text-slate-400">Download blueprints, 3D files, or share interactive links</p>
             </div>
           </div>
 
@@ -93,7 +93,7 @@ export const ShareModal: React.FC = () => {
               title="How to view downloaded files locally"
             >
               <HelpCircle size={14} />
-              <span>Viewer Guide</span>
+              <span className="hidden sm:inline">Viewer Guide</span>
             </button>
             <button
               onClick={() => setShareModalOpen(false)}
@@ -105,7 +105,7 @@ export const ShareModal: React.FC = () => {
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4 text-xs">
+        <div className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto">
           {/* Share Link Box */}
           <div className="space-y-1.5">
             <label className="text-slate-300 font-semibold block text-[11px] uppercase tracking-wider">Interactive 3D Viewer Link</label>
@@ -118,7 +118,7 @@ export const ShareModal: React.FC = () => {
                 className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg flex items-center gap-1.5 text-xs transition-colors shrink-0"
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
-                <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+                <span>{copied ? 'Copied!' : 'Copy'}</span>
               </button>
             </div>
           </div>
@@ -127,7 +127,7 @@ export const ShareModal: React.FC = () => {
           <div className="space-y-1.5 pt-2">
             <label className="text-slate-300 font-semibold block text-[11px] uppercase tracking-wider">Instant File Downloads</label>
             
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {/* PDF Blueprint */}
               <button
                 onClick={() => handleExportDirect('pdf')}

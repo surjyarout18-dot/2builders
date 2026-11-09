@@ -1,6 +1,6 @@
 import React from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { Trash2, Plus, Sliders, Box, Layers, Building } from 'lucide-react';
+import { Trash2, Plus, Sliders, Box, Layers, Building, X } from 'lucide-react';
 import { WallBuilder } from '../geometry/WallBuilder';
 import { RoomDetector } from '../geometry/RoomDetector';
 
@@ -9,6 +9,8 @@ export const PropertiesPanel: React.FC = () => {
   const activeFloorId = useProjectStore((s) => s.activeFloorId);
   const selectedEntity = useProjectStore((s) => s.selectedEntity);
   const setSelectedEntity = useProjectStore((s) => s.setSelectedEntity);
+  const isPropertiesPanelOpen = useProjectStore((s) => s.isPropertiesPanelOpen);
+  const setIsPropertiesPanelOpen = useProjectStore((s) => s.setIsPropertiesPanelOpen);
   const updateWall = useProjectStore((s) => s.updateWall);
   const deleteWall = useProjectStore((s) => s.deleteWall);
   const addOpening = useProjectStore((s) => s.addOpening);
@@ -43,22 +45,33 @@ export const PropertiesPanel: React.FC = () => {
     ? activeFloor?.rooms.find((r) => r.id === selectedEntity.id)
     : null;
 
-  return (
-    <div className="w-80 h-full bg-cad-panel border-l border-cad-border flex flex-col z-10 text-xs overflow-y-auto">
+  const renderContent = (isMobile = false) => (
+    <>
       {/* Panel Header */}
       <div className="p-3 border-b border-cad-border flex items-center justify-between font-semibold text-slate-200">
         <div className="flex items-center gap-2">
           <Sliders size={16} className="text-cad-accent" />
           <span>Properties Inspector</span>
         </div>
-        {selectedEntity && (
-          <button
-            onClick={() => setSelectedEntity(null)}
-            className="text-slate-400 hover:text-slate-200 text-[11px]"
-          >
-            Clear
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedEntity && (
+            <button
+              onClick={() => setSelectedEntity(null)}
+              className="text-slate-400 hover:text-slate-200 text-[11px] px-1.5 py-0.5 rounded bg-cad-surface border border-cad-border"
+            >
+              Clear
+            </button>
+          )}
+          {isMobile && (
+            <button
+              onClick={() => setIsPropertiesPanelOpen(false)}
+              className="p-1 text-slate-400 hover:text-slate-100 rounded hover:bg-cad-surface"
+              title="Close panel"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-5 flex-1">
@@ -342,7 +355,31 @@ export const PropertiesPanel: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Panel */}
+      <aside className="hidden md:flex w-80 h-full bg-cad-panel border-l border-cad-border flex-col z-10 text-xs overflow-y-auto shrink-0">
+        {renderContent(false)}
+      </aside>
+
+      {/* Mobile Slide-Over Drawer */}
+      {isPropertiesPanelOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm md:hidden flex justify-end"
+          onClick={() => setIsPropertiesPanelOpen(false)}
+        >
+          <div 
+            className="w-[88%] max-w-sm h-full bg-cad-panel border-l border-cad-border flex flex-col z-50 text-xs overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderContent(true)}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
