@@ -8,8 +8,8 @@ import { ImportModal } from './components/ImportModal';
 import { CalibrationModal } from './components/CalibrationModal';
 import { ValidationReportModal } from './components/ValidationReportModal';
 import { ExportModal } from './components/ExportModal';
-import { PropliReviewModal } from './components/PropliReviewModal';
-import { PropliShareModal } from './components/PropliShareModal';
+import { ReviewModal } from './components/ReviewModal';
+import { ShareModal } from './components/ShareModal';
 import { FileViewerGuideModal } from './components/FileViewerGuideModal';
 import { Dashboard } from './components/Dashboard';
 import { useProjectStore } from './store/useProjectStore';
@@ -117,8 +117,8 @@ export function App() {
       <CalibrationModal />
       <ValidationReportModal />
       <ExportModal />
-      <PropliReviewModal />
-      <PropliShareModal />
+      <ReviewModal />
+      <ShareModal />
       <FileViewerGuideModal />
     </div>
   );

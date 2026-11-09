@@ -4,7 +4,7 @@ import { useProjectStore } from '../store/useProjectStore';
 import { ModelExporter } from '../three/ModelExporter';
 import { triggerFileDownload, triggerBlobDownload } from '../utils/downloadHelper';
 
-export const PropliShareModal: React.FC = () => {
+export const ShareModal: React.FC = () => {
   const isShareModalOpen = useProjectStore((s) => s.isShareModalOpen);
   const setShareModalOpen = useProjectStore((s) => s.setShareModalOpen);
   const project = useProjectStore((s) => s.project);
@@ -235,3 +235,5 @@ export const PropliShareModal: React.FC = () => {
     </div>
   );
 };
+
+

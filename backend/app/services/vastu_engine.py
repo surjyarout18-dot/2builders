@@ -34,13 +34,22 @@ class VastuEngine:
         return (cx, cy)
 
     @staticmethod
-    def analyze_plan(rooms: List[Dict[str, Any]], outer_bounds: Dict[str, float], north_deg: float = 0.0) -> Dict[str, Any]:
+    def analyze_plan(rooms: List[Dict[str, Any]], outer_bounds: Dict[str, float] = None, north_deg: float = 0.0) -> Dict[str, Any]:
         """
         Calculates Brahmasthan, sector zones, assigns rooms, and evaluates compliance.
         Coordinates are in mm (or meters).
         """
-        cx = (outer_bounds.get("min_x", 0) + outer_bounds.get("max_x", 0)) / 2.0
-        cy = (outer_bounds.get("min_y", 0) + outer_bounds.get("max_y", 0)) / 2.0
+        if outer_bounds is None:
+            outer_bounds = {}
+        if "min_x" in outer_bounds and "max_x" in outer_bounds:
+            cx = (outer_bounds["min_x"] + outer_bounds["max_x"]) / 2.0
+            cy = (outer_bounds.get("min_y", 0) + outer_bounds.get("max_y", 0)) / 2.0
+        elif "width" in outer_bounds:
+            cx = outer_bounds.get("x", 0) + outer_bounds["width"] / 2.0
+            cy = outer_bounds.get("y", 0) + outer_bounds.get("height", 0) / 2.0
+        else:
+            cx = 4500.0
+            cy = 4500.0
         brahmasthan = {"x": round(cx, 1), "y": round(cy, 1)}
 
         analyzed_rooms = []
@@ -151,4 +160,8 @@ class VastuEngine:
             "findings": findings,
             "zones": VASTU_ZONES_8
         }
+
+    @classmethod
+    def evaluate(cls, rooms: List[Dict[str, Any]] = None, outer_bounds: Dict[str, float] = None, north_deg: float = 0.0, **kwargs) -> Dict[str, Any]:
+        return cls.analyze_plan(rooms or [], outer_bounds or {}, north_deg=north_deg)
 

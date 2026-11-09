@@ -47,11 +47,26 @@ export const ImportModal: React.FC = () => {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Upload failed');
+        let errorMsg = `Upload failed (${res.status})`;
+        try {
+          const raw = await res.text();
+          try {
+            const err = JSON.parse(raw);
+            errorMsg = err.detail || errorMsg;
+          } catch {
+            if (raw) errorMsg = raw.slice(0, 200);
+          }
+        } catch {}
+        throw new Error(errorMsg);
       }
 
-      const data = await res.json();
+      const resText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(resText);
+      } catch {
+        throw new Error(resText.slice(0, 200) || 'Invalid response from server');
+      }
       setUploadedSource(data);
       setStatusMessage(`File uploaded: ${data.filename} (${data.format.toUpperCase()})`);
     } catch (err: any) {
@@ -88,11 +103,26 @@ export const ImportModal: React.FC = () => {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Extraction failed');
+        let errorMsg = `Extraction failed (${res.status})`;
+        try {
+          const raw = await res.text();
+          try {
+            const err = JSON.parse(raw);
+            errorMsg = err.detail || errorMsg;
+          } catch {
+            if (raw) errorMsg = raw.slice(0, 200);
+          }
+        } catch {}
+        throw new Error(errorMsg);
       }
 
-      const data = await res.json();
+      const resText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(resText);
+      } catch {
+        throw new Error(resText.slice(0, 200) || 'Invalid response from extraction server');
+      }
       setExtractionResult(data);
 
       if (applyToFloor) {

@@ -18,7 +18,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const [projectName, setProjectName] = useState<string>('Residential House ADU');
   const [template, setTemplate] = useState<'adu' | 'blank'>('adu');
 
-  // Propli Plan to 3D Options (from Spec page 2)
+  // 2builders Plan to 3D Options
   const [interiorStyle, setInteriorStyle] = useState<string>('Modern');
   const [ceilingHeightMm, setCeilingHeightMm] = useState<number>(3050); // 10'
   const [isFurnished, setIsFurnished] = useState<boolean>(true);
@@ -27,7 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const setProject = useProjectStore((s) => s.setProject);
   const setStatusMessage = useProjectStore((s) => s.setStatusMessage);
   const setReviewModalOpen = useProjectStore((s) => s.setReviewModalOpen);
-  const setPropliPlan = useProjectStore((s) => s.setPropliPlan);
+  const setTwoBuildersPlan = useProjectStore((s) => s.setTwoBuildersPlan);
 
   const fetchProjects = async () => {
     setIsLoading(true);
@@ -139,7 +139,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
         throw new Error(errorMsg);
       }
 
-      const upData = await upRes.json();
+      const upText = await upRes.text();
+      let upData: any;
+      try {
+        upData = JSON.parse(upText);
+      } catch {
+        throw new Error(upText.slice(0, 200) || 'Invalid response from upload server');
+      }
       const planId = upData.planId;
 
       setAnalysisStep('segmenting');
@@ -183,7 +189,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       setAnalysisPercent(95);
       setStatusMessage('Computing Vastu zones & building 3D geometry...');
 
-      const anaData = await anaRes.json();
+      const anaText = await anaRes.text();
+      let anaData: any;
+      try {
+        anaData = JSON.parse(anaText);
+      } catch {
+        throw new Error(anaText.slice(0, 200) || 'Invalid response from analysis server');
+      }
       const planDoc = anaData.plan;
 
       // Load into project store
@@ -191,7 +203,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       if (projRes.ok) {
         const projData = await projRes.json();
         setProject(projData);
-        setPropliPlan(planDoc);
+        setTwoBuildersPlan(planDoc);
         setAnalysisPercent(100);
         setAnalysisStep('needs_review');
 

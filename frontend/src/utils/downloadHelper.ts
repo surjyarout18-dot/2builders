@@ -25,3 +25,4 @@ export function triggerBlobDownload(blob: Blob, filename: string) {
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+

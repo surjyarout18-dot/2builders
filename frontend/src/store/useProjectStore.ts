@@ -51,8 +51,8 @@ interface ProjectState {
   setWallCutaway: (val: boolean) => void;
   interiorStyle: string;
   setInteriorStyle: (style: string) => void;
-  propliPlan: any | null;
-  setPropliPlan: (plan: any) => void;
+  twoBuildersPlan: any | null;
+  setTwoBuildersPlan: (plan: any) => void;
   isReviewModalOpen: boolean;
   setReviewModalOpen: (open: boolean) => void;
   isAnalyzing: boolean;
@@ -219,8 +219,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setWallCutaway: (wallCutaway) => set({ wallCutaway }),
   interiorStyle: 'Modern',
   setInteriorStyle: (interiorStyle) => set({ interiorStyle }),
-  propliPlan: null,
-  setPropliPlan: (propliPlan) => set({ propliPlan }),
+  twoBuildersPlan: null,
+  setTwoBuildersPlan: (twoBuildersPlan) => set({ twoBuildersPlan }),
   isReviewModalOpen: false,
   setReviewModalOpen: (isReviewModalOpen) => set({ isReviewModalOpen }),
   isAnalyzing: false,

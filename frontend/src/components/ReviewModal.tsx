@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { CheckCircle2, AlertCircle, HelpCircle, Layers, ArrowRight, Edit3, Compass, Ruler, Home } from 'lucide-react';
 
-export const PropliReviewModal: React.FC = () => {
+export const ReviewModal: React.FC = () => {
   const isReviewModalOpen = useProjectStore((s) => s.isReviewModalOpen);
   const setReviewModalOpen = useProjectStore((s) => s.setReviewModalOpen);
-  const propliPlan = useProjectStore((s) => s.propliPlan);
+  const planDoc = useProjectStore((s) => s.twoBuildersPlan);
+  const setTwoBuildersPlan = useProjectStore((s) => s.setTwoBuildersPlan);
   const setViewMode = useProjectStore((s) => s.setViewMode);
   const setStatusMessage = useProjectStore((s) => s.setStatusMessage);
 
-  const questions = propliPlan?.review?.questions || [];
+  const questions = planDoc?.review?.questions || [];
   const [answers, setAnswers] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     for (const q of questions) {
@@ -20,12 +21,12 @@ export const PropliReviewModal: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isReviewModalOpen || !propliPlan) return null;
+  if (!isReviewModalOpen || !planDoc) return null;
 
-  const outerBounds = propliPlan.outerBounds || { widthMm: 9000, heightMm: 7000 };
+  const outerBounds = planDoc.outerBounds || { widthMm: 9000, heightMm: 7000 };
   const widthM = (outerBounds.widthMm / 1000).toFixed(1);
   const heightM = (outerBounds.heightMm / 1000).toFixed(1);
-  const vastu = propliPlan.vastu || { score: 90, grade: 'A' };
+  const vastu = planDoc.vastu || { score: 90, grade: 'A' };
 
   const handleSelectOption = (qid: string, val: string) => {
     setAnswers((prev) => ({ ...prev, [qid]: val }));
@@ -45,7 +46,7 @@ export const PropliReviewModal: React.FC = () => {
         };
       });
 
-      const res = await fetch(`/api/v1/plans/${propliPlan.id}/answers`, {
+      const res = await fetch(`/api/v1/plans/${planDoc.id}/answers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: payloadAnswers })
@@ -53,7 +54,7 @@ export const PropliReviewModal: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        useProjectStore.getState().setPropliPlan(data.plan);
+        setTwoBuildersPlan(data.plan);
       }
 
       setReviewModalOpen(false);
@@ -85,9 +86,9 @@ export const PropliReviewModal: React.FC = () => {
             </div>
             <div>
               <h2 className="font-bold text-lg text-slate-100 flex items-center gap-2">
-                <span>Plan Review & Verification</span>
+                <span>2builders Verification Review</span>
                 <span className="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded-full font-mono">
-                  v{propliPlan.version || 1}
+                  v{planDoc.version || 1}
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
@@ -109,15 +110,15 @@ export const PropliReviewModal: React.FC = () => {
         <div className="grid grid-cols-4 gap-3 p-5 bg-slate-950/30 border-b border-slate-800 text-center">
           <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Rooms</span>
-            <span className="text-lg font-black text-sky-400">{propliPlan.rooms?.length || 0}</span>
+            <span className="text-lg font-black text-sky-400">{planDoc.rooms?.length || 0}</span>
           </div>
           <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Walls</span>
-            <span className="text-lg font-black text-slate-200">{propliPlan.walls?.length || 0}</span>
+            <span className="text-lg font-black text-slate-200">{planDoc.walls?.length || 0}</span>
           </div>
           <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Openings</span>
-            <span className="text-lg font-black text-emerald-400">{propliPlan.openings?.length || 0}</span>
+            <span className="text-lg font-black text-emerald-400">{planDoc.openings?.length || 0}</span>
           </div>
           <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/60">
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Outer Size</span>
@@ -125,7 +126,7 @@ export const PropliReviewModal: React.FC = () => {
           </div>
         </div>
 
-        {/* 3 Verification Questions */}
+        {/* Verification Questions */}
         <div className="p-5 flex flex-col gap-4 max-h-[45vh] overflow-y-auto">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
             <HelpCircle size={15} className="text-amber-400" />
@@ -191,4 +192,5 @@ export const PropliReviewModal: React.FC = () => {
     </div>
   );
 };
+
 

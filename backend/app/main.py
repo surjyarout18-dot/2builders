@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .database import engine, Base
 from . import models  # Ensure all model tables are registered before create_all
-from .api import projects, files, calibration, extraction, geometry, exports, propli_api
+from .api import projects, files, calibration, extraction, geometry, exports, twobuilders_api
 from .paths import UPLOAD_DIR, EXPORT_DIR, ensure_all_directories
 
 # Ensure directories exist
@@ -50,7 +50,7 @@ app.include_router(calibration.router)
 app.include_router(extraction.router)
 app.include_router(geometry.router)
 app.include_router(exports.router)
-app.include_router(propli_api.router)
+app.include_router(twobuilders_api.router)
 
 try:
     if os.path.isdir(UPLOAD_DIR):

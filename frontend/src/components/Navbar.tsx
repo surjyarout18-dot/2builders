@@ -183,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
           <span>Calibrate</span>
         </button>
 
-        {/* Propli Review Questions */}
+        {/* 2builders Review Questions */}
         <button
           onClick={() => useProjectStore.getState().setReviewModalOpen(true)}
           className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs rounded font-medium transition-colors"
