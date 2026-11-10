@@ -5,7 +5,7 @@ import { CoordinateSystem } from '../geometry/CoordinateSystem';
 import { WallBuilder } from '../geometry/WallBuilder';
 import { RoomDetector } from '../geometry/RoomDetector';
 import { toast } from './Toast';
-import { Upload } from 'lucide-react';
+import { Upload, Zap, Droplets, Lightbulb, Trees, Layers, Compass } from 'lucide-react';
 
 export const Canvas2D: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -25,6 +25,8 @@ export const Canvas2D: React.FC = () => {
   const gridSnap = useProjectStore((s) => s.gridSnap);
   const gridSize = useProjectStore((s) => s.gridSize);
   const setStatusMessage = useProjectStore((s) => s.setStatusMessage);
+  const activeSpecialLayer = useProjectStore((s) => s.activeSpecialLayer);
+  const setActiveSpecialLayer = useProjectStore((s) => s.setActiveSpecialLayer);
 
   const showBackground = useProjectStore((s) => s.showBackground);
   const setShowBackground = useProjectStore((s) => s.setShowBackground);
@@ -542,6 +544,243 @@ export const Canvas2D: React.FC = () => {
       }
     }
 
+    // 4.5 Render Specialized Architectural Layers (MEP Suite: Electrical, Plumbing, Lighting, Landscape)
+    if (activeSpecialLayer === 'electrical') {
+      for (const room of activeFloor.rooms) {
+        if (room.boundary.length < 3) continue;
+        let rcx = 0, rcy = 0;
+        for (const p of room.boundary) { rcx += p[0]; rcy += p[1]; }
+        rcx /= room.boundary.length;
+        rcy /= room.boundary.length;
+        const sLight = worldToScreen(rcx, rcy);
+
+        // Ceiling Junction Box / Light Fixture
+        ctx.beginPath();
+        ctx.arc(sLight.x, sLight.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(sLight.x - 5, sLight.y);
+        ctx.lineTo(sLight.x + 5, sLight.y);
+        ctx.moveTo(sLight.x, sLight.y - 5);
+        ctx.lineTo(sLight.x, sLight.y + 5);
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Switch near doorway
+        const firstPt = room.boundary[0];
+        const sSwitch = worldToScreen(firstPt[0] + 0.3, firstPt[1] + 0.3);
+        ctx.beginPath();
+        ctx.arc(sSwitch.x, sSwitch.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#0284c7';
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('S', sSwitch.x, sSwitch.y + 3);
+
+        // Dashed Conduit Wire from Switch to Light
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(sSwitch.x, sSwitch.y);
+        ctx.quadraticCurveTo(sSwitch.x, sLight.y, sLight.x, sLight.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Duplex Outlets along walls
+      for (const wall of activeFloor.walls) {
+        const midX = (wall.start[0] + wall.end[0]) / 2;
+        const midY = (wall.start[1] + wall.end[1]) / 2;
+        const sSocket = worldToScreen(midX, midY);
+
+        ctx.beginPath();
+        ctx.arc(sSocket.x, sSocket.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#10b981';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    } else if (activeSpecialLayer === 'plumbing') {
+      for (const room of activeFloor.rooms) {
+        const rName = room.name.toLowerCase();
+        const isWetArea = rName.includes('bath') || rName.includes('kitchen') || rName.includes('toilet') || rName.includes('powder') || rName.includes('utility');
+        if (!isWetArea || room.boundary.length < 3) continue;
+
+        let rcx = 0, rcy = 0;
+        for (const p of room.boundary) { rcx += p[0]; rcy += p[1]; }
+        rcx /= room.boundary.length;
+        rcy /= room.boundary.length;
+        const sCenter = worldToScreen(rcx, rcy);
+
+        // Main Soil / Waste Stack
+        ctx.beginPath();
+        ctx.arc(sCenter.x + 15, sCenter.y + 15, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#ea580c';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 7px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('STACK', sCenter.x + 15, sCenter.y + 18);
+
+        // Hot & Cold Water Supply lines
+        ctx.beginPath();
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.moveTo(sCenter.x - 25, sCenter.y - 15);
+        ctx.lineTo(sCenter.x + 15, sCenter.y - 15);
+        ctx.stroke();
+
+        // Drainage line to stack
+        ctx.beginPath();
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2.5;
+        ctx.moveTo(sCenter.x - 20, sCenter.y);
+        ctx.lineTo(sCenter.x + 15, sCenter.y + 15);
+        ctx.stroke();
+
+        // Floor drain symbol
+        ctx.beginPath();
+        ctx.arc(sCenter.x - 5, sCenter.y + 10, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#64748b';
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (activeSpecialLayer === 'lighting') {
+      for (const room of activeFloor.rooms) {
+        if (room.boundary.length < 3) continue;
+        let rcx = 0, rcy = 0;
+        for (const p of room.boundary) { rcx += p[0]; rcy += p[1]; }
+        rcx /= room.boundary.length;
+        rcy /= room.boundary.length;
+        const sCenter = worldToScreen(rcx, rcy);
+
+        const offsets = [[-20, -20], [20, -20], [-20, 20], [20, 20]];
+        for (const [ox, oy] of offsets) {
+          ctx.beginPath();
+          ctx.arc(sCenter.x + ox, sCenter.y + oy, 5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(253, 224, 71, 0.9)';
+          ctx.fill();
+          ctx.strokeStyle = '#ca8a04';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(sCenter.x + ox, sCenter.y + oy, 14, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(253, 224, 71, 0.15)';
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(sCenter.x, sCenter.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = '#facc15';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('350 Lux', sCenter.x, sCenter.y - 12);
+      }
+    } else if (activeSpecialLayer === 'landscape') {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const wall of activeFloor.walls) {
+        minX = Math.min(minX, wall.start[0], wall.end[0]);
+        maxX = Math.max(maxX, wall.start[0], wall.end[0]);
+        minY = Math.min(minY, wall.start[1], wall.end[1]);
+        maxY = Math.max(maxY, wall.start[1], wall.end[1]);
+      }
+      if (minX !== Infinity) {
+        const sTL = worldToScreen(minX - 3.0, minY - 3.0);
+        const sBR = worldToScreen(maxX + 3.0, maxY + 3.0);
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(sTL.x, sTL.y, sBR.x - sTL.x, sBR.y - sTL.y);
+        ctx.fillStyle = 'rgba(22, 101, 52, 0.15)';
+        ctx.fill();
+        ctx.strokeStyle = '#15803d';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 6]);
+        ctx.stroke();
+        ctx.restore();
+
+        const sDeckTL = worldToScreen(minX, maxY);
+        const sDeckBR = worldToScreen(maxX, maxY + 2.5);
+        ctx.fillStyle = 'rgba(180, 83, 9, 0.2)';
+        ctx.fillRect(sDeckTL.x, sDeckTL.y, sDeckBR.x - sDeckTL.x, sDeckBR.y - sDeckTL.y);
+        ctx.strokeStyle = '#b45309';
+        ctx.strokeRect(sDeckTL.x, sDeckTL.y, sDeckBR.x - sDeckTL.x, sDeckBR.y - sDeckTL.y);
+      }
+    }
+
+    // 4.6 Architectural North Arrow & Scale Bar (Fixed Overlay in canvas corners)
+    ctx.save();
+    const scaleBarX = 24;
+    const scaleBarY = height - 28;
+    const barMeterPx = 2 * zoom;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(scaleBarX, scaleBarY, barMeterPx / 2, 4);
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(scaleBarX + barMeterPx / 2, scaleBarY, barMeterPx / 2, 4);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(scaleBarX, scaleBarY, barMeterPx, 4);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('0', scaleBarX, scaleBarY - 4);
+    ctx.textAlign = 'center';
+    ctx.fillText('1m', scaleBarX + barMeterPx / 2, scaleBarY - 4);
+    ctx.textAlign = 'right';
+    ctx.fillText('2m', scaleBarX + barMeterPx, scaleBarY - 4);
+
+    const compassX = width - 40;
+    const compassY = 40;
+    ctx.beginPath();
+    ctx.arc(compassX, compassY, 18, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(compassX, compassY - 14);
+    ctx.lineTo(compassX + 5, compassY + 8);
+    ctx.lineTo(compassX, compassY + 4);
+    ctx.closePath();
+    ctx.fillStyle = '#f59e0b';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(compassX, compassY - 14);
+    ctx.lineTo(compassX - 5, compassY + 8);
+    ctx.lineTo(compassX, compassY + 4);
+    ctx.closePath();
+    ctx.fillStyle = '#94a3b8';
+    ctx.fill();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 9px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', compassX, compassY - 16);
+    ctx.restore();
+
     // 5. Active Tool Previews
     // Wall preview
     if (activeTool === 'wall' && wallStartPoint) {
@@ -630,7 +869,8 @@ export const Canvas2D: React.FC = () => {
     worldToScreen,
     showBackground,
     bgImage,
-    backgroundOpacity
+    backgroundOpacity,
+    activeSpecialLayer
   ]);
 
   return (
@@ -640,6 +880,36 @@ export const Canvas2D: React.FC = () => {
       onDrop={handleCanvasDrop}
       className="w-full h-full relative overflow-hidden bg-cad-dark"
     >
+      {/* 2D Architectural & MEP Layer Switcher */}
+      <div className="absolute top-4 left-4 bg-slate-950/85 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20">
+        {[
+          { id: 'none', label: 'Architecture', icon: Layers, color: 'text-sky-400' },
+          { id: 'electrical', label: 'Electrical', icon: Zap, color: 'text-amber-400' },
+          { id: 'plumbing', label: 'Plumbing', icon: Droplets, color: 'text-blue-400' },
+          { id: 'lighting', label: 'Lighting', icon: Lightbulb, color: 'text-yellow-400' },
+          { id: 'landscape', label: 'Landscape', icon: Trees, color: 'text-emerald-400' },
+        ].map((layer) => {
+          const Icon = layer.icon;
+          const isActive = activeSpecialLayer === layer.id;
+          return (
+            <button
+              key={layer.id}
+              onClick={() => {
+                setActiveSpecialLayer(layer.id as any);
+                toast.info(`Switched to ${layer.label} Plan view`);
+              }}
+              className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                isActive
+                  ? 'bg-slate-800 text-white shadow-md border border-slate-600'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              }`}
+            >
+              <Icon size={13} className={isActive ? layer.color : 'text-slate-400'} />
+              <span>{layer.label}</span>
+            </button>
+          );
+        })}
+      </div>
       {/* Canvas Drop Overlay */}
       {isCanvasDragging && (
         <div className="absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-md border-4 border-dashed border-sky-400 flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-150">

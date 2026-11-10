@@ -74,6 +74,26 @@ interface ProjectState {
   isLoading: boolean;
   statusMessage: string;
 
+  // Floor-Plan.AI Mega Suite & Layers
+  isMegaMenuOpen: boolean;
+  setMegaMenuOpen: (open: boolean) => void;
+  isGeneratorModalOpen: boolean;
+  setGeneratorModalOpen: (open: boolean) => void;
+  activeSpecialLayer: 'none' | 'electrical' | 'plumbing' | 'lighting' | 'landscape';
+  setActiveSpecialLayer: (layer: 'none' | 'electrical' | 'plumbing' | 'lighting' | 'landscape') => void;
+  isCinematicTourActive: boolean;
+  setCinematicTourActive: (active: boolean) => void;
+  dxfBannerDismissed: boolean;
+  setDxfBannerDismissed: (dismissed: boolean) => void;
+  generateAILayout: (config: {
+    type: 'room' | 'house' | 'custom';
+    preset: string;
+    prompt?: string;
+    furnished?: boolean;
+    unit?: 'meters' | 'feet';
+    aspect?: string;
+  }) => void;
+
   // Actions
   setProject: (project: Project) => void;
   setActiveFloorId: (floorId: string) => void;
@@ -240,6 +260,169 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   isShareModalOpen: false,
   setShareModalOpen: (isShareModalOpen) => set({ isShareModalOpen }),
   setExportModalOpen: (isExportModalOpen) => set({ isExportModalOpen }),
+
+  // Floor-Plan.AI Mega Suite & Layers State
+  isMegaMenuOpen: false,
+  setMegaMenuOpen: (isMegaMenuOpen) => set({ isMegaMenuOpen }),
+  isGeneratorModalOpen: false,
+  setGeneratorModalOpen: (isGeneratorModalOpen) => set({ isGeneratorModalOpen }),
+  activeSpecialLayer: 'none',
+  setActiveSpecialLayer: (activeSpecialLayer) => set({ activeSpecialLayer }),
+  isCinematicTourActive: false,
+  setCinematicTourActive: (isCinematicTourActive) => set({ isCinematicTourActive }),
+  dxfBannerDismissed: false,
+  setDxfBannerDismissed: (dxfBannerDismissed) => set({ dxfBannerDismissed }),
+
+  generateAILayout: (config) => {
+    const { preset, furnished = true, unit = 'meters' } = config;
+    const projId = `pl_gen_${Date.now().toString(36)}`;
+    const floorId = `fl_${Date.now().toString(36)}`;
+
+    let title = 'AI Generated Floor Plan';
+    let rawWalls: any[] = [];
+    let rawRooms: any[] = [];
+
+    const isStudio = preset.toLowerCase().includes('1bhk') || preset.toLowerCase().includes('studio');
+    const isVilla = preset.toLowerCase().includes('villa');
+    const isRoomOnly = config.type === 'room';
+
+    if (isRoomOnly) {
+      title = 'Master Suite Architectural Plan';
+      rawWalls = [
+        { start: [0, 0], end: [6.0, 0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 2.0, width: 2.0, height: 1.4, sill_height: 0.9 }] },
+        { start: [6.0, 0], end: [6.0, 5.0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 1.5, width: 1.5, height: 1.4, sill_height: 0.9 }] },
+        { start: [6.0, 5.0], end: [0, 5.0], thickness: 0.25, type: 'external', openings: [{ type: 'door', offset: 1.0, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [0, 5.0], end: [0, 0], thickness: 0.25, type: 'external', openings: [] },
+        { start: [3.8, 0], end: [3.8, 2.5], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 0.8, width: 0.8, height: 2.1, sill_height: 0 }] },
+        { start: [3.8, 2.5], end: [6.0, 2.5], thickness: 0.15, type: 'internal', openings: [] },
+      ];
+      rawRooms = [
+        { name: 'Master Bedroom', boundary: [[0, 0], [3.8, 0], [3.8, 5.0], [0, 5.0]], area: 19.0 },
+        { name: 'En-Suite Bathroom', boundary: [[3.8, 0], [6.0, 0], [6.0, 2.5], [3.8, 2.5]], area: 5.5 },
+        { name: 'Walk-in Closet', boundary: [[3.8, 2.5], [6.0, 2.5], [6.0, 5.0], [3.8, 5.0]], area: 5.5 },
+      ];
+    } else if (isStudio) {
+      title = 'Modern 1BHK Urban Suite';
+      rawWalls = [
+        { start: [0, 0], end: [7.5, 0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 2.5, width: 2.0, height: 1.4, sill_height: 0.9 }] },
+        { start: [7.5, 0], end: [7.5, 6.0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 2.0, width: 1.8, height: 1.4, sill_height: 0.9 }] },
+        { start: [7.5, 6.0], end: [0, 6.0], thickness: 0.25, type: 'external', openings: [{ type: 'door', offset: 0.8, width: 0.95, height: 2.1, sill_height: 0 }] },
+        { start: [0, 6.0], end: [0, 0], thickness: 0.25, type: 'external', openings: [] },
+        { start: [4.2, 0], end: [4.2, 6.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 1.2, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [4.2, 3.8], end: [7.5, 3.8], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 0.6, width: 0.8, height: 2.1, sill_height: 0 }] },
+      ];
+      rawRooms = [
+        { name: 'Great Room / Living', boundary: [[0, 0], [4.2, 0], [4.2, 6.0], [0, 6.0]], area: 25.2 },
+        { name: 'Master Bedroom', boundary: [[4.2, 0], [7.5, 0], [7.5, 3.8], [4.2, 3.8]], area: 12.5 },
+        { name: 'Bathroom', boundary: [[4.2, 3.8], [7.5, 3.8], [7.5, 6.0], [4.2, 6.0]], area: 7.2 },
+      ];
+    } else if (isVilla) {
+      title = 'Luxury 2-Story Villa';
+      rawWalls = [
+        { start: [0, 0], end: [12.0, 0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 4.0, width: 3.0, height: 1.5, sill_height: 0.8 }] },
+        { start: [12.0, 0], end: [12.0, 9.0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 3.0, width: 2.2, height: 1.5, sill_height: 0.8 }] },
+        { start: [12.0, 9.0], end: [0, 9.0], thickness: 0.25, type: 'external', openings: [{ type: 'door', offset: 1.5, width: 1.1, height: 2.1, sill_height: 0 }] },
+        { start: [0, 9.0], end: [0, 0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 2.5, width: 2.0, height: 1.4, sill_height: 0.9 }] },
+        { start: [0, 5.0], end: [7.0, 5.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 2.0, width: 1.0, height: 2.1, sill_height: 0 }] },
+        { start: [7.0, 0], end: [7.0, 9.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 6.5, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [7.0, 4.5], end: [12.0, 4.5], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 1.0, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [4.0, 5.0], end: [4.0, 9.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 1.2, width: 0.85, height: 2.1, sill_height: 0 }] },
+      ];
+      rawRooms = [
+        { name: 'Great Room / Living', boundary: [[0, 0], [7.0, 0], [7.0, 5.0], [0, 5.0]], area: 35.0 },
+        { name: 'Dining Area', boundary: [[0, 5.0], [4.0, 5.0], [4.0, 9.0], [0, 9.0]], area: 16.0 },
+        { name: 'Kitchen', boundary: [[4.0, 5.0], [7.0, 5.0], [7.0, 9.0], [4.0, 9.0]], area: 12.0 },
+        { name: 'Master Bedroom', boundary: [[7.0, 0], [12.0, 0], [12.0, 4.5], [7.0, 4.5]], area: 22.5 },
+        { name: 'Guest Bedroom', boundary: [[7.0, 4.5], [12.0, 4.5], [12.0, 9.0], [7.0, 9.0]], area: 22.5 },
+      ];
+    } else {
+      // Default Modern 3BHK
+      title = 'Modern 3BHK Residence';
+      rawWalls = [
+        { start: [0, 0], end: [10.5, 0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 3.5, width: 2.5, height: 1.4, sill_height: 0.9 }] },
+        { start: [10.5, 0], end: [10.5, 8.0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 2.5, width: 2.0, height: 1.4, sill_height: 0.9 }] },
+        { start: [10.5, 8.0], end: [0, 8.0], thickness: 0.25, type: 'external', openings: [{ type: 'door', offset: 1.2, width: 1.0, height: 2.1, sill_height: 0 }] },
+        { start: [0, 8.0], end: [0, 0], thickness: 0.25, type: 'external', openings: [{ type: 'window', offset: 2.0, width: 1.8, height: 1.4, sill_height: 0.9 }] },
+        { start: [0, 4.5], end: [6.0, 4.5], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 1.8, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [6.0, 0], end: [6.0, 8.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 5.5, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [6.0, 4.0], end: [10.5, 4.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 1.0, width: 0.9, height: 2.1, sill_height: 0 }] },
+        { start: [3.5, 4.5], end: [3.5, 8.0], thickness: 0.15, type: 'internal', openings: [{ type: 'door', offset: 0.8, width: 0.8, height: 2.1, sill_height: 0 }] },
+      ];
+      rawRooms = [
+        { name: 'Great Room / Living', boundary: [[0, 0], [6.0, 0], [6.0, 4.5], [0, 4.5]], area: 27.0 },
+        { name: 'Kitchen', boundary: [[0, 4.5], [3.5, 4.5], [3.5, 8.0], [0, 8.0]], area: 12.25 },
+        { name: 'Dining Area', boundary: [[3.5, 4.5], [6.0, 4.5], [6.0, 8.0], [3.5, 8.0]], area: 8.75 },
+        { name: 'Master Bedroom', boundary: [[6.0, 0], [10.5, 0], [10.5, 4.0], [6.0, 4.0]], area: 18.0 },
+        { name: 'Bedroom 2', boundary: [[6.0, 4.0], [10.5, 4.0], [10.5, 8.0], [6.0, 8.0]], area: 18.0 },
+      ];
+    }
+
+    const walls: any[] = rawWalls.map((w, idx) => ({
+      id: `w_gen_${idx + 1}`,
+      floorId,
+      start: w.start,
+      end: w.end,
+      thickness: w.thickness,
+      height: 3.05,
+      type: w.type,
+      layer: 'WALLS',
+      openings: (w.openings || []).map((op: any, oidx: number) => ({
+        id: `op_gen_${idx}_${oidx}`,
+        wallId: `w_gen_${idx + 1}`,
+        type: op.type,
+        offset: op.offset,
+        width: op.width,
+        height: op.height,
+        sillHeight: op.sill_height
+      }))
+    }));
+
+    const rooms: any[] = rawRooms.map((r, idx) => ({
+      id: `rm_gen_${idx + 1}`,
+      floorId,
+      name: r.name,
+      boundary: r.boundary,
+      area: r.area,
+      color: idx % 4 === 0 ? '#38bdf8' : idx % 4 === 1 ? '#a855f7' : idx % 4 === 2 ? '#10b981' : '#f59e0b'
+    }));
+
+    const newProject: any = {
+      id: projId,
+      name: title,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      unit,
+      scale: 0.0125,
+      settings: {
+        twobuilders_plan: {
+          schema: '2builders.plan/1',
+          walls: walls.map(w => ({ id: w.id, nodes: [`n1`, `n2`], thicknessMm: w.thickness * 1000, isExterior: w.type === 'external' })),
+          rooms: rooms.map(r => ({ id: r.id, name: r.name, areaSqM: r.area })),
+          vastuSummary: { score: 96, grade: 'A+', remedies: ['Ideal master suite in South-West', 'Auspicious cooking energy in South-East'] }
+        }
+      },
+      floors: [
+        {
+          id: floorId,
+          projectId: projId,
+          name: 'Ground Floor',
+          elevation: 0.0,
+          wallHeight: 3.05,
+          orderIndex: 0,
+          walls,
+          rooms
+        }
+      ]
+    };
+
+    set({
+      project: newProject,
+      activeFloorId: floorId,
+      twoBuildersPlan: newProject.settings.twobuilders_plan,
+      isGeneratorModalOpen: false,
+      statusMessage: `Generated "${title}" with ${walls.length} walls & ${rooms.length} rooms`
+    });
+  },
 
   pushHistory: () => {
     const { project, undoStack } = get();

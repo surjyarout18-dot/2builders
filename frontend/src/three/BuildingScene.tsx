@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, PerspectiveCamera, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useProjectStore } from '../store/useProjectStore';
@@ -8,7 +8,27 @@ import { FloorMesh } from './FloorMesh';
 import { FurnitureMesh } from './FurnitureMesh';
 import { VastuOverlay } from './VastuOverlay';
 import { ModelExporter } from './ModelExporter';
-import { Download, Camera, Eye, Layers, Maximize2, Compass, Box, Sparkles, Ruler, Footprints, FileText, HelpCircle, Grid3X3 } from 'lucide-react';
+import {
+  Download,
+  Camera,
+  Eye,
+  Layers,
+  Maximize2,
+  Compass,
+  Box,
+  Sparkles,
+  Ruler,
+  Footprints,
+  FileText,
+  HelpCircle,
+  Grid3X3,
+  PlayCircle,
+  Zap,
+  Droplets,
+  Lightbulb,
+  Trees,
+  FileCode
+} from 'lucide-react';
 import { triggerFileDownload } from '../utils/downloadHelper';
 import { toast } from '../components/Toast';
 
@@ -22,6 +42,8 @@ function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
   const showFurniture = useProjectStore((s) => s.showFurniture);
   const showDimensions = useProjectStore((s) => s.showDimensions);
   const isWalkthroughActive = useProjectStore((s) => s.isWalkthroughActive);
+  const activeSpecialLayer = useProjectStore((s) => s.activeSpecialLayer);
+  const isCinematicTourActive = useProjectStore((s) => s.isCinematicTourActive);
   const controlsRef = useRef<any>(null);
 
   const displayedFloors = project?.floors.filter(
@@ -73,6 +95,19 @@ function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
     }
     ctrl.update();
   }, [cameraPreset, center, isWalkthroughActive]);
+
+  // Cinematic Animated Flythrough Orbit
+  useFrame(({ camera }) => {
+    if (isCinematicTourActive && controlsRef.current) {
+      const time = Date.now() * 0.00035;
+      const radius = 18;
+      camera.position.x = center[0] + Math.sin(time) * radius;
+      camera.position.z = center[2] + Math.cos(time) * radius;
+      camera.position.y = center[1] + 8 + Math.sin(time * 0.5) * 2;
+      controlsRef.current.target.set(center[0], center[1], center[2]);
+      controlsRef.current.update();
+    }
+  });
 
   return (
     <>
@@ -196,11 +231,36 @@ function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
                     rotation={0}
                   />
                 )}
+
+                {/* Lighting Plan: Indoor Warm Point Lights */}
+                {activeSpecialLayer === 'lighting' && (
+                  <group position={[cx, floor.elevation + 2.3, cz]}>
+                    <pointLight color="#fde047" intensity={2.2} distance={8} castShadow />
+                    <mesh>
+                      <sphereGeometry args={[0.07, 16, 16]} />
+                      <meshBasicMaterial color="#fef08a" />
+                    </mesh>
+                  </group>
+                )}
               </group>
             );
           })}
         </group>
       ))}
+
+      {/* Landscape Plan: Exterior Green Lawn & Patio Deck */}
+      {activeSpecialLayer === 'landscape' && (
+        <group position={[center[0], -0.015, center[2]]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[75, 75]} />
+            <meshStandardMaterial color="#166534" roughness={0.9} />
+          </mesh>
+          <mesh position={[0, 0.02, 6]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[14, 4.5]} />
+            <meshStandardMaterial color="#b45309" roughness={0.7} />
+          </mesh>
+        </group>
+      )}
 
       {/* Vastu Shastra 8-Zone Overlay */}
       <VastuOverlay />
@@ -233,6 +293,10 @@ export const BuildingScene: React.FC = () => {
   const wallCutaway = useProjectStore((s) => s.wallCutaway);
   const setWallCutaway = useProjectStore((s) => s.setWallCutaway);
   const setShareModalOpen = useProjectStore((s) => s.setShareModalOpen);
+  const activeSpecialLayer = useProjectStore((s) => s.activeSpecialLayer);
+  const setActiveSpecialLayer = useProjectStore((s) => s.setActiveSpecialLayer);
+  const isCinematicTourActive = useProjectStore((s) => s.isCinematicTourActive);
+  const setCinematicTourActive = useProjectStore((s) => s.setCinematicTourActive);
   const [showRoomLabels, setShowRoomLabels] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -317,6 +381,24 @@ export const BuildingScene: React.FC = () => {
           className="flex items-center gap-1 px-2 py-1 rounded bg-slate-900 border border-cad-border text-slate-300 shrink-0 font-semibold"
         >
           <span>{cameraPreset === 'top' ? '3D Orbit' : 'Top View'}</span>
+        </button>
+
+        <button
+          onClick={() => setCinematicTourActive(!isCinematicTourActive)}
+          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
+            isCinematicTourActive ? 'bg-amber-400 text-slate-950 font-bold animate-pulse' : 'bg-slate-900 border-cad-border text-slate-400'
+          }`}
+        >
+          <PlayCircle size={12} />
+          <span>Tour</span>
+        </button>
+
+        <button
+          onClick={() => handleExportDirect('dxf')}
+          className="flex items-center gap-1 px-2 py-1 bg-cyan-600/30 border border-cyan-500/50 text-cyan-300 font-bold rounded shrink-0"
+        >
+          <FileCode size={12} />
+          <span>DXF</span>
         </button>
 
         <button
@@ -421,6 +503,20 @@ export const BuildingScene: React.FC = () => {
           <Footprints size={14} />
           <span>{isWalkthroughActive ? 'Exit Walkthrough' : 'Walkthrough'}</span>
         </button>
+
+        {/* Cinematic 360 Drone Tour Toggle */}
+        <button
+          onClick={() => setCinematicTourActive(!isCinematicTourActive)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border backdrop-blur text-[11px] font-bold shadow-lg transition-all ${
+            isCinematicTourActive
+              ? 'bg-amber-400 border-amber-300 text-slate-950 animate-pulse font-black'
+              : 'bg-cad-panel/90 border-cad-border hover:bg-cad-surface text-slate-300'
+          }`}
+          title="Toggle 360° Cinematic Drone Flythrough Tour"
+        >
+          <PlayCircle size={14} className={isCinematicTourActive ? 'animate-spin' : ''} />
+          <span>{isCinematicTourActive ? 'Tour Active' : 'Cinematic Tour'}</span>
+        </button>
       </div>
 
       {/* Floating 3D Viewport Controls & Quick Export (Desktop) */}
@@ -474,6 +570,14 @@ export const BuildingScene: React.FC = () => {
             title="Download 2D Architectural SVG Blueprint"
           >
             SVG
+          </button>
+          <button
+            onClick={() => handleExportDirect('dxf')}
+            className="px-2 py-1 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/40 text-cyan-300 rounded font-bold transition-colors flex items-center gap-1"
+            title="Download AutoCAD DXF CAD Blueprint"
+          >
+            <FileCode size={12} />
+            <span>DXF</span>
           </button>
           <button
             onClick={() => {

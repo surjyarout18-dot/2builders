@@ -28,7 +28,10 @@ import {
   Cpu,
   Palette,
   Sun,
-  Camera
+  Camera,
+  Grid,
+  X,
+  FileCode
 } from 'lucide-react';
 import { Project } from '../types';
 import { useProjectStore } from '../store/useProjectStore';
@@ -61,6 +64,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const setStatusMessage = useProjectStore((s) => s.setStatusMessage);
   const setReviewModalOpen = useProjectStore((s) => s.setReviewModalOpen);
   const setTwoBuildersPlan = useProjectStore((s) => s.setTwoBuildersPlan);
+  const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
+  const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
+  const dxfBannerDismissed = useProjectStore((s) => s.dxfBannerDismissed);
+  const setDxfBannerDismissed = useProjectStore((s) => s.setDxfBannerDismissed);
 
   const fetchProjects = async () => {
     setIsLoading(true);
@@ -500,6 +507,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
         </div>
       )}
 
+      {/* Top Announcement Banner from floor-plan.ai */}
+      {!dxfBannerDismissed && (
+        <div className="bg-gradient-to-r from-teal-700 via-emerald-600 to-teal-700 text-white text-xs py-2 px-4 flex items-center justify-between font-medium shadow-md border-b border-emerald-500/30 sticky top-0 z-50">
+          <div className="flex items-center gap-2 mx-auto truncate">
+            <span className="bg-white/20 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+              <FileCode size={12} />
+              DXF
+            </span>
+            <span className="truncate">Convert floor plan images into DXF files for CAD software.</span>
+            <button
+              onClick={() => setMegaMenuOpen(true)}
+              className="underline font-bold text-white hover:text-emerald-200 ml-1 cursor-pointer shrink-0"
+            >
+              Explore CAD & Tools
+            </button>
+          </div>
+          <button
+            onClick={() => setDxfBannerDismissed(true)}
+            className="p-1 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors shrink-0"
+            title="Dismiss announcement"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Top 2builders Navigation Bar */}
       <header className="h-16 border-b border-white/[0.08] px-4 sm:px-8 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl sticky top-0 z-40">
         <div className="flex items-center gap-3">
@@ -517,19 +550,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 text-xs">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs">
+          {/* Products Mega Menu Button (floor-plan.ai style) */}
+          <button
+            onClick={() => setMegaMenuOpen(true)}
+            className="flex items-center gap-1.5 text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 px-3 py-1.5 rounded-full font-semibold transition-all shadow-sm"
+            title="Explore All 19 Floor-Plan.AI Architectural Tools"
+          >
+            <Grid size={14} className="text-sky-400" />
+            <span className="hidden sm:inline">All Tools</span>
+            <span className="text-[10px] text-slate-400">▾</span>
+          </button>
+
+          {/* AI Floor Plan Generator Button */}
+          <button
+            onClick={() => setGeneratorModalOpen(true)}
+            className="flex items-center gap-1.5 text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-indigo-400/40 px-3.5 py-1.5 rounded-full font-bold transition-all shadow-md shadow-indigo-500/20"
+            title="Instant AI Floor Plan Generator"
+          >
+            <Sparkles size={14} className="text-amber-300" />
+            <span>AI Generator</span>
+          </button>
+
           <button
             onClick={() => {
               useProjectStore.getState().setViewerGuideFormat('glb');
               useProjectStore.getState().setViewerGuideOpen(true);
             }}
-            className="flex items-center gap-1.5 text-sky-300 hover:text-sky-200 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/40 px-3 py-1.5 rounded-full font-semibold transition-all shadow-sm"
+            className="hidden md:flex items-center gap-1.5 text-sky-300 hover:text-sky-200 bg-sky-950/60 hover:bg-sky-900/60 border border-sky-500/40 px-3 py-1.5 rounded-full font-semibold transition-all shadow-sm"
             title="Learn how to view downloaded 3D models and blueprints locally"
           >
             <HelpCircle size={14} className="text-sky-400" />
             <span>Viewer Guide</span>
           </button>
-          <span className="hidden md:flex items-center gap-2 text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-full text-[11px] font-semibold">
+          <span className="hidden lg:flex items-center gap-2 text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-full text-[11px] font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Non-AI Geometry Engine</span>
           </span>
@@ -572,6 +626,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
               <Download size={13} className="text-purple-400" />
               <span>GLB • OBJ • STL • PDF</span>
             </span>
+          </div>
+
+          {/* Quick Tool Launchers (floor-plan.ai Suite) */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <button
+              onClick={() => setGeneratorModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-600/40 to-indigo-600/40 hover:from-blue-600 hover:to-indigo-600 border border-indigo-400/50 text-white text-xs font-bold transition-all shadow-md group"
+            >
+              <Sparkles size={13} className="text-amber-300 group-hover:rotate-12 transition-transform" />
+              <span>Floor Plan Generator</span>
+              <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-black">HOT</span>
+            </button>
+            <button
+              onClick={() => setMegaMenuOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 text-xs font-semibold transition-all shadow-sm"
+            >
+              <FileCode size={13} className="text-cyan-400" />
+              <span>Floor Plan to CAD (DXF)</span>
+            </button>
+            <button
+              onClick={() => setMegaMenuOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 text-xs font-semibold transition-all shadow-sm"
+            >
+              <Zap size={13} className="text-amber-400" />
+              <span>Electrical Plan</span>
+            </button>
+            <button
+              onClick={() => setMegaMenuOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 text-xs font-semibold transition-all shadow-sm"
+            >
+              <Box size={13} className="text-sky-400" />
+              <span>3D Model Generator</span>
+            </button>
           </div>
         </div>
 

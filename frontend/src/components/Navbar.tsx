@@ -16,9 +16,13 @@ import {
   HelpCircle,
   Menu,
   X,
-  Sliders
+  Sliders,
+  Sparkles,
+  FileCode
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
+import { triggerFileDownload } from '../utils/downloadHelper';
+import { toast } from './Toast';
 import { ViewMode, CameraPreset } from '../types';
 
 interface NavbarProps {
@@ -50,11 +54,61 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
   const setIsPropertiesPanelOpen = useProjectStore((s) => s.setIsPropertiesPanelOpen);
   const statusMessage = useProjectStore((s) => s.statusMessage);
   const isLoading = useProjectStore((s) => s.isLoading);
+  const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
+  const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
+  const dxfBannerDismissed = useProjectStore((s) => s.dxfBannerDismissed);
+  const setDxfBannerDismissed = useProjectStore((s) => s.setDxfBannerDismissed);
+
+  const handleExportDXFDirect = async () => {
+    if (!project) {
+      setExportModalOpen(true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/${project.id}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format: 'dxf' })
+      });
+      if (!res.ok) throw new Error('DXF generation failed');
+      const data = await res.json();
+      triggerFileDownload(data.downloadUrl, data.filename);
+      toast.success(`Downloaded ${data.filename}`);
+    } catch (e: any) {
+      toast.error(`DXF export error: ${e.message}`);
+    }
+  };
 
   return (
     <header className="relative bg-cad-panel border-b border-cad-border z-30 select-none">
+      {/* Top Announcement Banner from floor-plan.ai */}
+      {!dxfBannerDismissed && (
+        <div className="bg-gradient-to-r from-teal-700 via-emerald-600 to-teal-700 text-white text-[11px] sm:text-xs py-1.5 px-3 flex items-center justify-between font-medium shadow-inner border-b border-emerald-500/30">
+          <div className="flex items-center gap-2 mx-auto truncate">
+            <span className="bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+              <FileCode size={11} />
+              DXF
+            </span>
+            <span className="truncate">Convert floor plan images into DXF files for CAD software.</span>
+            <button
+              onClick={handleExportDXFDirect}
+              className="underline font-bold text-white hover:text-emerald-200 ml-1 shrink-0 cursor-pointer"
+            >
+              Export DXF
+            </button>
+          </div>
+          <button
+            onClick={() => setDxfBannerDismissed(true)}
+            className="p-1 text-white/80 hover:text-white hover:bg-white/10 rounded transition-colors shrink-0"
+            title="Dismiss announcement"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       <div className="h-14 px-3 sm:px-4 flex items-center justify-between">
-        {/* Left: Brand & Project Name */}
+        {/* Left: Brand, Products Mega Menu, Generator & Project Name */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onOpenDashboard}
@@ -66,6 +120,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
               <span>2BUILDERS</span>
               <span className="text-[9px] bg-sky-500/20 text-sky-300 border border-sky-400/40 px-1 py-0.2 rounded font-bold">3D</span>
             </span>
+          </button>
+
+          {/* Products Mega Menu Button (matching floor-plan.ai Products dropdown) */}
+          <button
+            onClick={() => setMegaMenuOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-cad-surface hover:bg-cad-border border border-cad-border hover:border-sky-500/40 text-slate-200 text-xs rounded-md font-semibold transition-all shadow-sm"
+            title="Browse All 19 Floor-Plan.AI Architectural Tools"
+          >
+            <Grid size={13} className="text-sky-400" />
+            <span className="hidden sm:inline">Products</span>
+            <span className="text-[10px] text-slate-400">▾</span>
+          </button>
+
+          {/* Instant AI Generator Button */}
+          <button
+            onClick={() => setGeneratorModalOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs rounded-md font-bold transition-all shadow-md border border-indigo-400/40"
+            title="Instant AI Floor Plan Generator (Room / House / Custom)"
+          >
+            <Sparkles size={13} className="text-amber-300" />
+            <span>Generator</span>
           </button>
 
           <div className="hidden sm:block h-4 w-[1px] bg-cad-border" />
@@ -281,6 +356,30 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
       {/* Mobile Drawer Dropdown */}
       {isMobileMenuOpen && (
         <div className="lg:hidden border-t border-cad-border bg-slate-900/98 backdrop-blur-md p-4 space-y-3.5 shadow-2xl animate-in slide-in-from-top-2 duration-150 text-xs">
+          {/* Top Products & Generator for Mobile */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                setMegaMenuOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 rounded-xl bg-slate-800 border border-sky-400/30 text-sky-300 font-bold flex items-center justify-center gap-1.5 shadow"
+            >
+              <Grid size={15} className="text-sky-400" />
+              <span>All 19 Tools</span>
+            </button>
+            <button
+              onClick={() => {
+                setGeneratorModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center gap-1.5 shadow"
+            >
+              <Sparkles size={15} className="text-amber-300" />
+              <span>AI Generator</span>
+            </button>
+          </div>
+
           {/* Floor selection on mobile */}
           {project && (
             <div className="flex items-center justify-between p-2.5 bg-cad-surface rounded-xl border border-cad-border">
