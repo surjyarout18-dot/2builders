@@ -995,8 +995,8 @@ export const Canvas2D: React.FC = () => {
       onDrop={handleCanvasDrop}
       className="w-full h-full relative overflow-hidden bg-cad-dark"
     >
-      {/* 2D Architectural & MEP Layer Switcher */}
-      <div className="absolute top-2.5 left-2.5 max-w-[calc(100%-1.5rem)] overflow-x-auto no-scrollbar bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20 pointer-events-auto">
+      {/* 2D Architectural & MEP Layer Switcher (Offset to clear Toolbar2D) */}
+      <div className="absolute top-2.5 left-14 sm:left-16 max-w-[calc(100%-4.5rem)] overflow-x-auto no-scrollbar bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20 pointer-events-auto">
         {[
           { id: 'none', label: 'Architecture', icon: Layers, color: 'text-sky-400' },
           { id: 'electrical', label: 'Electrical', icon: Zap, color: 'text-amber-400' },

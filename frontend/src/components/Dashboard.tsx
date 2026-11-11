@@ -46,6 +46,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isWindowDragging, setIsWindowDragging] = useState<boolean>(false);
 
+  // 3-Mode Studio Converter State (AI Prompt, Upload, Demo Blueprints)
+  const [converterTab, setConverterTab] = useState<'ai-prompt' | 'upload' | 'samples'>('ai-prompt');
+  const [aiPrompt, setAiPrompt] = useState<string>('Modern 3-BHK luxury residence with master suite in SW, open-concept kitchen in SE, and private garden patio');
+  const [aiPreset, setAiPreset] = useState<string>('3bhk');
+  const [aiType, setAiType] = useState<'house' | 'room' | 'custom'>('house');
+
   // Selected file or demo state for 2-panel converter
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedDemoId, setSelectedDemoId] = useState<string | null>(null);
@@ -68,6 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
   const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
   const setPremiumModalOpen = useProjectStore((s) => s.setPremiumModalOpen);
+  const generateAILayout = useProjectStore((s) => s.generateAILayout);
   const userTier = useProjectStore((s) => s.userTier);
   const dxfBannerDismissed = useProjectStore((s) => s.dxfBannerDismissed);
   const setDxfBannerDismissed = useProjectStore((s) => s.setDxfBannerDismissed);
@@ -419,6 +426,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
     }
   };
 
+  const handleAIGenerate = () => {
+    setIsUploading(true);
+    setAnalysisStep('preprocessing');
+    setAnalysisPercent(25);
+    setStatusMessage('Synthesizing AI architectural geometry & walls...');
+
+    setTimeout(() => {
+      setAnalysisStep('segmenting');
+      setAnalysisPercent(60);
+      setStatusMessage('Resolving room cavities & scale parameters...');
+
+      setTimeout(() => {
+        setAnalysisStep('vectorising');
+        setAnalysisPercent(90);
+        setStatusMessage('Constructing furnished 3D dollhouse & Vastu sectors...');
+
+        setTimeout(() => {
+          generateAILayout({
+            type: aiType,
+            preset: aiPrompt || aiPreset,
+            prompt: aiPrompt,
+            furnished: isFurnished,
+            unit: 'meters'
+          });
+          setAnalysisPercent(100);
+          setAnalysisStep('completed');
+          setIsUploading(false);
+          toast.success('Generated architectural plan & 3D dollhouse model!');
+          useProjectStore.getState().setViewMode('split');
+          onSelectProject('ai_plan_' + Date.now().toString(36));
+        }, 300);
+      }, 300);
+    }, 400);
+  };
+
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!confirm('Are you sure you want to delete this project?')) return;
@@ -483,6 +525,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
       vastu: 'A (80/100)',
       image: '/samples/studio_apartment.webp',
       badge: 'Compact ADU'
+    },
+    {
+      id: 'sample_4',
+      title: 'Scandinavian Penthouse',
+      subtitle: '8 Rooms • Balcony • 185 sqm',
+      vastu: 'A+ (94/100)',
+      image: '/samples/live_3d_render.jpg',
+      badge: 'Executive'
     }
   ];
 
@@ -673,21 +723,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Stepper Header Bar */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 mb-6 border-b border-slate-800/80 gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-400/40 flex items-center justify-center font-black text-sm">
-                1
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white tracking-wide">2D-to-3D Synthesis Studio</h3>
-                <p className="text-[11px] text-slate-400">Select or drop a plan on the left, configure design options on the right</p>
-              </div>
+          {/* 3-Mode Studio Selector: AI Prompt, Blueprint Upload, Curated Samples */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pb-6 mb-6 border-b border-slate-800/80 gap-4">
+            <div className="flex items-center bg-slate-950/80 border border-slate-800/90 rounded-2xl p-1 shadow-inner gap-1">
+              <button
+                type="button"
+                onClick={() => setConverterTab('ai-prompt')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  converterTab === 'ai-prompt'
+                    ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/25 ring-1 ring-sky-400/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <Sparkles size={14} className={converterTab === 'ai-prompt' ? 'text-amber-300' : 'text-slate-400'} />
+                <span>AI Prompt to 3D</span>
+                <span className="text-[9px] bg-white/20 text-white px-1.5 py-0.2 rounded font-black uppercase">
+                  AI Model
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConverterTab('upload')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  converterTab === 'upload'
+                    ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/25 ring-1 ring-sky-400/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <Upload size={14} />
+                <span>Upload Floor Plan</span>
+                <span className="hidden sm:inline text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded font-mono">
+                  CAD / PDF / Image
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConverterTab('samples')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  converterTab === 'samples'
+                    ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/25 ring-1 ring-sky-400/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <Layers size={14} />
+                <span>Demo Blueprints</span>
+                <span className="text-[9px] bg-slate-800 text-amber-300 px-1.5 py-0.2 rounded font-mono">
+                  4 Samples
+                </span>
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-              <span className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-[10px]">
-                Deterministic Vision Engine
+            <div className="flex items-center gap-2 text-xs font-mono text-slate-400 shrink-0">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>100% Free • Unlimited 3D Generation</span>
               </span>
             </div>
           </div>
@@ -746,134 +837,250 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
             /* 2-Column Converter Layout (Clean floordesign.ai UX) */
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
-              {/* LEFT PANEL: UPLOAD & DEMO BLUEPRINTS (7 Cols) */}
+              {/* LEFT PANEL: 3-MODE ARCHITECTURAL INPUT (7 Cols) */}
               <div className="lg:col-span-7 space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                    <Upload size={14} className="text-sky-400" />
-                    <span>Upload 2D Floor Plan</span>
-                  </label>
-                  <span className="text-[11px] text-slate-400 font-mono">JPG, PNG, WebP, PDF, DXF (Max 10MB)</span>
-                </div>
 
-                {/* Dropzone Card */}
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(false);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsDragging(false);
-                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                      const file = e.dataTransfer.files[0];
-                      setSelectedFile(file);
-                      setSelectedDemoId(null);
-                    }
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`p-6 sm:p-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all text-center flex flex-col items-center justify-center min-h-[200px] ${
-                    isDragging
-                      ? 'border-sky-400 bg-sky-500/10 scale-[1.01]'
-                      : selectedFile
-                      ? 'border-emerald-500/60 bg-emerald-950/15'
-                      : 'border-slate-700/80 hover:border-sky-500/60 bg-slate-950/50 hover:bg-slate-950/70'
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp,.pdf,.dxf"
-                    onChange={handleFileInput}
-                    className="hidden"
-                  />
-
-                  {selectedFile ? (
-                    <div className="space-y-3">
-                      <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
-                        <Check size={28} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-white truncate max-w-xs mx-auto">
-                          {selectedFile.name}
-                        </h4>
-                        <p className="text-xs text-slate-400 font-mono mt-0.5">
-                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for 3D Conversion
-                        </p>
-                      </div>
-                      <span className="inline-block text-[11px] text-sky-400 underline font-semibold">
-                        Click or drop another file to replace
-                      </span>
+                {/* MODE A: AI PROMPT TO 3D GENERATOR */}
+                {converterTab === 'ai-prompt' && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <Sparkles size={14} className="text-amber-400" />
+                        <span>Describe Your Desired Home Layout</span>
+                      </label>
+                      <span className="text-[11px] text-sky-400 font-mono">Sub-Millimeter AI Architecture</span>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="w-14 h-14 rounded-2xl bg-sky-500/15 text-sky-400 border border-sky-500/30 flex items-center justify-center mx-auto shadow-inner">
-                        <Upload size={28} className="animate-pulse" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="font-bold text-sm sm:text-base text-white">
-                          Drag & Drop Floor Plan Here or Browse
-                        </h4>
-                        <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-                          Brochure scans, hand drawings, photos, or architectural vector PDF files.
-                        </p>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors">
-                        <Folder size={14} className="text-sky-400" />
-                        <span>Select File from Computer</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
 
-                {/* 1-Click Sample Demos Selection */}
-                <div className="space-y-2 pt-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Or select an instant sample blueprint:
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {samplePlans.map((demo) => {
-                      const isSelected = selectedDemoId === demo.id && !selectedFile;
-                      return (
-                        <button
-                          key={demo.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedDemoId(demo.id);
-                            setSelectedFile(null);
-                            handleLoadSample(demo.image, demo.title);
-                          }}
-                          className={`p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all ${
-                            isSelected
-                              ? 'bg-sky-950/40 border-sky-400 shadow-md shadow-sky-500/20'
-                              : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
-                          }`}
-                        >
-                          <img
-                            src={demo.image}
-                            alt={demo.title}
-                            className="w-10 h-10 rounded-lg object-cover border border-slate-700/80 shrink-0"
-                          />
-                          <div className="truncate">
-                            <span className="font-bold text-xs text-slate-200 block truncate group-hover:text-sky-300">
-                              {demo.title}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono block">
-                              Vastu {demo.vastu}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {/* AI Prompt Input Box */}
+                    <div className="relative rounded-2xl border border-slate-700/80 bg-slate-950/80 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all p-3.5 shadow-inner">
+                      <textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        rows={3}
+                        placeholder="e.g. Modern 3-BHK luxury apartment with southwest master suite, open kitchen in southeast, large balcony, and dining room..."
+                        className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 outline-none resize-none leading-relaxed"
+                      />
+                      <div className="flex flex-wrap items-center justify-between pt-2 border-t border-slate-800/80 gap-2 text-[10px] text-slate-400 font-mono">
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <span>Prompt Engine:</span>
+                          <strong className="text-slate-300">Deterministic CAD Generator</strong>
+                        </span>
+                        <span className="text-emerald-400 font-bold">100% Free • Instant Generation</span>
+                      </div>
+                    </div>
+
+                    {/* 1-Click Prompt Chips */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Quick Architectural Presets:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: '3BHK Luxury Residence (135m²)', prompt: 'Modern 3-BHK luxury residence with master suite in SW, open-concept kitchen in SE, and private garden patio' },
+                          { label: 'Scandinavian Penthouse (185m²)', prompt: 'Scandinavian light-filled penthouse with wraparound terrace, chef kitchen, and master spa bath' },
+                          { label: 'Minimalist 1BHK Studio (58m²)', prompt: 'Urban minimalist 1-BHK studio with smart partition, workspace alcove, and modern bathroom' },
+                          { label: 'Duplex Villa with Garden (210m²)', prompt: 'Two-story luxury duplex villa with double-height living room, 4 bedrooms, and courtyard' }
+                        ].map((chip) => (
+                          <button
+                            key={chip.label}
+                            type="button"
+                            onClick={() => {
+                              setAiPrompt(chip.prompt);
+                              setAiPreset(chip.label);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-[11px] text-slate-300 transition-all cursor-pointer"
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 4 Typology Cards */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Or select an architectural archetype:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: '1bhk', name: '1 BHK Studio', size: '58 m²', desc: 'Open living & suite' },
+                          { id: '2bhk', name: '2 BHK Family', size: '85 m²', desc: '2 beds & 2 baths' },
+                          { id: '3bhk', name: '3 BHK Luxury', size: '135 m²', desc: 'Master suite & balcony' },
+                          { id: 'villa', name: 'Duplex Villa', size: '210 m²', desc: '4 suites & verandah' }
+                        ].map((item) => {
+                          const isSel = aiPreset.toLowerCase().includes(item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setAiPreset(item.id);
+                                setAiPrompt(`${item.name} floor plan with optimal circulation, furnished interior, and balanced Vastu energy`);
+                              }}
+                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                isSel
+                                  ? 'bg-sky-950/40 border-sky-400 shadow-md shadow-sky-500/20'
+                                  : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="font-bold text-xs text-slate-200 truncate">{item.name}</div>
+                              <div className="text-[10px] text-sky-400 font-mono">{item.size}</div>
+                              <div className="text-[9px] text-slate-400 truncate mt-0.5">{item.desc}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* MODE B: FILE UPLOAD (DRAG & DROP) */}
+                {converterTab === 'upload' && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <Upload size={14} className="text-sky-400" />
+                        <span>Upload 2D Floor Plan</span>
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-mono">JPG, PNG, WebP, PDF, DXF (Max 10MB)</span>
+                    </div>
+
+                    {/* Dropzone Card */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          const file = e.dataTransfer.files[0];
+                          setSelectedFile(file);
+                          setSelectedDemoId(null);
+                        }
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`p-6 sm:p-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all text-center flex flex-col items-center justify-center min-h-[200px] ${
+                        isDragging
+                          ? 'border-sky-400 bg-sky-500/10 scale-[1.01]'
+                          : selectedFile
+                          ? 'border-emerald-500/60 bg-emerald-950/15'
+                          : 'border-slate-700/80 hover:border-sky-500/60 bg-slate-950/50 hover:bg-slate-950/70'
+                      }`}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp,.pdf,.dxf"
+                        onChange={handleFileInput}
+                        className="hidden"
+                      />
+
+                      {selectedFile ? (
+                        <div className="space-y-3">
+                          <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                            <Check size={28} />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-white truncate max-w-xs mx-auto">
+                              {selectedFile.name}
+                            </h4>
+                            <p className="text-xs text-slate-400 font-mono mt-0.5">
+                              {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for 3D Conversion
+                            </p>
+                          </div>
+                          <span className="inline-block text-[11px] text-sky-400 underline font-semibold">
+                            Click or drop another file to replace
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="w-14 h-14 rounded-2xl bg-sky-500/15 text-sky-400 border border-sky-500/30 flex items-center justify-center mx-auto shadow-inner">
+                            <Upload size={28} className="animate-pulse" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-sm sm:text-base text-white">
+                              Drag & Drop Floor Plan Here or Browse
+                            </h4>
+                            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                              Brochure scans, hand drawings, photos, or architectural vector PDF files.
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors">
+                            <Folder size={14} className="text-sky-400" />
+                            <span>Select File from Computer</span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* MODE C: CURATED DEMO BLUEPRINTS */}
+                {converterTab === 'samples' && (
+                  <div className="space-y-3 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <Layers size={14} className="text-amber-400" />
+                        <span>Select a High-Resolution Architectural Sample</span>
+                      </span>
+                      <span className="text-[11px] text-emerald-400 font-mono">1-Click Instant 3D Launch</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {samplePlans.map((demo) => {
+                        const isSelected = selectedDemoId === demo.id && !selectedFile;
+                        return (
+                          <div
+                            key={demo.id}
+                            onClick={() => {
+                              setSelectedDemoId(demo.id);
+                              setSelectedFile(null);
+                              handleLoadSample(demo.image, demo.title);
+                            }}
+                            className={`p-3 rounded-2xl border text-left cursor-pointer transition-all flex items-center gap-3 group ${
+                              isSelected
+                                ? 'bg-sky-950/40 border-sky-400 shadow-md shadow-sky-500/20'
+                                : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
+                            }`}
+                          >
+                            <img
+                              src={demo.image}
+                              alt={demo.title}
+                              className="w-14 h-14 rounded-xl object-cover border border-slate-700/80 shrink-0 group-hover:scale-105 transition-transform"
+                            />
+                            <div className="truncate flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-bold text-xs text-slate-200 block truncate group-hover:text-sky-300">
+                                  {demo.title}
+                                </span>
+                                <span className="text-[9px] bg-slate-900 border border-slate-700 px-1.5 py-0.2 rounded text-amber-300 font-mono">
+                                  {demo.vastu}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-400 font-mono block mt-0.5">
+                                {demo.subtitle}
+                              </span>
+                              <span className="text-[10px] text-sky-400 font-semibold block mt-1 flex items-center gap-1">
+                                <Play size={10} className="fill-sky-400" />
+                                <span>Click to Launch 3D</span>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* RIGHT PANEL: DESIGN ANALYSIS & BUILD SPECIFICATIONS (5 Cols) */}
@@ -994,19 +1201,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                   </div>
                 </div>
 
-                {/* Primary Action Button (Large, Clean CTA) */}
+                {/* Primary Action Button (Dynamic Studio CTA) */}
                 <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleConvertAction}
-                    className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-600 hover:from-sky-300 hover:to-indigo-400 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-sky-500/25 transition-all transform active:scale-98 flex items-center justify-center gap-2 group cursor-pointer"
-                  >
-                    <Sparkles size={16} className="fill-slate-950 group-hover:rotate-12 transition-transform" />
-                    <span>Convert to 3D Model Now</span>
-                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  {converterTab === 'ai-prompt' ? (
+                    <button
+                      type="button"
+                      onClick={handleAIGenerate}
+                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-600 hover:from-sky-300 hover:to-indigo-400 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-sky-500/25 transition-all transform active:scale-98 flex items-center justify-center gap-2 group cursor-pointer"
+                    >
+                      <Sparkles size={18} className="fill-slate-950 group-hover:rotate-12 transition-transform" />
+                      <span>Generate 3D Building with AI (Free & Instant)</span>
+                      <ArrowRight size={18} className="group-hover:translate-x-1.5 transition-transform" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleConvertAction}
+                      className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-600 hover:from-sky-300 hover:to-indigo-400 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-sky-500/25 transition-all transform active:scale-98 flex items-center justify-center gap-2 group cursor-pointer"
+                    >
+                      <Sparkles size={18} className="fill-slate-950 group-hover:rotate-12 transition-transform" />
+                      <span>Convert Blueprint to 3D Model Now</span>
+                      <ArrowRight size={18} className="group-hover:translate-x-1.5 transition-transform" />
+                    </button>
+                  )}
                   <p className="text-[11px] text-slate-500 text-center font-mono mt-2">
-                    Deterministic Geometry • Watertight Snapping • 100% Free to Try
+                    Deterministic Geometry • Watertight Cavities • 100% Free Forever
                   </p>
                 </div>
 
@@ -1600,6 +1819,149 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
               <Sparkles size={16} />
               <span>No Credit Card or Registration Required</span>
             </div>
+          </div>
+        </div>
+
+        {/* UNIVERSAL CAD & 3D EXPORT SUITE SHOWCASE */}
+        <div className="pt-8 border-t border-slate-800/80 space-y-6">
+          <div className="text-center space-y-1.5 max-w-2xl mx-auto">
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
+              Universal Deliverables
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              Export to Any CAD Software, 3D Engine, or 3D Printer
+            </h2>
+            <p className="text-xs text-slate-400">
+              Every download includes clean layer hierarchies, calibrated scale, and full commercial usage rights with zero watermarks.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+            {[
+              { id: 'dxf', name: 'AutoCAD DXF', tag: '.dxf', desc: 'Layered vector CAD lines', color: 'border-cyan-500/40 text-cyan-400 bg-cyan-950/20' },
+              { id: 'glb', name: 'GLB 3D Model', tag: '.glb', desc: 'WebGL, Blender & iOS AR', color: 'border-sky-500/40 text-sky-400 bg-sky-950/20' },
+              { id: 'pdf', name: 'Vector PDF', tag: '.pdf', desc: 'A4 Blueprint with title block', color: 'border-emerald-500/40 text-emerald-400 bg-emerald-950/20' },
+              { id: 'obj', name: 'Wavefront OBJ', tag: '.obj', desc: 'Maya, 3ds Max & Cinema 4D', color: 'border-slate-500/40 text-slate-300 bg-slate-900/60' },
+              { id: 'stl', name: '3D Print STL', tag: '.stl', desc: 'Watertight slicing mesh', color: 'border-amber-500/40 text-amber-400 bg-amber-950/20' },
+              { id: 'svg', name: 'Vector SVG', tag: '.svg', desc: 'Scalable graphic layout', color: 'border-purple-500/40 text-purple-400 bg-purple-950/20' },
+            ].map((fmt) => (
+              <div
+                key={fmt.id}
+                className="p-3.5 rounded-2xl border border-slate-800/80 bg-slate-900/60 hover:bg-slate-900 transition-all space-y-2 flex flex-col justify-between"
+              >
+                <div>
+                  <div className={`inline-block px-2 py-0.5 rounded text-[10px] font-mono font-black border ${fmt.color} mb-1.5`}>
+                    {fmt.tag}
+                  </div>
+                  <h4 className="font-bold text-xs text-white truncate">{fmt.name}</h4>
+                  <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{fmt.desc}</p>
+                </div>
+                <div className="pt-2 border-t border-slate-800/80 text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <Check size={11} />
+                  <span>Free Unlimited</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* COMPARISON MATRIX: 2BUILDERS VS TRADITIONAL CAD ($3,000 VALUE) */}
+        <div className="pt-8 border-t border-slate-800/80 space-y-6">
+          <div className="text-center space-y-1.5 max-w-2xl mx-auto">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
+              Honest Comparison
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              Why Architects & Homeowners Choose 2builders
+            </h2>
+            <p className="text-xs text-slate-400">
+              See how 2builders compares against legacy CAD software, consumer interior apps, and freelance rendering agencies.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-3xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-950/80 text-slate-300 font-mono text-[11px]">
+                  <th className="p-4 sm:p-5 font-bold">Feature / Capability</th>
+                  <th className="p-4 sm:p-5 font-bold text-sky-400 bg-sky-950/30 border-x border-sky-500/30">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-400" />
+                      <span>2builders</span>
+                      <span className="text-[9px] bg-sky-500/20 px-1.5 py-0.2 rounded font-black text-sky-300">100% FREE</span>
+                    </div>
+                  </th>
+                  <th className="p-4 sm:p-5 font-semibold text-slate-400">AutoCAD / Revit</th>
+                  <th className="p-4 sm:p-5 font-semibold text-slate-400">Consumer 3D Apps</th>
+                  <th className="p-4 sm:p-5 font-semibold text-slate-400">Freelance 3D Studio</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">Pricing / Cost</td>
+                  <td className="p-4 sm:p-5 font-bold text-emerald-400 bg-sky-950/20 border-x border-sky-500/20 font-mono">
+                    $0 • 100% Free Forever
+                  </td>
+                  <td className="p-4 sm:p-5 text-slate-400 font-mono">$2,800 / year</td>
+                  <td className="p-4 sm:p-5 text-slate-400 font-mono">$49 – $99 / month</td>
+                  <td className="p-4 sm:p-5 text-slate-400 font-mono">$500 – $2,000 / plan</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">Turnaround Time</td>
+                  <td className="p-4 sm:p-5 font-bold text-sky-300 bg-sky-950/20 border-x border-sky-500/20 font-mono">
+                    Instant (Sub-5 Seconds)
+                  </td>
+                  <td className="p-4 sm:p-5 text-slate-400">Manual (Hours to Days)</td>
+                  <td className="p-4 sm:p-5 text-slate-400">Manual (Hours)</td>
+                  <td className="p-4 sm:p-5 text-slate-400 font-mono">3 to 7 Days</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">AI Floor Plan Generator</td>
+                  <td className="p-4 sm:p-5 text-emerald-400 font-bold bg-sky-950/20 border-x border-sky-500/20">
+                    ✓ Text & Parameter Engine
+                  </td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ No (Manual Drafting)</td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ Limited or None</td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ No</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">Zero Overlapping Wall Skeleton</td>
+                  <td className="p-4 sm:p-5 text-emerald-400 font-bold bg-sky-950/20 border-x border-sky-500/20">
+                    ✓ Medial Axis Snapping
+                  </td>
+                  <td className="p-4 sm:p-5 text-slate-400">Manual cleanups required</td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ Z-fighting common</td>
+                  <td className="p-4 sm:p-5 text-slate-400">Varies by artist</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">8-Zone Vastu Shastra Analysis</td>
+                  <td className="p-4 sm:p-5 text-emerald-400 font-bold bg-sky-950/20 border-x border-sky-500/20">
+                    ✓ Automated Brahmasthan
+                  </td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ No</td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ No</td>
+                  <td className="p-4 sm:p-5 text-slate-500">✗ Requires Vastu Consultant</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">CAD DXF & Vector PDF Export</td>
+                  <td className="p-4 sm:p-5 text-emerald-400 font-bold bg-sky-950/20 border-x border-sky-500/20">
+                    ✓ Included (Zero Watermark)
+                  </td>
+                  <td className="p-4 sm:p-5 text-emerald-400">✓ Native</td>
+                  <td className="p-4 sm:p-5 text-amber-400">✗ Paywalled behind tier</td>
+                  <td className="p-4 sm:p-5 text-slate-400">Additional charge</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:p-5 font-bold text-white">Interactive 3D Walkthrough</td>
+                  <td className="p-4 sm:p-5 text-emerald-400 font-bold bg-sky-950/20 border-x border-sky-500/20">
+                    ✓ WASD + 360 Drone Tour
+                  </td>
+                  <td className="p-4 sm:p-5 text-slate-400">Requires Lumion/Enscape</td>
+                  <td className="p-4 sm:p-5 text-amber-400">Basic orbit only</td>
+                  <td className="p-4 sm:p-5 text-slate-400">Pre-rendered video only</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
