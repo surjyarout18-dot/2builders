@@ -85,6 +85,10 @@ interface ProjectState {
   setCinematicTourActive: (active: boolean) => void;
   dxfBannerDismissed: boolean;
   setDxfBannerDismissed: (dismissed: boolean) => void;
+  isPremiumModalOpen: boolean;
+  setPremiumModalOpen: (open: boolean) => void;
+  userTier: 'free' | 'pro' | 'enterprise';
+  setUserTier: (tier: 'free' | 'pro' | 'enterprise') => void;
   generateAILayout: (config: {
     type: 'room' | 'house' | 'custom';
     preset: string;
@@ -272,6 +276,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setCinematicTourActive: (isCinematicTourActive) => set({ isCinematicTourActive }),
   dxfBannerDismissed: false,
   setDxfBannerDismissed: (dxfBannerDismissed) => set({ dxfBannerDismissed }),
+  isPremiumModalOpen: false,
+  setPremiumModalOpen: (isPremiumModalOpen) => set({ isPremiumModalOpen }),
+  userTier: 'free',
+  setUserTier: (userTier) => set({ userTier }),
 
   generateAILayout: (config) => {
     const { preset, furnished = true, unit = 'meters' } = config;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Download, Box, Layers, Code, CheckCircle2, FileText, Printer, HelpCircle } from 'lucide-react';
+import { X, Download, Box, Layers, Code, CheckCircle2, FileText, Printer, HelpCircle, Crown, Sparkles } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 import { ModelExporter } from '../three/ModelExporter';
 import { triggerFileDownload } from '../utils/downloadHelper';
@@ -12,6 +12,7 @@ export const ExportModal: React.FC = () => {
   const setStatusMessage = useProjectStore((s) => s.setStatusMessage);
   const setViewerGuideOpen = useProjectStore((s) => s.setViewerGuideOpen);
   const setViewerGuideFormat = useProjectStore((s) => s.setViewerGuideFormat);
+  const setPremiumModalOpen = useProjectStore((s) => s.setPremiumModalOpen);
 
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<{ filename: string; format: string } | null>(null);
@@ -277,6 +278,26 @@ export const ExportModal: React.FC = () => {
                 Export JSON
               </button>
             </div>
+          </div>
+
+          {/* Pro Commercial Export Banner */}
+          <div className="p-3 bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/40 border border-amber-500/40 rounded-xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Crown size={18} className="text-amber-400 fill-amber-400 shrink-0" />
+              <div>
+                <span className="font-bold text-white">Need White-Label Blueprints & 4K Renders?</span>
+                <p className="text-[11px] text-slate-400">Pro Architect unlocks watermark-free vector PDFs, CAD DXF & commercial rights</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setExportModalOpen(false);
+                setPremiumModalOpen(true);
+              }}
+              className="px-3 py-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 font-black rounded-lg text-xs shrink-0 shadow-md shadow-amber-500/20 hover:from-amber-300 hover:to-orange-400 transition-all cursor-pointer"
+            >
+              View Pro Plans
+            </button>
           </div>
 
           {downloadSuccess && (

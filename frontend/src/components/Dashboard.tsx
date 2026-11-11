@@ -31,7 +31,8 @@ import {
   Camera,
   Grid,
   X,
-  FileCode
+  FileCode,
+  Crown
 } from 'lucide-react';
 import { Project } from '../types';
 import { useProjectStore } from '../store/useProjectStore';
@@ -66,6 +67,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const setTwoBuildersPlan = useProjectStore((s) => s.setTwoBuildersPlan);
   const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
   const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
+  const setPremiumModalOpen = useProjectStore((s) => s.setPremiumModalOpen);
+  const userTier = useProjectStore((s) => s.userTier);
   const dxfBannerDismissed = useProjectStore((s) => s.dxfBannerDismissed);
   const setDxfBannerDismissed = useProjectStore((s) => s.setDxfBannerDismissed);
 
@@ -562,7 +565,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
             <span className="text-[10px] text-slate-400">▾</span>
           </button>
 
-          {/* AI Floor Plan Generator Button */}
+          {/* Instant AI Floor Plan Generator Button */}
           <button
             onClick={() => setGeneratorModalOpen(true)}
             className="flex items-center gap-1.5 text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 border border-indigo-400/40 px-3.5 py-1.5 rounded-full font-bold transition-all shadow-md shadow-indigo-500/20"
@@ -570,6 +573,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           >
             <Sparkles size={14} className="text-amber-300" />
             <span>AI Generator</span>
+          </button>
+
+          {/* Pricing / Premium Button */}
+          <button
+            onClick={() => setPremiumModalOpen(true)}
+            className="flex items-center gap-1.5 text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 border border-amber-400/40 px-3.5 py-1.5 rounded-full font-black transition-all shadow-md shadow-amber-500/25"
+            title="View 2builders Premium Plans & Pricing"
+          >
+            <Crown size={14} className="fill-slate-950" />
+            <span>Pricing</span>
+            <span className="text-[9px] bg-slate-950/80 text-amber-300 px-1.5 py-0.2 rounded font-black">
+              {userTier === 'pro' ? 'PRO' : userTier === 'enterprise' ? 'STUDIO' : 'UPGRADE'}
+            </span>
           </button>
 
           <button
@@ -1180,6 +1196,223 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ARCHITECTURAL SAAS PRICING & PREMIUM PLANS */}
+        <div id="pricing-section" className="pt-8 border-t border-slate-800/80 space-y-8">
+          <div className="text-center space-y-3 max-w-2xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold shadow-md shadow-amber-500/10">
+              <Crown size={14} className="text-amber-400 fill-amber-400" />
+              <span>PREMIUM ARCHITECTURAL PLANS</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              Predictable Pricing for{' '}
+              <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+                World-Class 3D Drafting
+              </span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Transform any brochure scan, CAD drawing, or sketch into interactive 3D dollhouses,
+              universal DXF blueprints, and full Vastu compliance reports in seconds.
+            </p>
+          </div>
+
+          {/* Pricing Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            {/* Free Starter */}
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-700 transition-all">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Starter</span>
+                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Free</span>
+                </div>
+                <div>
+                  <div className="text-3xl font-black text-white">$0</div>
+                  <p className="text-xs text-slate-400 mt-1">Free exploration of 2builders deterministic geometry engine.</p>
+                </div>
+                <div className="pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span>Deterministic 2D-to-3D Vectorizer</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span>3D Dollhouse Orbital View</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span>Basic Vastu Energy Compass</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span>Standard WebGL GLB Export</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <X size={14} className="shrink-0" />
+                    <span>No 4K Photorealistic Renders</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <X size={14} className="shrink-0" />
+                    <span>No CAD DXF or Vector PDF Blueprints</span>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-6">
+                <button
+                  onClick={() => setPremiumModalOpen(true)}
+                  className="w-full py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 bg-slate-800/60 hover:bg-slate-700/60 text-slate-200 text-xs font-bold transition-all"
+                >
+                  {userTier === 'free' ? 'Current Free Tier' : 'Explore Starter'}
+                </button>
+              </div>
+            </div>
+
+            {/* Pro Architect (Featured) */}
+            <div className="relative bg-gradient-to-b from-amber-950/30 via-slate-900/90 to-slate-900/90 border-2 border-amber-500/80 rounded-3xl p-6 sm:p-7 flex flex-col justify-between shadow-2xl shadow-amber-500/15 scale-[1.02] z-20">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 text-[10px] font-black uppercase px-3.5 py-0.5 rounded-full shadow-md tracking-wider flex items-center gap-1">
+                <Sparkles size={11} className="fill-slate-950" />
+                <span>MOST POPULAR • ARCHITECT CHOICE</span>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Crown size={15} className="text-amber-400 fill-amber-400" />
+                    <span>Pro Architect</span>
+                  </span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded font-black">
+                    SAVE 40%
+                  </span>
+                </div>
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-1">
+                    <span>$19</span>
+                    <span className="text-xs text-slate-400 font-normal">/ month (billed annually)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1">Unlimited conversions, 4K realistic renders & universal CAD exports.</p>
+                </div>
+                <div className="pt-3 border-t border-amber-500/30 space-y-2.5 text-xs text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span className="font-semibold text-white">Unlimited 2D-to-3D Floor Plans</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span><strong>4K Ultra-HD</strong> PBR Photorealistic Renders</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span><strong>All 19</strong> Floor-Plan.AI Mega Suite Tools</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span><strong>MEP Layers</strong>: Electrical, Plumbing & Lighting</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span><strong>Full 8-Zone Vastu</strong> Dosha Detection & Remedies</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span><strong>First-Person Walkthrough</strong> & 360 Flythrough Video</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span><strong>CAD DXF & Vector PDF</strong> Blueprint Exports</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
+                    <span>Commercial Presentation & Client Rights</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6">
+                <button
+                  onClick={() => setPremiumModalOpen(true)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs sm:text-sm font-black transition-all shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 group cursor-pointer"
+                >
+                  <Crown size={16} className="fill-slate-950" />
+                  <span>{userTier === 'pro' ? 'Pro Architect Active' : 'Upgrade to Pro Architect'}</span>
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+
+            {/* Studio & Enterprise */}
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-all">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                    <Building2 size={15} />
+                    <span>Studio & Enterprise</span>
+                  </span>
+                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">Teams</span>
+                </div>
+                <div>
+                  <div className="text-3xl font-black text-white">$49</div>
+                  <p className="text-xs text-slate-400 mt-1">Multi-story buildings, white-label branding & team collaboration.</p>
+                </div>
+                <div className="pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-indigo-400 shrink-0" />
+                    <span className="font-semibold text-white">Everything in Pro Architect, plus:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-indigo-400 shrink-0" />
+                    <span><strong>Multi-Story Projects</strong> (Unlimited Floors)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-indigo-400 shrink-0" />
+                    <span><strong>White-Label Custom Title Blocks</strong> on PDFs</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-indigo-400 shrink-0" />
+                    <span><strong>Team Workspace</strong> (Up to 10 Seats Included)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-indigo-400 shrink-0" />
+                    <span><strong>REST API</strong> & `2builders.plan/1` Schema</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-indigo-400 shrink-0" />
+                    <span>Dedicated Architectural Concierge</span>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-6">
+                <button
+                  onClick={() => setPremiumModalOpen(true)}
+                  className="w-full py-2.5 rounded-xl border border-indigo-500/40 hover:border-indigo-400 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+                >
+                  <span>{userTier === 'enterprise' ? 'Studio Active' : 'Get Studio License'}</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Trust Guarantees Bar */}
+          <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 flex flex-wrap items-center justify-around gap-4 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+              <ShieldCheck size={18} />
+              <span>14-Day 100% Money-Back Guarantee</span>
+            </div>
+            <div className="flex items-center gap-2 text-sky-400 font-semibold">
+              <Lock size={16} />
+              <span>Secure 256-Bit SSL Checkout</span>
+            </div>
+            <div className="flex items-center gap-2 text-amber-400 font-semibold">
+              <Zap size={16} />
+              <span>Sub-5s Instant GPU Generation</span>
+            </div>
+            <button
+              onClick={() => setPremiumModalOpen(true)}
+              className="text-xs text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
+            >
+              Compare All Features in Detail →
+            </button>
           </div>
         </div>
 

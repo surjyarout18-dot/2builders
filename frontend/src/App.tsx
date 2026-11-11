@@ -13,6 +13,7 @@ import { ShareModal } from './components/ShareModal';
 import { FileViewerGuideModal } from './components/FileViewerGuideModal';
 import { AllToolsMegaMenu } from './components/AllToolsMegaMenu';
 import { FloorPlanGeneratorModal } from './components/FloorPlanGeneratorModal';
+import { PremiumModal } from './components/PremiumModal';
 import { Dashboard } from './components/Dashboard';
 import { ToastContainer } from './components/Toast';
 import { useProjectStore } from './store/useProjectStore';
@@ -135,6 +136,7 @@ export function App() {
       <FileViewerGuideModal />
       <AllToolsMegaMenu onOpenEditor={() => setCurrentView('editor')} />
       <FloorPlanGeneratorModal onOpenEditor={() => setCurrentView('editor')} />
+      <PremiumModal />
       <ToastContainer />
     </>
   );

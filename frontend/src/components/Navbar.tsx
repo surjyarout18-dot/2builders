@@ -18,7 +18,8 @@ import {
   X,
   Sliders,
   Sparkles,
-  FileCode
+  FileCode,
+  Crown
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 import { triggerFileDownload } from '../utils/downloadHelper';
@@ -56,6 +57,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
   const isLoading = useProjectStore((s) => s.isLoading);
   const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
   const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
+  const setPremiumModalOpen = useProjectStore((s) => s.setPremiumModalOpen);
+  const userTier = useProjectStore((s) => s.userTier);
   const dxfBannerDismissed = useProjectStore((s) => s.dxfBannerDismissed);
   const setDxfBannerDismissed = useProjectStore((s) => s.setDxfBannerDismissed);
 
@@ -315,6 +318,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
             <Download size={14} />
             <span>Share / Export</span>
           </button>
+
+          {/* Premium Upgrade */}
+          <button
+            onClick={() => setPremiumModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs rounded shadow-md shadow-amber-500/20 transition-all border border-amber-300/40"
+            title="Upgrade to Pro Architect / View Plans"
+          >
+            <Crown size={14} className="fill-slate-950" />
+            <span className="hidden xl:inline">Premium</span>
+            <span className="text-[10px] bg-slate-950/80 text-amber-300 px-1 py-0.2 rounded font-black">
+              {userTier === 'pro' ? 'PRO' : userTier === 'enterprise' ? 'STUDIO' : 'UPGRADE'}
+            </span>
+          </button>
         </div>
 
         {/* Right: Mobile Compact Controls */}
@@ -503,6 +519,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
               <span>Validate</span>
             </button>
           </div>
+
+          {/* Go Premium on mobile */}
+          <button
+            onClick={() => {
+              setPremiumModalOpen(true);
+              setIsMobileMenuOpen(false);
+            }}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 font-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+          >
+            <Crown size={16} className="fill-slate-950" />
+            <span>Upgrade to Pro Architect (Save 40%)</span>
+          </button>
 
           {/* Viewer Guide & Save */}
           <div className="flex items-center gap-2 pt-1 border-t border-cad-border">

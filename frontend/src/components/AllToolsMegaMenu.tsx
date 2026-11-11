@@ -20,7 +20,8 @@ import {
   Trees,
   BedDouble,
   X,
-  ArrowRight
+  ArrowRight,
+  Crown
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 import { toast } from './Toast';
@@ -32,6 +33,7 @@ interface AllToolsMegaMenuProps {
 export const AllToolsMegaMenu: React.FC<AllToolsMegaMenuProps> = ({ onOpenEditor }) => {
   const isMegaMenuOpen = useProjectStore((s) => s.isMegaMenuOpen);
   const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
+  const setPremiumModalOpen = useProjectStore((s) => s.setPremiumModalOpen);
   const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
   const setImportModalOpen = useProjectStore((s) => s.setImportModalOpen);
   const setExportModalOpen = useProjectStore((s) => s.setExportModalOpen);
@@ -505,6 +507,29 @@ export const AllToolsMegaMenu: React.FC<AllToolsMegaMenuProps> = ({ onOpenEditor
               <ArrowRight size={12} />
             </button>
           </div>
+        </div>
+
+        {/* Bottom Pro Upgrade Banner */}
+        <div className="px-6 py-3.5 bg-gradient-to-r from-amber-950/50 via-slate-900 to-amber-950/50 border-t border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
+              <Crown size={15} />
+            </div>
+            <div>
+              <span className="font-bold text-white">Unlock Unlimited 4K Renders, CAD DXF & Full Vastu Analytics</span>
+              <p className="text-[11px] text-slate-400">Upgrade to Pro Architect for commercial client presentation rights</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setMegaMenuOpen(false);
+              setPremiumModalOpen(true);
+            }}
+            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-500/20 shrink-0 flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>View Pro Plans</span>
+            <ArrowRight size={13} />
+          </button>
         </div>
       </div>
     </div>
