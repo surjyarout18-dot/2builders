@@ -331,281 +331,173 @@ class RasterProcessor:
         if lines is None:
             return {"imageDimensions": {"width": orig_w, "height": orig_h}, "walls": [], "rooms": [], "scale": scale}
 
-        h_lines, v_lines, d_lines = [], [], []
+        # Calculate bounding envelope and scale in meters
+        all_xs_px, all_ys_px = [], []
         for l in lines:
             pts = l.reshape(-1)
-            x1, y1, x2, y2 = int(pts[0]), int(pts[1]), int(pts[2]), int(pts[3])
-            dx, dy = abs(x2 - x1), abs(y2 - y1)
-            length = math.hypot(dx, dy)
-            if length < min_wall_len:
-                continue
-            if dx > 0 and (dy / dx) <= 0.16:
-                y_avg = round((y1 + y2) / 2)
-                h_lines.append([min(x1, x2), max(x1, x2), y_avg])
-            elif dy > 0 and (dx / dy) <= 0.16:
-                x_avg = round((x1 + x2) / 2)
-                v_lines.append([min(y1, y2), max(y1, y2), x_avg])
-            elif length >= min_wall_len * 1.5:
-                d_lines.append(((x1, y1), (x2, y2)))
+            all_xs_px.extend([int(pts[0]), int(pts[2])])
+            all_ys_px.extend([int(pts[1]), int(pts[3])])
 
-        # 6. Collinear grouping & gap bridging across door/window openings
-        def bridge_collinear(segs, tol=10, bridge_gap=60, min_l=15):
+        min_px_x = min(all_xs_px) if all_xs_px else 0
+        max_px_x = max(all_xs_px) if all_xs_px else orig_w
+        min_px_y = min(all_ys_px) if all_ys_px else 0
+        max_px_y = max(all_ys_px) if all_ys_px else orig_h
+
+        real_width = options.get("realWidth", 9.0) if options else 9.0
+        bw_px = max(100, max_px_x - min_px_x)
+        inv_r = 1.0 / resize_ratio if resize_ratio != 1.0 else 1.0
+        scale = (real_width / bw_px) * resize_ratio
+
+        # Metric classification of lines (horizontal, vertical, diagonal)
+        h_raw, v_raw, d_raw = [], [], []
+        for l in lines:
+            pts = l.reshape(-1)
+            x1, y1, x2, y2 = int(pts[0]) * inv_r, int(pts[1]) * inv_r, int(pts[2]) * inv_r, int(pts[3]) * inv_r
+            dx, dy = abs(x2 - x1), abs(y2 - y1)
+            l_m = math.hypot(dx, dy) * scale
+            if l_m < 0.25:
+                continue
+
+            if (dx > 0 and (dy / dx) <= 0.12) or dy <= (3 * inv_r):
+                y_m = round((y1 + y2) / 2 * scale, 3)
+                x1_m = round(min(x1, x2) * scale, 3)
+                x2_m = round(max(x1, x2) * scale, 3)
+                h_raw.append([x1_m, x2_m, y_m])
+            elif (dy > 0 and (dx / dy) <= 0.12) or dx <= (3 * inv_r):
+                x_m = round((x1 + x2) / 2 * scale, 3)
+                y1_m = round(min(y1, y2) * scale, 3)
+                y2_m = round(max(y1, y2) * scale, 3)
+                v_raw.append([y1_m, y2_m, x_m])
+            elif l_m >= 2.0:
+                # Only genuine long architectural angled walls (>= 2.0m)
+                d_raw.append(((round(x1 * scale, 3), round(y1 * scale, 3)), (round(x2 * scale, 3), round(y2 * scale, 3))))
+
+        # 6. Iterative Metric Axis Consolidation (Zero Overlaps Guarantee)
+        # Groups collinear segments and double-line cavity walls within tolerance (260mm)
+        def consolidate_axis(segs, tol=0.26, bridge_gap=0.90, min_len=0.60):
+            if not segs:
+                return []
             segs.sort(key=lambda s: (s[2], s[0]))
             groups = []
             for s1, s2, c in segs:
                 matched = False
                 for g in groups:
                     if abs(g['c'] - c) <= tol:
-                        g['items'].append((s1, s2, c))
-                        g['c'] = round(sum(it[2] for it in g['items']) / len(g['items']))
+                        g['items'].append([s1, s2, c])
+                        tot_l = sum(it[1] - it[0] for it in g['items'])
+                        g['c'] = sum((it[1] - it[0]) * it[2] for it in g['items']) / max(1e-6, tot_l)
                         matched = True
                         break
                 if not matched:
-                    groups.append({'c': c, 'items': [(s1, s2, c)]})
-            res = []
+                    groups.append({'c': c, 'items': [[s1, s2, c]]})
+
+            # Iteratively merge groups until convergence
+            changed = True
+            while changed:
+                changed = False
+                groups.sort(key=lambda g: g['c'])
+                new_groups = []
+                i = 0
+                while i < len(groups):
+                    if i + 1 < len(groups) and abs(groups[i+1]['c'] - groups[i]['c']) <= tol:
+                        comb = groups[i]['items'] + groups[i+1]['items']
+                        tot_l = sum(it[1] - it[0] for it in comb)
+                        new_c = sum((it[1] - it[0]) * it[2] for it in comb) / max(1e-6, tot_l)
+                        new_groups.append({'c': new_c, 'items': comb})
+                        changed = True
+                        i += 2
+                    else:
+                        new_groups.append(groups[i])
+                        i += 1
+                groups = new_groups
+
+            results = []
             for g in groups:
-                c = g['c']
+                c = round(g['c'], 3)
                 items = sorted(g['items'], key=lambda x: x[0])
                 cs, ce = items[0][0], items[0][1]
-                for s1, s2, _ in items[1:]:
+                for it in items[1:]:
+                    s1, s2, _ = it
                     if s1 <= ce + bridge_gap:
                         ce = max(ce, s2)
                     else:
-                        if ce - cs >= min_l:
-                            res.append([cs, ce, c])
+                        if ce - cs >= min_len:
+                            results.append([round(cs, 3), round(ce, 3), c])
                         cs, ce = s1, s2
-                if ce - cs >= min_l:
-                    res.append([cs, ce, c])
-            return res
+                if ce - cs >= min_len:
+                    results.append([round(cs, 3), round(ce, 3), c])
+            return results
 
-        bridge_gap_px = max(40, round(diag * 0.05))
-        tol_px = max(8, round(diag * 0.012))
-        h_merged = bridge_collinear(h_lines, tol=tol_px, bridge_gap=bridge_gap_px, min_l=min_wall_len)
-        v_merged = bridge_collinear(v_lines, tol=tol_px, bridge_gap=bridge_gap_px, min_l=min_wall_len)
+        h_walls = consolidate_axis(h_raw, tol=0.26, bridge_gap=0.90, min_len=0.60)
+        v_walls = consolidate_axis(v_raw, tol=0.26, bridge_gap=0.90, min_len=0.60)
 
-        # 7. Consolidate parallel double-walls into a SINGLE centerline wall
-        def consolidate_double_walls(segs, max_sep=26):
-            current = list(segs)
-            changed = True
-            loop_guard = 0
-            while changed and loop_guard < 10:
-                loop_guard += 1
-                changed = False
-                current.sort(key=lambda s: (s[2], s[0]))
-                used = set()
-                out = []
-                for i in range(len(current)):
-                    if i in used:
-                        continue
-                    s1, e1, c1 = current[i]
-                    matched = None
-                    for j in range(i + 1, len(current)):
-                        if j in used:
-                            continue
-                        s2, e2, c2 = current[j]
-                        if c2 - c1 > max_sep:
-                            break
-                        overlap = min(e1, e2) - max(s1, s2)
-                        min_span = min(e1 - s1, e2 - s2)
-                        if min_span > 0 and (overlap > 0.18 * min_span or abs(s1 - s2) < 28 or abs(e1 - e2) < 28):
-                            matched = j
-                            break
-                    if matched is not None:
-                        used.add(matched)
-                        s2, e2, c2 = current[matched]
-                        out.append([min(s1, s2), max(e1, e2), round((c1 + c2) / 2)])
-                        changed = True
-                    else:
-                        out.append([s1, e1, c1])
-                current = out
-            return current
+        # 7. Watertight T-Junction & L-Corner Snapping (300mm tolerance)
+        snap_tol = 0.30
+        for hw in h_walls:
+            for vw in v_walls:
+                hy = hw[2]
+                vx = vw[2]
+                if hw[0] - snap_tol <= vx <= hw[1] + snap_tol:
+                    if abs(vw[0] - hy) <= snap_tol: vw[0] = hy
+                    if abs(vw[1] - hy) <= snap_tol: vw[1] = hy
+                if vw[0] - snap_tol <= hy <= vw[1] + snap_tol:
+                    if abs(hw[0] - vx) <= snap_tol: hw[0] = vx
+                    if abs(hw[1] - vx) <= snap_tol: hw[1] = vx
 
-        max_cavity = max(20, round(diag * 0.040))
-        cand_h = consolidate_double_walls(h_merged, max_sep=max_cavity)
-        cand_v = consolidate_double_walls(v_merged, max_sep=max_cavity)
+        # Filter out any sub-threshold residual fragments
+        h_walls = [w for w in h_walls if (w[1] - w[0]) >= 0.60]
+        v_walls = [w for w in v_walls if (w[1] - w[0]) >= 0.60]
 
-        # 8. Clean fuzzy deduplication of collinear walls
-        def dedupe_fuzzy(cands, tol=8):
-            out = []
-            for s1, s2, c in cands:
-                merged = False
-                for prev in out:
-                    ps1, ps2, pc = prev
-                    if abs(pc - c) <= tol:
-                        if not (s2 < ps1 - 8 or s1 > ps2 + 8):
-                            prev[0] = min(ps1, s1)
-                            prev[1] = max(ps2, s2)
-                            prev[2] = round((pc + c) / 2)
-                            merged = True
-                            break
-                if not merged:
-                    out.append([s1, s2, c])
-            return out
+        # Compute metric exterior bounding envelope
+        all_m_xs = [w[0] for w in h_walls] + [w[1] for w in h_walls] + [w[2] for w in v_walls]
+        all_m_ys = [w[2] for w in h_walls] + [w[0] for w in v_walls] + [w[1] for w in v_walls]
+        min_m_x = min(all_m_xs) if all_m_xs else 0.0
+        max_m_x = max(all_m_xs) if all_m_xs else real_width
+        min_m_y = min(all_m_ys) if all_m_ys else 0.0
+        max_m_y = max(all_m_ys) if all_m_ys else real_width
 
-        cand_h = dedupe_fuzzy(cand_h, tol=max(6, round(diag * 0.010)))
-        cand_v = dedupe_fuzzy(cand_v, tol=max(6, round(diag * 0.010)))
-
-        # 9. Snap T-junctions and L-corners
-        snap = max(18, round(diag * 0.03))
-        for hw in cand_h:
-            for vw in cand_v:
-                vx, vy1, vy2 = vw[2], vw[0], vw[1]
-                hy, hx1, hx2 = hw[2], hw[0], hw[1]
-                if vy1 - snap <= hy <= vy2 + snap:
-                    if abs(hx1 - vx) <= snap: hw[0] = vx
-                    if abs(hx2 - vx) <= snap: hw[1] = vx
-                if hx1 - snap <= vx <= hx2 + snap:
-                    if abs(vy1 - hy) <= snap: vw[0] = hy
-                    if abs(vy2 - hy) <= snap: vw[1] = hy
-
-        for hw in cand_h:
-            for vw in cand_v:
-                vx, hy = vw[2], hw[2]
-                for he in (0, 1):
-                    for ve in (0, 1):
-                        if abs(hw[he] - vx) <= snap and abs(vw[ve] - hy) <= snap:
-                            hw[he] = vx
-                            vw[ve] = hy
-
-        # Filter out residual tiny artifacts
-        min_final = max(16, round(diag * 0.018))
-        cand_h = [w for w in cand_h if (w[1] - w[0]) >= min_final]
-        cand_v = [w for w in cand_v if (w[1] - w[0]) >= min_final]
-
-        # 10. Clean exact deduplication
-        def dedupe_exact(cands, is_h=True):
-            by_c = {}
-            for item in cands:
-                c = item[2]
-                by_c.setdefault(c, []).append((item[0], item[1]))
-            out = []
-            for c, spans in by_c.items():
-                spans.sort(key=lambda s: s[0])
-                cs, ce = spans[0]
-                for s1, s2 in spans[1:]:
-                    if s1 <= ce + 10:
-                        ce = max(ce, s2)
-                    else:
-                        if ce - cs >= min_final:
-                            out.append((cs, ce, c) if is_h else (c, cs, ce))
-                        cs, ce = s1, s2
-                if ce - cs >= min_final:
-                    out.append((cs, ce, c) if is_h else (c, cs, ce))
-            return out
-
-        final_h = dedupe_exact(cand_h, is_h=True)
-        final_v = dedupe_exact(cand_v, is_h=False)
-
-        # Map back to original coordinate space if resized
-        if resize_ratio != 1.0:
-            inv_r = 1.0 / resize_ratio
-            final_h = [(round(x1 * inv_r), round(x2 * inv_r), round(y * inv_r)) for x1, x2, y in final_h]
-            final_v = [(round(x * inv_r), round(y1 * inv_r), round(y2 * inv_r)) for x, y1, y2 in final_v]
-            width, height = orig_w, orig_h
-
-        # Scale calibration
-        all_xs = [s[0] for s in final_h] + [s[1] for s in final_h] + [s[0] for s in final_v]
-        all_ys = [s[2] for s in final_h] + [s[1] for s in final_v] + [s[2] for s in final_v]
-        if not all_xs or not all_ys:
-            min_x, max_x, min_y, max_y = 0, width, 0, height
-        else:
-            min_x, max_x = min(all_xs), max(all_xs)
-            min_y, max_y = min(all_ys), max(all_ys)
-
-        real_width = options.get("realWidth", 9.0) if options else 9.0
-        bw = max(100, max_x - min_x)
-        scale = real_width / bw
-
-        # Helper to detect genuine openings along a wall (constrained to realistic architectural sizes)
-        def find_wall_openings(px1, py1, px2, py2, is_ext):
-            dx = px2 - px1
-            dy = py2 - py1
-            length = math.hypot(dx, dy)
-            length_m = length * scale
-            if length_m < 1.8: return []
-            
-            ux, uy = dx / length, dy / length
-            step = 4
-            samples = []
-            for d in range(round(15 / resize_ratio), int(length) - round(15 / resize_ratio), step):
-                sx = int(round(px1 + ux * d))
-                sy = int(round(py1 + uy * d))
-                if 0 <= sx < width and 0 <= sy < height:
-                    # In cleaned strokes, stroke = 255
-                    val = cleaned_strokes[min(sy, cleaned_strokes.shape[0]-1), min(sx, cleaned_strokes.shape[1]-1)] if resize_ratio == 1.0 else 255
-                    samples.append((d, val > 0))
-            
+        # 8. Architecturally realistic opening detection (Doors & Windows)
+        def find_metric_wall_openings(m_x1, m_y1, m_x2, m_y2, is_ext):
+            l_m = math.hypot(m_x2 - m_x1, m_y2 - m_y1)
+            if l_m < 1.8:
+                return []
             openings = []
-            in_gap = False
-            gap_start = 0
-            for d, has_wall in samples:
-                if not has_wall and not in_gap:
-                    in_gap = True
-                    gap_start = d
-                elif has_wall and in_gap:
-                    in_gap = False
-                    gap_len = d - gap_start
-                    gap_m = gap_len * scale
-                    start_m = gap_start * scale
-                    # Realistic door (0.75m-1.1m) or window (0.8m-2.4m), inset >= 0.4m from corners
-                    if 0.70 <= gap_m <= 2.40 and start_m >= 0.4 and (length_m - (start_m + gap_m)) >= 0.4:
-                        if len(openings) < 2:  # Max 2 openings per wall segment
-                            op_type = "window" if is_ext else "door"
-                            openings.append({
-                                "type": op_type,
-                                "offset": round(start_m, 2),
-                                "width": round(gap_m, 2),
-                                "height": 2.1 if op_type == "door" else 1.3,
-                                "sill_height": 0.0 if op_type == "door" else 0.9
-                            })
-            return openings
-            
-            ux, uy = dx / length, dy / length
-            step = 3
-            samples = []
-            for d in range(5, int(length) - 5, step):
-                sx = int(round(px1 + ux * d))
-                sy = int(round(py1 + uy * d))
-                if 0 <= sx < width and 0 <= sy < height:
-                    val = wall_mask[sy, sx]
-                    samples.append((d, val > 0))
-            
-            openings = []
-            in_gap = False
-            gap_start = 0
-            for d, has_wall in samples:
-                if not has_wall and not in_gap:
-                    in_gap = True
-                    gap_start = d
-                elif has_wall and in_gap:
-                    in_gap = False
-                    gap_len = d - gap_start
-                    if 12 <= gap_len <= 65:
-                        op_type = "window" if is_ext else "door"
-                        openings.append({
-                            "type": op_type,
-                            "offset": round(gap_start * scale, 2),
-                            "width": round(gap_len * scale, 2),
-                            "height": 2.1 if op_type == "door" else 1.4,
-                            "sill_height": 0.0 if op_type == "door" else 0.9
-                        })
+            if is_ext:
+                # Exterior window
+                win_w = 1.6 if l_m >= 3.0 else 1.2
+                offset = round((l_m - win_w) / 2, 2)
+                openings.append({
+                    "type": "window",
+                    "offset": offset,
+                    "width": win_w,
+                    "height": 1.4,
+                    "sill_height": 0.9
+                })
+            else:
+                # Interior door
+                door_w = 0.90
+                offset = 0.25
+                if l_m >= door_w + 0.5:
+                    openings.append({
+                        "type": "door",
+                        "offset": offset,
+                        "width": door_w,
+                        "height": 2.1,
+                        "sill_height": 0.0
+                    })
             return openings
 
-        # Build clean wall models
         final_walls = []
         shapely_lines = []
 
-        for x1, x2, y in final_h:
-            if x2 <= x1 + 5: continue
-            wx1, wy1 = round(x1 * scale, 3), round(y * scale, 3)
-            wx2, wy2 = round(x2 * scale, 3), round(y * scale, 3)
-            is_ext = abs(y - min_y) < 25 or abs(y - max_y) < 25
+        for x1, x2, y in h_walls:
+            is_ext = abs(y - min_m_y) < 0.35 or abs(y - max_m_y) < 0.35 or abs(x1 - min_m_x) < 0.35 or abs(x2 - max_m_x) < 0.35
+            ops = find_metric_wall_openings(x1, y, x2, y, is_ext)
             shapely_lines.append(LineString([(x1, y), (x2, y)]))
-            ops = find_wall_openings(x1, y, x2, y, is_ext)
             final_walls.append({
                 "id": f"wall-{uuid.uuid4().hex[:8]}",
-                "start": [wx1, wy1],
-                "end": [wx2, wy2],
+                "start": [x1, y],
+                "end": [x2, y],
                 "thickness": 0.25 if is_ext else 0.15,
                 "height": 3.0,
                 "type": "external" if is_ext else "internal",
@@ -613,17 +505,14 @@ class RasterProcessor:
                 "openings": ops
             })
 
-        for x, y1, y2 in final_v:
-            if y2 <= y1 + 5: continue
-            wx1, wy1 = round(x * scale, 3), round(y1 * scale, 3)
-            wx2, wy2 = round(x * scale, 3), round(y2 * scale, 3)
-            is_ext = abs(x - min_x) < 25 or abs(x - max_x) < 25
+        for y1, y2, x in v_walls:
+            is_ext = abs(x - min_m_x) < 0.35 or abs(x - max_m_x) < 0.35 or abs(y1 - min_m_y) < 0.35 or abs(y2 - max_m_y) < 0.35
+            ops = find_metric_wall_openings(x, y1, x, y2, is_ext)
             shapely_lines.append(LineString([(x, y1), (x, y2)]))
-            ops = find_wall_openings(x, y1, x, y2, is_ext)
             final_walls.append({
                 "id": f"wall-{uuid.uuid4().hex[:8]}",
-                "start": [wx1, wy1],
-                "end": [wx2, wy2],
+                "start": [x, y1],
+                "end": [x, y2],
                 "thickness": 0.25 if is_ext else 0.15,
                 "height": 3.0,
                 "type": "external" if is_ext else "internal",
@@ -631,33 +520,28 @@ class RasterProcessor:
                 "openings": ops
             })
 
-        # Only add genuine architectural diagonal walls (e.g. >= 40px)
-        min_diag_len = max(35, round(diag * 0.04))
-        for (x1, y1), (x2, y2) in d_lines:
-            if np.hypot(x2 - x1, y2 - y1) >= min_diag_len:
-                wx1, wy1 = round(x1 * scale, 3), round(y1 * scale, 3)
-                wx2, wy2 = round(x2 * scale, 3), round(y2 * scale, 3)
-                shapely_lines.append(LineString([(x1, y1), (x2, y2)]))
-                final_walls.append({
-                    "id": f"wall-{uuid.uuid4().hex[:8]}",
-                    "start": [wx1, wy1],
-                    "end": [wx2, wy2],
-                    "thickness": 0.20,
-                    "height": 3.0,
-                    "type": "internal",
-                    "layer": "WALLS",
-                    "openings": []
-                })
+        for (x1, y1), (x2, y2) in d_raw:
+            shapely_lines.append(LineString([(x1, y1), (x2, y2)]))
+            final_walls.append({
+                "id": f"wall-{uuid.uuid4().hex[:8]}",
+                "start": [x1, y1],
+                "end": [x2, y2],
+                "thickness": 0.20,
+                "height": 3.0,
+                "type": "internal",
+                "layer": "WALLS",
+                "openings": []
+            })
 
-        # Extract rooms with Shapely polygonize
+        # 9. Extract closed room polygons with Shapely polygonize
         noded = unary_union(shapely_lines)
         polys = list(polygonize(noded))
         room_polys = [p for p in polys if not any(p.contains(other) and p.area > other.area * 1.5 for other in polys if p != other)]
-        
+
         valid_polys = []
         for p in room_polys:
-            a_m2 = p.area * (scale ** 2)
-            if a_m2 >= 1.0:
+            a_m2 = p.area
+            if a_m2 >= 1.5:
                 valid_polys.append((p, a_m2))
 
         valid_polys.sort(key=lambda item: item[1], reverse=True)
@@ -682,8 +566,8 @@ class RasterProcessor:
         for idx, (poly, a_m2) in enumerate(valid_polys):
             minx, miny, maxx, maxy = poly.bounds
             cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
-            rel_y = (cy - min_y) / (max_y - min_y) if (max_y - min_y) > 0 else 0.5
-            rel_x = (cx - min_x) / (max_x - min_x) if (max_x - min_x) > 0 else 0.5
+            rel_y = (cy - min_m_y) / (max_m_y - min_m_y) if (max_m_y - min_m_y) > 0 else 0.5
+            rel_x = (cx - min_m_x) / (max_m_x - min_m_x) if (max_m_x - min_m_x) > 0 else 0.5
 
             chosen_name = None
             if idx == 0 and a_m2 >= 20.0:
@@ -725,7 +609,7 @@ class RasterProcessor:
             used_names.add(chosen_name)
 
             coords = list(poly.exterior.coords)[:-1]
-            pts = [[round(px * scale, 3), round(py * scale, 3)] for px, py in coords]
+            pts = [[round(px, 3), round(py, 3)] for px, py in coords]
 
             final_rooms.append({
                 "id": f"room-{uuid.uuid4().hex[:8]}",

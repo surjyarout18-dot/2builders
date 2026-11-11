@@ -60,6 +60,54 @@ export const Canvas2D: React.FC = () => {
   const [measureStart, setMeasureStart] = useState<Point2D | null>(null);
   const [measuredDist, setMeasuredDist] = useState<number | null>(null);
   const [isCanvasDragging, setIsCanvasDragging] = useState<boolean>(false);
+  const [touchDist, setTouchDist] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const touch = e.touches[0];
+      const sx = touch.clientX - rect.left;
+      const sy = touch.clientY - rect.top;
+      setDragStart({ x: sx, y: sy });
+      setIsPanning(true);
+      const world = screenToWorld(sx, sy);
+      setMouseWorld(world);
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      setTouchDist(Math.hypot(dx, dy));
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isPanning) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const touch = e.touches[0];
+      const sx = touch.clientX - rect.left;
+      const sy = touch.clientY - rect.top;
+      setPan((prev) => ({
+        x: prev.x + (sx - dragStart.x),
+        y: prev.y + (sy - dragStart.y)
+      }));
+      setDragStart({ x: sx, y: sy });
+      const world = screenToWorld(sx, sy);
+      setMouseWorld(world);
+    } else if (e.touches.length === 2 && touchDist !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const newDist = Math.hypot(dx, dy);
+      const factor = newDist / touchDist;
+      setZoom((prev) => Math.min(Math.max(prev * factor, 10), 200));
+      setTouchDist(newDist);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPanning(false);
+    setTouchDist(null);
+  };
 
   const handleCanvasDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -881,7 +929,7 @@ export const Canvas2D: React.FC = () => {
       className="w-full h-full relative overflow-hidden bg-cad-dark"
     >
       {/* 2D Architectural & MEP Layer Switcher */}
-      <div className="absolute top-4 left-4 bg-slate-950/85 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20">
+      <div className="absolute top-3 left-3 max-w-[calc(100vw-1.5rem)] overflow-x-auto no-scrollbar bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20 pointer-events-auto">
         {[
           { id: 'none', label: 'Architecture', icon: Layers, color: 'text-sky-400' },
           { id: 'electrical', label: 'Electrical', icon: Zap, color: 'text-amber-400' },
@@ -898,14 +946,14 @@ export const Canvas2D: React.FC = () => {
                 setActiveSpecialLayer(layer.id as any);
                 toast.info(`Switched to ${layer.label} Plan view`);
               }}
-              className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+              className={`px-2 sm:px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shrink-0 ${
                 isActive
                   ? 'bg-slate-800 text-white shadow-md border border-slate-600'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
               }`}
             >
               <Icon size={13} className={isActive ? layer.color : 'text-slate-400'} />
-              <span>{layer.label}</span>
+              <span className="hidden sm:inline">{layer.label}</span>
             </button>
           );
         })}
@@ -927,7 +975,10 @@ export const Canvas2D: React.FC = () => {
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        className="w-full h-full block cursor-crosshair"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="w-full h-full block cursor-crosshair touch-none"
       />
 
       {/* Coordinate & Scale HUD overlay */}

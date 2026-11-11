@@ -45,6 +45,7 @@ class TwoBuildersPlanConverter:
 
         # 2. Convert walls to mm and attach to nodes
         walls: List[Dict[str, Any]] = []
+        seen_pairs = set()
         min_x, max_x = float('inf'), float('-inf')
         min_y, max_y = float('inf'), float('-inf')
 
@@ -68,6 +69,11 @@ class TwoBuildersPlanConverter:
 
             if start_node == end_node:
                 continue
+
+            pair = (min(start_node, end_node), max(start_node, end_node))
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
 
             th_mm = round(w.get("thickness", 0.20) * 1000.0)
             is_ext = w.get("type", "external") == "external"

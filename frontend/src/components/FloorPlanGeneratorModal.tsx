@@ -35,6 +35,7 @@ export const FloorPlanGeneratorModal: React.FC<FloorPlanGeneratorModalProps> = (
   const [activeTab, setActiveTab] = useState<'preview' | 'examples' | 'history'>('preview');
   const [carouselIndex, setCarouselIndex] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'config' | 'preview'>('config');
 
   if (!isGeneratorModalOpen) return null;
 
@@ -104,11 +105,35 @@ export const FloorPlanGeneratorModal: React.FC<FloorPlanGeneratorModalProps> = (
           </button>
         </div>
 
+        {/* Mobile Tab Switcher */}
+        <div className="flex md:hidden border-b border-slate-800 bg-slate-950/90 p-1.5 shrink-0 gap-1">
+          <button
+            onClick={() => setMobileTab('config')}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              mobileTab === 'config'
+                ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ⚙ Configuration
+          </button>
+          <button
+            onClick={() => setMobileTab('preview')}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              mobileTab === 'preview'
+                ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            👁 Live Preview
+          </button>
+        </div>
+
         {/* Body: Split Panel */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           
           {/* Left Configuration Sidebar */}
-          <div className="w-full md:w-96 border-b md:border-b-0 md:border-r border-slate-800 p-5 space-y-5 overflow-y-auto bg-slate-950/40">
+          <div className={`w-full md:w-96 border-b md:border-b-0 md:border-r border-slate-800 p-4 sm:p-5 space-y-4 sm:space-y-5 overflow-y-auto bg-slate-950/40 ${mobileTab === 'config' ? 'block' : 'hidden md:block'}`}>
             {/* Mode Switcher */}
             <div>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Generation Scope</label>
@@ -279,7 +304,7 @@ export const FloorPlanGeneratorModal: React.FC<FloorPlanGeneratorModalProps> = (
           </div>
 
           {/* Right Live Architectural Preview */}
-          <div className="flex-1 flex flex-col bg-slate-950 p-6 overflow-hidden relative">
+          <div className={`flex-1 flex flex-col bg-slate-950 p-4 sm:p-6 overflow-hidden relative ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}>
             {/* Sub-Navigation Tabs */}
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-4 shrink-0">
               <div className="flex items-center gap-2">
