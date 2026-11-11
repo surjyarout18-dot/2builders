@@ -6,21 +6,10 @@ import {
   Check,
   Zap,
   ShieldCheck,
-  Layers,
-  Box,
-  Camera,
-  Download,
-  Compass,
-  FileText,
   Building2,
-  HelpCircle,
   ChevronDown,
   Lock,
-  Star,
-  Award,
   ArrowRight,
-  FileCode,
-  Users,
   CheckCircle2
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
@@ -538,3 +527,4 @@ export const PremiumModal: React.FC = () => {
     </div>
   );
 };
+
