@@ -577,8 +577,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
 
           {/* Pricing / Premium Button */}
           <button
-            onClick={() => setPremiumModalOpen(true)}
-            className="flex items-center gap-1.5 text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 border border-amber-400/40 px-3.5 py-1.5 rounded-full font-black transition-all shadow-md shadow-amber-500/25"
+            onClick={() => {
+              const el = document.getElementById('pricing-section');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                setPremiumModalOpen(true);
+              }
+            }}
+            className="flex items-center gap-1.5 text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 border border-amber-400/40 px-3.5 py-1.5 rounded-full font-black transition-all shadow-md shadow-amber-500/25 cursor-pointer"
             title="View 2builders Premium Plans & Pricing"
           >
             <Crown size={14} className="fill-slate-950" />
