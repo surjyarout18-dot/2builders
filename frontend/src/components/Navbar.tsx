@@ -319,16 +319,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
             <span>Share / Export</span>
           </button>
 
-          {/* Premium Upgrade */}
+          {/* 100% Free & Unlimited Badge */}
           <button
             onClick={() => setPremiumModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs rounded shadow-md shadow-amber-500/20 transition-all border border-amber-300/40"
-            title="Upgrade to Pro Architect / View Plans"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 font-bold text-xs rounded transition-all shadow-sm"
+            title="All 2builders tools are 100% Free & Unlimited"
           >
-            <Crown size={14} className="fill-slate-950" />
-            <span className="hidden xl:inline">Premium</span>
-            <span className="text-[10px] bg-slate-950/80 text-amber-300 px-1 py-0.2 rounded font-black">
-              {userTier === 'pro' ? 'PRO' : userTier === 'enterprise' ? 'STUDIO' : 'UPGRADE'}
+            <Sparkles size={14} className="text-emerald-400" />
+            <span className="hidden xl:inline">Free & Unlimited</span>
+            <span className="text-[10px] bg-emerald-500/30 text-emerald-200 px-1.5 py-0.2 rounded font-black">
+              100% FREE
             </span>
           </button>
         </div>
@@ -520,16 +520,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
             </button>
           </div>
 
-          {/* Go Premium on mobile */}
+          {/* 100% Free on mobile */}
           <button
             onClick={() => {
               setPremiumModalOpen(true);
               setIsMobileMenuOpen(false);
             }}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 font-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 text-slate-950 font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
           >
-            <Crown size={16} className="fill-slate-950" />
-            <span>Upgrade to Pro Architect (Save 40%)</span>
+            <Sparkles size={16} className="fill-slate-950" />
+            <span>All Features 100% Free & Unlimited (No Paywalls)</span>
           </button>
 
           {/* Viewer Guide & Save */}

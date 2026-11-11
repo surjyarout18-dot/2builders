@@ -280,24 +280,18 @@ export const ExportModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Pro Commercial Export Banner */}
-          <div className="p-3 bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/40 border border-amber-500/40 rounded-xl flex items-center justify-between gap-3 text-xs">
+          {/* 100% Free Commercial Export Banner */}
+          <div className="p-3 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Crown size={18} className="text-amber-400 fill-amber-400 shrink-0" />
+              <Sparkles size={18} className="text-emerald-400 shrink-0" />
               <div>
-                <span className="font-bold text-white">Need White-Label Blueprints & 4K Renders?</span>
-                <p className="text-[11px] text-slate-400">Pro Architect unlocks watermark-free vector PDFs, CAD DXF & commercial rights</p>
+                <span className="font-bold text-white">All Exports Are 100% Free & Unwatermarked</span>
+                <p className="text-[11px] text-slate-400">AutoCAD DXF, ISO A4 vector PDF blueprints, GLB, and OBJ with full commercial rights</p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setExportModalOpen(false);
-                setPremiumModalOpen(true);
-              }}
-              className="px-3 py-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 font-black rounded-lg text-xs shrink-0 shadow-md shadow-amber-500/20 hover:from-amber-300 hover:to-orange-400 transition-all cursor-pointer"
-            >
-              View Pro Plans
-            </button>
+            <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold rounded text-[11px]">
+              FREE FOREVER
+            </span>
           </div>
 
           {downloadSuccess && (

@@ -589,7 +589,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
               <span>AI Generator</span>
             </button>
 
-            {/* Pricing / Premium Button */}
+            {/* 100% Free & Unlimited Badge/Button */}
             <button
               onClick={() => {
                 const el = document.getElementById('pricing-section');
@@ -599,13 +599,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                   setPremiumModalOpen(true);
                 }
               }}
-              className="flex items-center gap-1.5 text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 border border-amber-400/40 px-3.5 py-1.5 rounded-full font-black transition-all shadow-md shadow-amber-500/25 cursor-pointer"
-              title="View 2builders Premium Plans & Pricing"
+              className="flex items-center gap-1.5 text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 px-3.5 py-1.5 rounded-full font-bold transition-all shadow-sm cursor-pointer"
+              title="All 2builders tools are 100% Free & Unlimited"
             >
-              <Crown size={14} className="fill-slate-950" />
-              <span>Pricing</span>
-              <span className="text-[9px] bg-slate-950/80 text-amber-300 px-1.5 py-0.2 rounded font-black">
-                {userTier === 'pro' ? 'PRO' : userTier === 'enterprise' ? 'STUDIO' : 'UPGRADE'}
+              <Sparkles size={14} className="text-emerald-400" />
+              <span>100% Free</span>
+              <span className="text-[9px] bg-emerald-500/30 text-emerald-200 px-1.5 py-0.2 rounded font-black uppercase">
+                No Limits
               </span>
             </button>
 
@@ -1400,220 +1400,206 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           </div>
         </div>
 
-        {/* ARCHITECTURAL SAAS PRICING & PREMIUM PLANS */}
+        {/* 100% FREE FOREVER & UNLIMITED ARCHITECTURAL FEATURES (NO PRICE / NO LIMITS) */}
         <div id="pricing-section" className="pt-8 border-t border-slate-800/80 space-y-8">
           <div className="text-center space-y-3 max-w-2xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold shadow-md shadow-amber-500/10">
-              <Crown size={14} className="text-amber-400 fill-amber-400" />
-              <span>PREMIUM ARCHITECTURAL PLANS</span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold shadow-md shadow-emerald-500/10">
+              <Sparkles size={14} className="text-emerald-400" />
+              <span>100% FREE FOREVER • NO LIMITS • NO PAYWALLS</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-              Predictable Pricing for{' '}
-              <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">
-                World-Class 3D Drafting
+              All Architectural Features Included —{' '}
+              <span className="bg-gradient-to-r from-emerald-300 via-teal-300 to-sky-400 bg-clip-text text-transparent">
+                Zero Price, Full Commercial Rights
               </span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Transform any brochure scan, CAD drawing, or sketch into interactive 3D dollhouses,
-              universal DXF blueprints, and full Vastu compliance reports in seconds.
+              Every single capability of 2builders is completely free for all users. Convert unlimited 2D drawings into 3D dollhouses, export AutoCAD DXF & vector PDF blueprints, generate 4K photorealistic renders, and run 8-zone Vastu Shastra analysis with no restrictions.
             </p>
           </div>
 
-          {/* Pricing Grid */}
+          {/* 3 Unlocked Feature Suites (All 100% Free) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-            {/* Free Starter */}
+            {/* Suite 1: 2D-to-3D Synthesis */}
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-700 transition-all">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Starter</span>
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">Free</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-sky-400">Deterministic Engine</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-bold font-mono">
+                    UNLIMITED & FREE
+                  </span>
                 </div>
                 <div>
-                  <div className="text-3xl font-black text-white">$0</div>
-                  <p className="text-xs text-slate-400 mt-1">Free exploration of 2builders deterministic geometry engine.</p>
+                  <div className="text-2xl sm:text-3xl font-black text-white">2D to 3D Synthesis</div>
+                  <p className="text-xs text-slate-400 mt-1">Convert scanned drawings, photos, brochure pages, and CAD vector files.</p>
                 </div>
                 <div className="pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
                   <div className="flex items-center gap-2">
                     <Check size={14} className="text-emerald-400 shrink-0" />
-                    <span>Deterministic 2D-to-3D Vectorizer</span>
+                    <span><strong>Unlimited Conversions</strong> (JPG, PNG, WebP, PDF, DXF)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check size={14} className="text-emerald-400 shrink-0" />
-                    <span>3D Dollhouse Orbital View</span>
+                    <span><strong>Zero Overlapping Walls Guarantee</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check size={14} className="text-emerald-400 shrink-0" />
-                    <span>Basic Vastu Energy Compass</span>
+                    <span>Sub-millimeter scale registration (zero shift)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check size={14} className="text-emerald-400 shrink-0" />
-                    <span>Standard WebGL GLB Export</span>
+                    <span>Automatic room boundary & sqm / sqft area detection</span>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <X size={14} className="shrink-0" />
-                    <span>No 4K Photorealistic Renders</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-500">
-                    <X size={14} className="shrink-0" />
-                    <span>No CAD DXF or Vector PDF Blueprints</span>
+                  <div className="flex items-center gap-2">
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span>T-junction & L-corner watertight consolidation</span>
                   </div>
                 </div>
               </div>
               <div className="pt-6">
                 <button
-                  onClick={() => setPremiumModalOpen(true)}
-                  className="w-full py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 bg-slate-800/60 hover:bg-slate-700/60 text-slate-200 text-xs font-bold transition-all"
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-sky-500/40 hover:border-sky-400 bg-sky-600/20 hover:bg-sky-600/30 text-sky-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                 >
-                  {userTier === 'free' ? 'Current Free Tier' : 'Explore Starter'}
+                  <Upload size={14} />
+                  <span>Upload a Plan (100% Free)</span>
                 </button>
               </div>
             </div>
 
-            {/* Pro Architect (Featured) */}
-            <div className="relative bg-gradient-to-b from-amber-950/30 via-slate-900/90 to-slate-900/90 border-2 border-amber-500/80 rounded-3xl p-6 sm:p-7 flex flex-col justify-between shadow-2xl shadow-amber-500/15 scale-[1.02] z-20">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 text-[10px] font-black uppercase px-3.5 py-0.5 rounded-full shadow-md tracking-wider flex items-center gap-1">
+            {/* Suite 2: 3D Visualization & PBR (Featured) */}
+            <div className="relative bg-gradient-to-b from-sky-950/30 via-slate-900/90 to-slate-900/90 border-2 border-sky-500/70 rounded-3xl p-6 sm:p-7 flex flex-col justify-between shadow-2xl shadow-sky-500/15 scale-[1.02] z-20">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500 text-slate-950 text-[10px] font-black uppercase px-3.5 py-0.5 rounded-full shadow-md tracking-wider flex items-center gap-1">
                 <Sparkles size={11} className="fill-slate-950" />
-                <span>MOST POPULAR • ARCHITECT CHOICE</span>
+                <span>ALL UNLOCKED • NO SUBSCRIPTION</span>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                    <Crown size={15} className="text-amber-400 fill-amber-400" />
-                    <span>Pro Architect</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                    <Box size={15} />
+                    <span>3D Visualization Suite</span>
                   </span>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded font-black">
-                    SAVE 40%
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-black">
+                    FREE FOREVER
                   </span>
                 </div>
                 <div>
-                  <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-1">
-                    <span>$19</span>
-                    <span className="text-xs text-slate-400 font-normal">/ month (billed annually)</span>
-                  </div>
-                  <p className="text-xs text-slate-300 mt-1">Unlimited conversions, 4K realistic renders & universal CAD exports.</p>
+                  <div className="text-2xl sm:text-3xl font-black text-white">Interactive 3D Dollhouse</div>
+                  <p className="text-xs text-slate-300 mt-1">Orbit, cut-away, and walk through spaces with realistic lighting and furniture.</p>
                 </div>
-                <div className="pt-3 border-t border-amber-500/30 space-y-2.5 text-xs text-slate-200">
+                <div className="pt-3 border-t border-sky-500/30 space-y-2.5 text-xs text-slate-200">
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span className="font-semibold text-white">Unlimited 2D-to-3D Floor Plans</span>
+                    <Check size={14} className="text-emerald-400 font-bold shrink-0" />
+                    <span><strong>4K Photorealistic PBR Rendering</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span><strong>4K Ultra-HD</strong> PBR Photorealistic Renders</span>
+                    <Check size={14} className="text-emerald-400 font-bold shrink-0" />
+                    <span><strong>Cut-Away 900mm Walls</strong> vs Full Ceiling Height</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span><strong>All 19</strong> Floor-Plan.AI Mega Suite Tools</span>
+                    <Check size={14} className="text-emerald-400 font-bold shrink-0" />
+                    <span><strong>First-Person Walkthrough</strong> (1600mm eye-level, WASD)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span><strong>MEP Layers</strong>: Electrical, Plumbing & Lighting</span>
+                    <Check size={14} className="text-emerald-400 font-bold shrink-0" />
+                    <span><strong>360 Cinematic Flythrough Video Tour</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span><strong>Full 8-Zone Vastu</strong> Dosha Detection & Remedies</span>
+                    <Check size={14} className="text-emerald-400 font-bold shrink-0" />
+                    <span><strong>Virtual Staging</strong> with parametric furniture & decor</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span><strong>First-Person Walkthrough</strong> & 360 Flythrough Video</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span><strong>CAD DXF & Vector PDF</strong> Blueprint Exports</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check size={14} className="text-amber-400 font-bold shrink-0" />
-                    <span>Commercial Presentation & Client Rights</span>
+                    <Check size={14} className="text-emerald-400 font-bold shrink-0" />
+                    <span><strong>All 19 Floor-Plan.AI Architectural Tools</strong></span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-6">
                 <button
-                  onClick={() => setPremiumModalOpen(true)}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs sm:text-sm font-black transition-all shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 group cursor-pointer"
+                  onClick={() => handleLoadSample('/samples/modern_3bhk.jpg', 'Modern 3BHK Residence')}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-600 hover:from-sky-300 hover:to-indigo-400 text-slate-950 text-xs sm:text-sm font-black transition-all shadow-xl shadow-sky-500/25 flex items-center justify-center gap-2 group cursor-pointer"
                 >
-                  <Crown size={16} className="fill-slate-950" />
-                  <span>{userTier === 'pro' ? 'Pro Architect Active' : 'Upgrade to Pro Architect'}</span>
+                  <Play size={16} className="fill-slate-950" />
+                  <span>Launch 1-Click 3D Model (Free)</span>
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
             </div>
 
-            {/* Studio & Enterprise */}
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between hover:border-indigo-500/50 transition-all">
+            {/* Suite 3: CAD Exports & Vastu */}
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-700 transition-all">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                    <Building2 size={15} />
-                    <span>Studio & Enterprise</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                    <Download size={15} />
+                    <span>CAD & Vastu Intelligence</span>
                   </span>
-                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">Teams</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-bold font-mono">
+                    UNRESTRICTED
+                  </span>
                 </div>
                 <div>
-                  <div className="text-3xl font-black text-white">$49</div>
-                  <p className="text-xs text-slate-400 mt-1">Multi-story buildings, white-label branding & team collaboration.</p>
+                  <div className="text-2xl sm:text-3xl font-black text-white">Universal Exports & Vastu</div>
+                  <p className="text-xs text-slate-400 mt-1">Export professional deliverables with no watermarks and full commercial rights.</p>
                 </div>
                 <div className="pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-indigo-400 shrink-0" />
-                    <span className="font-semibold text-white">Everything in Pro Architect, plus:</span>
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span><strong>AutoCAD DXF</strong> Layered Vector Drawings</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-indigo-400 shrink-0" />
-                    <span><strong>Multi-Story Projects</strong> (Unlimited Floors)</span>
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span><strong>ISO A4 Vector PDF Blueprint</strong> with Title Block</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-indigo-400 shrink-0" />
-                    <span><strong>White-Label Custom Title Blocks</strong> on PDFs</span>
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span><strong>WebGL GLB, Wavefront OBJ & 3D Print STL</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-indigo-400 shrink-0" />
-                    <span><strong>Team Workspace</strong> (Up to 10 Seats Included)</span>
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span><strong>8-Zone Vastu Shastra</strong> Brahmasthan & Dosha Reports</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check size={14} className="text-indigo-400 shrink-0" />
-                    <span><strong>REST API</strong> & `2builders.plan/1` Schema</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check size={14} className="text-indigo-400 shrink-0" />
-                    <span>Dedicated Architectural Concierge</span>
+                    <Check size={14} className="text-emerald-400 shrink-0" />
+                    <span><strong>100% Commercial Usage Rights</strong> for Client Pitches</span>
                   </div>
                 </div>
               </div>
               <div className="pt-6">
                 <button
-                  onClick={() => setPremiumModalOpen(true)}
-                  className="w-full py-2.5 rounded-xl border border-indigo-500/40 hover:border-indigo-400 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+                  onClick={() => setMegaMenuOpen(true)}
+                  className="w-full py-2.5 rounded-xl border border-purple-500/40 hover:border-purple-400 bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
                 >
-                  <span>{userTier === 'enterprise' ? 'Studio Active' : 'Get Studio License'}</span>
+                  <Grid size={14} />
+                  <span>Explore All 19 Free Tools</span>
                   <ArrowRight size={13} />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Trust Guarantees Bar */}
+          {/* Guarantee & No-Limits Trust Bar */}
           <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 flex flex-wrap items-center justify-around gap-4 text-xs text-slate-400">
             <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-              <ShieldCheck size={18} />
-              <span>14-Day 100% Money-Back Guarantee</span>
+              <CheckCircle2 size={18} />
+              <span>100% Free Forever</span>
             </div>
             <div className="flex items-center gap-2 text-sky-400 font-semibold">
-              <Lock size={16} />
-              <span>Secure 256-Bit SSL Checkout</span>
+              <Zap size={16} />
+              <span>No Limits on Conversions or Exports</span>
+            </div>
+            <div className="flex items-center gap-2 text-purple-400 font-semibold">
+              <ShieldCheck size={16} />
+              <span>Full Commercial Usage Rights Included</span>
             </div>
             <div className="flex items-center gap-2 text-amber-400 font-semibold">
-              <Zap size={16} />
-              <span>Sub-5s Instant GPU Generation</span>
+              <Sparkles size={16} />
+              <span>No Credit Card or Registration Required</span>
             </div>
-            <button
-              onClick={() => setPremiumModalOpen(true)}
-              className="text-xs text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
-            >
-              Compare All Features in Detail →
-            </button>
           </div>
         </div>
 

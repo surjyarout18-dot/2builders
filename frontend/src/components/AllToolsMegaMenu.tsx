@@ -509,15 +509,15 @@ export const AllToolsMegaMenu: React.FC<AllToolsMegaMenuProps> = ({ onOpenEditor
           </div>
         </div>
 
-        {/* Bottom Pro Upgrade Banner */}
-        <div className="px-6 py-3.5 bg-gradient-to-r from-amber-950/50 via-slate-900 to-amber-950/50 border-t border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        {/* Bottom 100% Free & Unlimited Banner */}
+        <div className="px-6 py-3.5 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-emerald-950/40 border-t border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
-              <Crown size={15} />
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0">
+              <Sparkles size={15} />
             </div>
             <div>
-              <span className="font-bold text-white">Unlock Unlimited 4K Renders, CAD DXF & Full Vastu Analytics</span>
-              <p className="text-[11px] text-slate-400">Upgrade to Pro Architect for commercial client presentation rights</p>
+              <span className="font-bold text-white">All 19 Architectural Tools Are 100% Free & Unlimited</span>
+              <p className="text-[11px] text-slate-400">Zero limits, no paywalls, full commercial rights included for all projects</p>
             </div>
           </div>
           <button
@@ -525,9 +525,9 @@ export const AllToolsMegaMenu: React.FC<AllToolsMegaMenuProps> = ({ onOpenEditor
               setMegaMenuOpen(false);
               setPremiumModalOpen(true);
             }}
-            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-500/20 shrink-0 flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-md shrink-0 flex items-center gap-1.5 cursor-pointer"
           >
-            <span>View Pro Plans</span>
+            <span>Explore All Capabilities</span>
             <ArrowRight size={13} />
           </button>
         </div>
