@@ -18,3 +18,4 @@ always_on: true
 3. **Isolated Pipeline Stepper during Processing**:
    - Never embed dynamic progress bars directly inside active form inputs.
    - Replace the configuration panel with a dedicated 4-stage pipeline stepper during upload/analysis to prevent layout shifts and text collision.
+

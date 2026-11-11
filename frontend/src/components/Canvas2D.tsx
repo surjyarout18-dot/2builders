@@ -483,22 +483,63 @@ export const Canvas2D: React.FC = () => {
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Label at centroid
+      // Room Label Badge with Collision Avoidance & Rounded Backdrop
       let cx = 0, cy = 0;
+      let minSx = Infinity, maxSx = -Infinity, minSy = Infinity, maxSy = -Infinity;
       for (const p of room.boundary) {
         cx += p[0];
         cy += p[1];
+        const sp = worldToScreen(p[0], p[1]);
+        minSx = Math.min(minSx, sp.x);
+        maxSx = Math.max(maxSx, sp.x);
+        minSy = Math.min(minSy, sp.y);
+        maxSy = Math.max(maxSy, sp.y);
       }
       cx /= room.boundary.length;
       cy /= room.boundary.length;
       const labelScreen = worldToScreen(cx, cy);
+      const roomScreenWidth = maxSx - minSx;
+      const roomScreenHeight = maxSy - minSy;
 
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '11px -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(room.name, labelScreen.x, labelScreen.y - 4);
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillText(`${room.area.toFixed(1)} m²`, labelScreen.x, labelScreen.y + 10);
+      // Only display label if room has sufficient screen clearance or is selected
+      if (roomScreenWidth >= 35 && roomScreenHeight >= 28 || isRoomSelected) {
+        ctx.save();
+        const areaStr = `${room.area.toFixed(1)} m²`;
+        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const nameW = ctx.measureText(room.name).width;
+        ctx.font = '9px monospace';
+        const areaW = ctx.measureText(areaStr).width;
+        const badgeW = Math.max(nameW, areaW) + 14;
+        const badgeH = 26;
+        const bx = labelScreen.x - badgeW / 2;
+        const by = labelScreen.y - badgeH / 2;
+
+        // Draw crisp backdrop pill
+        ctx.fillStyle = isRoomSelected ? 'rgba(14, 165, 233, 0.95)' : 'rgba(15, 23, 42, 0.88)';
+        ctx.strokeStyle = isRoomSelected ? '#38bdf8' : 'rgba(71, 85, 105, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(bx, by, badgeW, badgeH, 5);
+        } else {
+          ctx.rect(bx, by, badgeW, badgeH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Room Name
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = isRoomSelected ? '#030712' : '#f8fafc';
+        ctx.fillText(room.name, labelScreen.x, labelScreen.y - 5);
+
+        // Room Area
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = isRoomSelected ? '#082f49' : '#38bdf8';
+        ctx.fillText(areaStr, labelScreen.x, labelScreen.y + 6);
+        ctx.restore();
+      }
     }
 
     // 4. Render Walls with Real Footprint
@@ -537,13 +578,39 @@ export const Canvas2D: React.FC = () => {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Dimension Label
-      const midX = (cStart.x + cEnd.x) / 2;
-      const midY = (cStart.y + cEnd.y) / 2;
-      ctx.fillStyle = '#e2e8f0';
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${fp.length.toFixed(2)}m`, midX, midY - 6);
+      // Dimension Label with Overlap Prevention
+      const wallScreenLen = Math.hypot(cEnd.x - cStart.x, cEnd.y - cStart.y);
+      const shouldShowDim = isWallSelected || (wallScreenLen >= 42 && (wall.type === 'external' || zoom >= 0.65 || wallScreenLen >= 75));
+
+      if (shouldShowDim) {
+        const midX = (cStart.x + cEnd.x) / 2;
+        const midY = (cStart.y + cEnd.y) / 2;
+        const dimStr = `${fp.length.toFixed(2)}m`;
+
+        ctx.save();
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const dimMetrics = ctx.measureText(dimStr);
+        const pillW = dimMetrics.width + 8;
+        const pillH = 14;
+
+        ctx.fillStyle = isWallSelected ? 'rgba(3, 105, 161, 0.95)' : 'rgba(15, 23, 42, 0.88)';
+        ctx.strokeStyle = isWallSelected ? '#38bdf8' : 'rgba(100, 116, 139, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(midX - pillW / 2, midY - pillH / 2, pillW, pillH, 3);
+        } else {
+          ctx.rect(midX - pillW / 2, midY - pillH / 2, pillW, pillH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isWallSelected ? '#ffffff' : (wall.type === 'external' ? '#f8fafc' : '#cbd5e1');
+        ctx.fillText(dimStr, midX, midY);
+        ctx.restore();
+      }
 
       // Render Openings (Doors & Windows)
       const dx = wall.end[0] - wall.start[0];
@@ -929,7 +996,7 @@ export const Canvas2D: React.FC = () => {
       className="w-full h-full relative overflow-hidden bg-cad-dark"
     >
       {/* 2D Architectural & MEP Layer Switcher */}
-      <div className="absolute top-3 left-3 max-w-[calc(100vw-1.5rem)] overflow-x-auto no-scrollbar bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20 pointer-events-auto">
+      <div className="absolute top-2.5 left-2.5 max-w-[calc(100%-1.5rem)] overflow-x-auto no-scrollbar bg-slate-950/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 flex items-center gap-1 text-[11px] font-bold shadow-xl z-20 pointer-events-auto">
         {[
           { id: 'none', label: 'Architecture', icon: Layers, color: 'text-sky-400' },
           { id: 'electrical', label: 'Electrical', icon: Zap, color: 'text-amber-400' },
@@ -946,6 +1013,7 @@ export const Canvas2D: React.FC = () => {
                 setActiveSpecialLayer(layer.id as any);
                 toast.info(`Switched to ${layer.label} Plan view`);
               }}
+              title={`${layer.label} Plan Layer`}
               className={`px-2 sm:px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shrink-0 ${
                 isActive
                   ? 'bg-slate-800 text-white shadow-md border border-slate-600'
@@ -953,7 +1021,7 @@ export const Canvas2D: React.FC = () => {
               }`}
             >
               <Icon size={13} className={isActive ? layer.color : 'text-slate-400'} />
-              <span className="hidden sm:inline">{layer.label}</span>
+              <span className={isActive ? 'inline' : 'hidden lg:inline'}>{layer.label}</span>
             </button>
           );
         })}

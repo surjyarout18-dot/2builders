@@ -82,7 +82,7 @@ export function App() {
             <div className={`flex-1 flex overflow-hidden ${viewMode === 'split' ? 'flex-col md:flex-row' : ''}`}>
               {/* 2D Plan Canvas */}
               {(viewMode === '2d' || viewMode === 'split') && (
-                <div className={`relative ${
+                <div className={`relative overflow-hidden ${
                   viewMode === 'split' 
                     ? 'h-1/2 md:h-full w-full md:w-1/2 border-b md:border-b-0 md:border-r border-cad-border' 
                     : 'h-full w-full'
@@ -93,7 +93,7 @@ export function App() {
 
               {/* 3D Model Viewport */}
               {(viewMode === '3d' || viewMode === 'split') && (
-                <div className={`relative ${
+                <div className={`relative overflow-hidden ${
                   viewMode === 'split' 
                     ? 'h-1/2 md:h-full w-full md:w-1/2' 
                     : 'h-full w-full'

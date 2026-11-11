@@ -27,7 +27,12 @@ import {
   Droplets,
   Lightbulb,
   Trees,
-  FileCode
+  FileCode,
+  Scissors,
+  Armchair,
+  Tag,
+  ChevronDown,
+  Share2
 } from 'lucide-react';
 import { triggerFileDownload } from '../utils/downloadHelper';
 import { toast } from '../components/Toast';
@@ -299,6 +304,18 @@ export const BuildingScene: React.FC = () => {
   const setCinematicTourActive = useProjectStore((s) => s.setCinematicTourActive);
   const [showRoomLabels, setShowRoomLabels] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleExportGLB = async () => {
     if (!project) return;
@@ -338,321 +355,272 @@ export const BuildingScene: React.FC = () => {
         <SceneContent showRoomLabels={showRoomLabels} />
       </Canvas>
 
-      {/* Mobile Top Scrollable Controls Bar */}
-      <div className="md:hidden absolute top-2 left-2 right-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 z-10 pointer-events-auto bg-cad-panel/95 backdrop-blur border border-cad-border rounded-xl p-1 shadow-xl text-[11px] font-medium text-slate-300">
-        <button
-          onClick={() => setRenderMode(renderMode === 'realistic' ? 'engineering' : 'realistic')}
-          className="flex items-center gap-1 px-2.5 py-1 rounded bg-cad-surface text-slate-200 border border-cad-border shrink-0 font-semibold"
-        >
-          {renderMode === 'realistic' ? <Sparkles size={12} className="text-sky-400" /> : <Box size={12} className="text-amber-400" />}
-          <span>{renderMode === 'realistic' ? 'Realistic' : 'CAD Mode'}</span>
-        </button>
+      {/* Unified 3D Viewport HUD Bar (Responsive, Never-Overlapping) */}
+      <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10 gap-2 overflow-hidden">
+        {/* Left HUD: Render Mode & 3D Architectural Aids */}
+        <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-cad-panel/90 backdrop-blur-md border border-cad-border/80 rounded-xl p-1 shadow-xl text-[11px] font-medium text-slate-300 max-w-[55%] overflow-x-auto no-scrollbar shrink-0">
+          {/* Mode Switcher: Realistic vs CAD */}
+          <div className="flex items-center bg-slate-900/80 rounded-lg p-0.5 border border-slate-800 shrink-0">
+            <button
+              onClick={() => setRenderMode('realistic')}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition-all ${
+                renderMode === 'realistic'
+                  ? 'bg-cad-accent text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Realistic 3D Architectural Shading"
+            >
+              <Sparkles size={12} className={renderMode === 'realistic' ? 'text-slate-950' : 'text-sky-400'} />
+              <span className="hidden sm:inline">Realistic</span>
+            </button>
+            <button
+              onClick={() => setRenderMode('engineering')}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition-all ${
+                renderMode === 'engineering'
+                  ? 'bg-cad-accent text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Engineering CAD Shading & Geometry Inspection"
+            >
+              <Box size={12} className={renderMode === 'engineering' ? 'text-slate-950' : 'text-amber-400'} />
+              <span className="hidden sm:inline">CAD</span>
+            </button>
+          </div>
 
-        <button
-          onClick={() => setWallCutaway(!wallCutaway)}
-          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
-            wallCutaway ? 'bg-sky-500/20 border-sky-400 text-sky-300' : 'bg-slate-900 border-cad-border text-slate-400'
-          }`}
-        >
-          <span>{wallCutaway ? 'Cutaway (900mm)' : 'Full Walls'}</span>
-        </button>
+          <div className="h-4 w-[1px] bg-slate-700/60 mx-0.5 shrink-0" />
 
-        <button
-          onClick={() => setShowVastuZones(!showVastuZones)}
-          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
-            showVastuZones ? 'bg-amber-400 border-amber-300 text-slate-950 font-bold' : 'bg-slate-900 border-cad-border text-slate-400'
-          }`}
-        >
-          <span>☸ Vastu</span>
-        </button>
-
-        <button
-          onClick={() => setIsWalkthroughActive(!isWalkthroughActive)}
-          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
-            isWalkthroughActive ? 'bg-amber-400 border-amber-300 text-slate-950' : 'bg-slate-900 border-cad-border text-slate-400'
-          }`}
-        >
-          <Footprints size={12} />
-          <span>Walk</span>
-        </button>
-
-        <button
-          onClick={() => setCameraPreset(cameraPreset === 'top' ? 'isometric' : 'top')}
-          className="flex items-center gap-1 px-2 py-1 rounded bg-slate-900 border border-cad-border text-slate-300 shrink-0 font-semibold"
-        >
-          <span>{cameraPreset === 'top' ? '3D Orbit' : 'Top View'}</span>
-        </button>
-
-        <button
-          onClick={() => setCinematicTourActive(!isCinematicTourActive)}
-          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
-            isCinematicTourActive ? 'bg-amber-400 text-slate-950 font-bold animate-pulse' : 'bg-slate-900 border-cad-border text-slate-400'
-          }`}
-        >
-          <PlayCircle size={12} />
-          <span>Tour</span>
-        </button>
-
-        <button
-          onClick={() => handleExportDirect('dxf')}
-          className="flex items-center gap-1 px-2 py-1 bg-cyan-600/30 border border-cyan-500/50 text-cyan-300 font-bold rounded shrink-0"
-        >
-          <FileCode size={12} />
-          <span>DXF</span>
-        </button>
-
-        <button
-          onClick={() => setWireframe(!wireframe)}
-          className={`flex items-center gap-1 px-2 py-1 rounded border shrink-0 font-semibold ${
-            wireframe ? 'bg-cad-accent text-slate-950 border-cad-accent' : 'bg-slate-900 border-cad-border text-slate-400'
-          }`}
-        >
-          <Grid3X3 size={12} />
-          <span>Wireframe</span>
-        </button>
-
-        <button
-          onClick={handleExportGLB}
-          disabled={isExporting}
-          className="flex items-center gap-1 px-2.5 py-1 bg-cad-accent text-slate-950 font-bold rounded shrink-0 shadow-sm"
-        >
-          <Download size={12} />
-          <span>GLB</span>
-        </button>
-
-        <button
-          onClick={() => handleExportDirect('pdf')}
-          className="flex items-center gap-1 px-2 py-1 bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 font-bold rounded shrink-0"
-        >
-          <FileText size={12} />
-          <span>PDF</span>
-        </button>
-
-        <button
-          onClick={() => setShareModalOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 text-white font-bold rounded shrink-0"
-        >
-          <span>🔗 Share</span>
-        </button>
-      </div>
-
-      {/* Left Dual-Output Mode Switcher (Desktop) */}
-      <div className="hidden md:flex absolute top-3 left-3 items-center gap-2 z-10">
-        <div className="bg-cad-panel/90 backdrop-blur border border-cad-border rounded-lg p-1 flex items-center gap-1 shadow-lg text-[11px] font-medium text-slate-300">
+          {/* Cut-away vs Full Walls */}
           <button
-            onClick={() => setRenderMode('realistic')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-all ${
-              renderMode === 'realistic'
-                ? 'bg-cad-accent text-slate-950 font-bold shadow-sm'
-                : 'hover:bg-cad-surface text-slate-400'
+            onClick={() => setWallCutaway(!wallCutaway)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+              wallCutaway
+                ? 'bg-sky-500/20 text-sky-300 border border-sky-400/50'
+                : 'text-slate-300 hover:bg-cad-surface border border-transparent'
             }`}
+            title="Toggle 900mm Cut-away Walls vs Full Ceiling Height"
           >
-            <Sparkles size={13} />
-            <span>Realistic 3D</span>
+            <Scissors size={12} className="text-sky-400" />
+            <span className="hidden md:inline">{wallCutaway ? 'Cutaway' : 'Walls'}</span>
           </button>
+
+          {/* Vastu Zones */}
           <button
-            onClick={() => setRenderMode('engineering')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-all ${
-              renderMode === 'engineering'
-                ? 'bg-cad-accent text-slate-950 font-bold shadow-sm'
-                : 'hover:bg-cad-surface text-slate-400'
+            onClick={() => setShowVastuZones(!showVastuZones)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+              showVastuZones
+                ? 'bg-amber-400 text-slate-950 font-black shadow'
+                : 'text-slate-300 hover:bg-cad-surface border border-transparent'
             }`}
+            title="Toggle Vastu Shastra 8-Zone Overlay & Conformance"
           >
-            <Box size={13} />
-            <span>Engineering 3D</span>
+            <span>☸</span>
+            <span className="hidden lg:inline">Vastu</span>
+          </button>
+
+          {/* Walkthrough */}
+          <button
+            onClick={() => setIsWalkthroughActive(!isWalkthroughActive)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+              isWalkthroughActive
+                ? 'bg-amber-400 text-slate-950 shadow font-bold'
+                : 'text-slate-300 hover:bg-cad-surface border border-transparent'
+            }`}
+            title="Toggle Eye-Level Architectural Walkthrough"
+          >
+            <Footprints size={12} className={isWalkthroughActive ? 'text-slate-950' : 'text-amber-400'} />
+            <span className="hidden xl:inline">{isWalkthroughActive ? 'Exit Walk' : 'Walk'}</span>
+          </button>
+
+          {/* Cinematic 360 Drone Tour */}
+          <button
+            onClick={() => setCinematicTourActive(!isCinematicTourActive)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+              isCinematicTourActive
+                ? 'bg-amber-400 text-slate-950 animate-pulse font-black shadow'
+                : 'text-slate-300 hover:bg-cad-surface border border-transparent'
+            }`}
+            title="Toggle 360° Cinematic Drone Flythrough Tour"
+          >
+            <PlayCircle size={12} className={isCinematicTourActive ? 'animate-spin text-slate-950' : 'text-sky-400'} />
+            <span className="hidden xl:inline">Tour</span>
           </button>
         </div>
 
-        {/* Cut-away vs Full Walls Toggle */}
-        <button
-          onClick={() => setWallCutaway(!wallCutaway)}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border backdrop-blur text-[11px] font-bold shadow-lg transition-all ${
-            wallCutaway
-              ? 'bg-sky-500/20 border-sky-400 text-sky-300'
-              : 'bg-cad-panel/90 border-cad-border hover:bg-cad-surface text-slate-300'
-          }`}
-          title="Toggle 900mm Cut-away Walls vs Full Ceiling Height"
-        >
-          <span>{wallCutaway ? 'Cut-away (900mm)' : 'Full Walls'}</span>
-        </button>
+        {/* Right HUD: Camera Presets, Toggles, Quick Export & Share */}
+        <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-cad-panel/90 backdrop-blur-md border border-cad-border/80 rounded-xl p-1 shadow-xl text-[11px] font-medium text-slate-300 shrink-0">
+          {/* Camera Presets: Orbit / Top toggle */}
+          <div className="flex items-center bg-slate-900/80 rounded-lg p-0.5 border border-slate-800">
+            <button
+              onClick={() => setCameraPreset('isometric')}
+              className={`px-2 py-1 rounded text-[11px] font-semibold transition-all ${
+                cameraPreset !== 'top' ? 'bg-cad-surface text-slate-100 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Isometric 3D Orbit Perspective"
+            >
+              Orbit
+            </button>
+            <button
+              onClick={() => setCameraPreset('top')}
+              className={`px-2 py-1 rounded text-[11px] font-semibold transition-all ${
+                cameraPreset === 'top' ? 'bg-cad-surface text-slate-100 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Top-Down Plan Camera"
+            >
+              Top
+            </button>
+          </div>
 
-        {/* Vastu Zones Toggle */}
-        <button
-          onClick={() => setShowVastuZones(!showVastuZones)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border backdrop-blur text-[11px] font-bold shadow-lg transition-all ${
-            showVastuZones
-              ? 'bg-amber-400 border-amber-300 text-slate-950 animate-pulse font-black'
-              : 'bg-cad-panel/90 border-cad-border hover:bg-cad-surface text-slate-300'
-          }`}
-          title="Toggle Vastu Shastra 8-Zone Overlay & Conformance"
-        >
-          <span>☸</span>
-          <span>Vastu Zones</span>
-        </button>
+          <div className="h-4 w-[1px] bg-slate-700/60 mx-0.5 shrink-0" />
 
-        {/* Walkthrough Toggle */}
-        <button
-          onClick={() => setIsWalkthroughActive(!isWalkthroughActive)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border backdrop-blur text-[11px] font-bold shadow-lg transition-all ${
-            isWalkthroughActive
-              ? 'bg-amber-400 border-amber-300 text-slate-950 animate-pulse'
-              : 'bg-cad-panel/90 border-cad-border hover:bg-cad-surface text-slate-300'
-          }`}
-          title="Toggle Eye-Level Architectural Walkthrough"
-        >
-          <Footprints size={14} />
-          <span>{isWalkthroughActive ? 'Exit Walkthrough' : 'Walkthrough'}</span>
-        </button>
-
-        {/* Cinematic 360 Drone Tour Toggle */}
-        <button
-          onClick={() => setCinematicTourActive(!isCinematicTourActive)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border backdrop-blur text-[11px] font-bold shadow-lg transition-all ${
-            isCinematicTourActive
-              ? 'bg-amber-400 border-amber-300 text-slate-950 animate-pulse font-black'
-              : 'bg-cad-panel/90 border-cad-border hover:bg-cad-surface text-slate-300'
-          }`}
-          title="Toggle 360° Cinematic Drone Flythrough Tour"
-        >
-          <PlayCircle size={14} className={isCinematicTourActive ? 'animate-spin' : ''} />
-          <span>{isCinematicTourActive ? 'Tour Active' : 'Cinematic Tour'}</span>
-        </button>
-      </div>
-
-      {/* Floating 3D Viewport Controls & Quick Export (Desktop) */}
-      <div className="hidden md:flex absolute top-3 right-3 items-center gap-2 z-10">
-        {/* Share Link Button */}
-        <button
-          onClick={() => setShareModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-all shadow-lg text-[11px]"
-          title="Create public 3D share link"
-        >
-          <span>🔗</span>
-          <span>Share 3D</span>
-        </button>
-
-        {/* Quick Exporters */}
-        <div className="bg-cad-panel/90 backdrop-blur border border-cad-border rounded-lg p-1 flex items-center gap-1 shadow-lg text-[11px] font-medium text-slate-300">
-          <button
-            onClick={handleExportGLB}
-            disabled={isExporting}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-cad-accent hover:bg-sky-400 text-slate-950 font-bold rounded transition-all shadow-sm"
-            title="Download standard 3D GLB model"
-          >
-            <Download size={13} />
-            <span>{isExporting ? 'Exporting...' : 'GLB 3D'}</span>
-          </button>
-          <button
-            onClick={() => handleExportDirect('pdf')}
-            className="flex items-center gap-1 px-2 py-1 bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/50 text-emerald-300 rounded font-bold transition-colors"
-            title="Download ISO A4 Vector PDF Blueprint"
-          >
-            <FileText size={12} />
-            <span>PDF 2D</span>
-          </button>
-          <button
-            onClick={() => handleExportDirect('obj')}
-            className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded font-semibold transition-colors"
-            title="Download Wavefront OBJ format"
-          >
-            OBJ
-          </button>
-          <button
-            onClick={() => handleExportDirect('stl')}
-            className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded font-semibold transition-colors"
-            title="Download STL for 3D Printing"
-          >
-            STL
-          </button>
-          <button
-            onClick={() => handleExportDirect('svg')}
-            className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded font-semibold transition-colors"
-            title="Download 2D Architectural SVG Blueprint"
-          >
-            SVG
-          </button>
-          <button
-            onClick={() => handleExportDirect('dxf')}
-            className="px-2 py-1 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/40 text-cyan-300 rounded font-bold transition-colors flex items-center gap-1"
-            title="Download AutoCAD DXF CAD Blueprint"
-          >
-            <FileCode size={12} />
-            <span>DXF</span>
-          </button>
-          <button
-            onClick={() => {
-              useProjectStore.getState().setViewerGuideFormat('glb');
-              useProjectStore.getState().setViewerGuideOpen(true);
-            }}
-            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded font-semibold transition-colors flex items-center gap-1"
-            title="How to view downloaded files on your computer"
-          >
-            <HelpCircle size={12} />
-            <span>Help</span>
-          </button>
-        </div>
-
-        {/* View / Camera Presets */}
-        <div className="bg-cad-panel/90 backdrop-blur border border-cad-border rounded-lg p-1 flex items-center gap-1 shadow-lg text-[11px] font-medium text-slate-300">
-          <button
-            onClick={() => setCameraPreset('isometric')}
-            className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded transition-colors"
-            title="Isometric 3D Perspective"
-          >
-            3D Orbit
-          </button>
-          <button
-            onClick={() => setCameraPreset('top')}
-            className="px-2 py-1 hover:bg-cad-surface text-slate-300 rounded transition-colors"
-            title="Top-Down Plan View"
-          >
-            Top View
-          </button>
-        </div>
-
-        {/* Visibility Toggles */}
-        <div className="bg-cad-panel/90 backdrop-blur border border-cad-border rounded-lg p-1 flex items-center gap-1 shadow-lg text-[11px] font-medium text-slate-300">
+          {/* Display Toggles Group */}
           {renderMode === 'realistic' && (
             <button
               onClick={() => setShowFurniture(!showFurniture)}
-              className={`px-2 py-1 rounded transition-colors ${
-                showFurniture ? 'bg-cad-surface text-cad-accent font-bold' : 'text-slate-400'
+              className={`p-1.5 rounded-lg transition-colors ${
+                showFurniture ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40' : 'text-slate-400 hover:text-slate-200 hover:bg-cad-surface'
               }`}
-              title="Toggle Interior Furniture"
+              title={`Furniture (${showFurniture ? 'Visible' : 'Hidden'})`}
             >
-              Furniture
+              <Armchair size={13} />
             </button>
           )}
 
           {renderMode === 'engineering' && (
             <button
               onClick={() => setShowDimensions(!showDimensions)}
-              className={`px-2 py-1 rounded transition-colors ${
-                showDimensions ? 'bg-cad-surface text-cad-accent font-bold' : 'text-slate-400'
+              className={`p-1.5 rounded-lg transition-colors ${
+                showDimensions ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40' : 'text-slate-400 hover:text-slate-200 hover:bg-cad-surface'
               }`}
-              title="Toggle 3D Dimensions"
+              title={`3D Dimensions (${showDimensions ? 'Visible' : 'Hidden'})`}
             >
-              Dimensions
+              <Ruler size={13} />
             </button>
           )}
 
           <button
             onClick={() => setShowRoomLabels(!showRoomLabels)}
-            className={`px-2 py-1 rounded transition-colors ${
-              showRoomLabels ? 'bg-cad-surface text-cad-accent font-bold' : 'text-slate-400'
+            className={`p-1.5 rounded-lg transition-colors ${
+              showRoomLabels ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40' : 'text-slate-400 hover:text-slate-200 hover:bg-cad-surface'
             }`}
-            title="Toggle 3D Room Name Tags"
+            title={`Room Labels (${showRoomLabels ? 'Visible' : 'Hidden'})`}
           >
-            Labels
+            <Tag size={13} />
           </button>
 
           <button
             onClick={() => setWireframe(!wireframe)}
-            className={`px-2 py-1 rounded transition-colors ${
-              wireframe ? 'bg-cad-accent text-slate-950 font-bold' : 'hover:bg-cad-surface text-slate-400'
+            className={`p-1.5 rounded-lg transition-colors ${
+              wireframe ? 'bg-sky-500/20 text-sky-300 border border-sky-400/40' : 'text-slate-400 hover:text-slate-200 hover:bg-cad-surface'
             }`}
+            title={`Wireframe (${wireframe ? 'Enabled' : 'Disabled'})`}
           >
-            Wireframe
+            <Grid3X3 size={13} />
+          </button>
+
+          <div className="h-4 w-[1px] bg-slate-700/60 mx-0.5 shrink-0" />
+
+          {/* Quick Export Dropdown */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              className="flex items-center gap-1 px-2.5 py-1 bg-cad-accent hover:bg-sky-400 text-slate-950 font-bold rounded-lg transition-all shadow-sm text-[11px]"
+              title="Download 3D Models & 2D CAD Blueprints"
+            >
+              <Download size={12} />
+              <span>{isExporting ? 'Exporting...' : 'Export'}</span>
+              <ChevronDown size={11} className={isExportMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+
+            {isExportMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-56 bg-slate-950/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                  Instant File Downloads
+                </div>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExportGLB(); }}
+                  disabled={isExporting}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-white font-medium group transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-sky-400 group-hover:scale-125 transition-transform" />
+                    <span>GLB 3D Model</span>
+                  </span>
+                  <span className="text-[10px] text-sky-400 font-mono">3D / Web</span>
+                </button>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExportDirect('pdf'); }}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-white font-medium group transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-125 transition-transform" />
+                    <span>PDF 2D Blueprint</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono">Vector A4</span>
+                </button>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExportDirect('dxf'); }}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-white font-medium group transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 group-hover:scale-125 transition-transform" />
+                    <span>DXF Blueprint</span>
+                  </span>
+                  <span className="text-[10px] text-cyan-400 font-mono">AutoCAD</span>
+                </button>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExportDirect('obj'); }}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-slate-200 font-medium group transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-slate-400 group-hover:scale-125 transition-transform" />
+                    <span>Wavefront OBJ</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Blender</span>
+                </button>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExportDirect('stl'); }}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-slate-200 font-medium group transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 group-hover:scale-125 transition-transform" />
+                    <span>STL Mesh</span>
+                  </span>
+                  <span className="text-[10px] text-amber-400 font-mono">3D Print</span>
+                </button>
+                <button
+                  onClick={() => { setIsExportMenuOpen(false); handleExportDirect('svg'); }}
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-slate-200 font-medium group transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-400 group-hover:scale-125 transition-transform" />
+                    <span>SVG Vector</span>
+                  </span>
+                  <span className="text-[10px] text-purple-400 font-mono">Vector</span>
+                </button>
+                <div className="h-[1px] bg-slate-800 my-0.5" />
+                <button
+                  onClick={() => {
+                    setIsExportMenuOpen(false);
+                    useProjectStore.getState().setViewerGuideFormat('glb');
+                    useProjectStore.getState().setViewerGuideOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-left text-xs text-sky-400 font-medium transition-colors"
+                >
+                  <HelpCircle size={13} />
+                  <span>Viewer Help Guide</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Share Link Button */}
+          <button
+            onClick={() => setShareModalOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-all shadow text-[11px] shrink-0"
+            title="Create public 3D share link"
+          >
+            <Share2 size={12} />
+            <span className="hidden sm:inline">Share</span>
           </button>
         </div>
       </div>
