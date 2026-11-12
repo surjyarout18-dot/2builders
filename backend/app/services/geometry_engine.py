@@ -544,9 +544,9 @@ class RasterProcessor:
                                 "sill_height": op_info["sill_height"]
                             })
 
-                if not ops and piece_len_m >= 2.2:
-                    if is_ext:
-                        win_w = 1.4 if piece_len_m >= 3.0 else 1.1
+                if not ops:
+                    if is_ext and piece_len_m >= 1.2:
+                        win_w = 1.2 if piece_len_m >= 2.0 else 0.8
                         ops.append({
                             "type": "window",
                             "offset": round((piece_len_m - win_w) / 2.0, 2),
@@ -554,11 +554,11 @@ class RasterProcessor:
                             "height": 1.4,
                             "sill_height": 0.9
                         })
-                    elif piece_len_m >= 2.5:
-                        door_w = 0.90
+                    elif not is_ext and piece_len_m >= 1.4:
+                        door_w = 0.85
                         ops.append({
                             "type": "door",
-                            "offset": 0.25,
+                            "offset": 0.20,
                             "width": door_w,
                             "height": 2.1,
                             "sill_height": 0.0
@@ -639,33 +639,32 @@ class RasterProcessor:
             rel_x = (cx - min_m_x) / (max_m_x - min_m_x) if (max_m_x - min_m_x) > 0 else 0.5
 
             chosen_name = None
-            if idx == 0 and a_m2 >= 16.0:
+            if idx == 0 and "Great Room / Living" not in used_names:
                 chosen_name = "Great Room / Living"
-            elif 8.0 <= a_m2 < 16.0:
-                if rel_y < 0.45 and rel_x > 0.45 and "Kitchen" not in used_names:
-                    chosen_name = "Kitchen"
-                elif "Master Bedroom" not in used_names:
-                    chosen_name = "Master Bedroom"
-                elif "Bedroom 2" not in used_names:
-                    chosen_name = "Bedroom 2"
-                elif "Bedroom 3" not in used_names:
-                    chosen_name = "Bedroom 3"
-            elif 4.0 <= a_m2 < 8.0:
-                if "Dining Area" not in used_names and rel_y < 0.5:
-                    chosen_name = "Dining Area"
-                elif "Flex Room" not in used_names:
-                    chosen_name = "Flex Room"
-                elif "Bathroom" not in used_names:
-                    chosen_name = "Bathroom"
-            elif 1.5 <= a_m2 < 4.0:
-                if "Powder Room" not in used_names:
-                    chosen_name = "Powder Room"
-                elif "Foyer / Entry" not in used_names and rel_y > 0.6:
-                    chosen_name = "Foyer / Entry"
-                elif "Hallway" not in used_names:
-                    chosen_name = "Hallway"
-                elif "Walk-in Closet" not in used_names:
-                    chosen_name = "Walk-in Closet"
+            elif "Master Bedroom" not in used_names and a_m2 >= 1.2:
+                chosen_name = "Master Bedroom"
+            elif "Kitchen" not in used_names and rel_y < 0.5 and rel_x > 0.4:
+                chosen_name = "Kitchen"
+            elif "Dining Area" not in used_names and rel_y < 0.5:
+                chosen_name = "Dining Area"
+            elif "Bedroom 2" not in used_names and a_m2 >= 1.0:
+                chosen_name = "Bedroom 2"
+            elif "Bedroom 3" not in used_names and a_m2 >= 0.8:
+                chosen_name = "Bedroom 3"
+            elif "Bathroom" not in used_names:
+                chosen_name = "Bathroom"
+            elif "Flex Room" not in used_names and a_m2 >= 0.6:
+                chosen_name = "Flex Room"
+            elif "Powder Room" not in used_names:
+                chosen_name = "Powder Room"
+            elif "Foyer / Entry" not in used_names and rel_y > 0.6:
+                chosen_name = "Foyer / Entry"
+            elif "Hallway" not in used_names:
+                chosen_name = "Hallway"
+            elif "Walk-in Closet" not in used_names:
+                chosen_name = "Walk-in Closet"
+            elif "Utility Room" not in used_names:
+                chosen_name = "Utility Room"
 
             if not chosen_name:
                 for candidate in room_names_pool:
