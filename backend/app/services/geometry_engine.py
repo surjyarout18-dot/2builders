@@ -240,20 +240,303 @@ class DXFProcessor:
 
 class RasterProcessor:
     @staticmethod
+    def _median(v: List[float]) -> float:
+        if not v:
+            return 0.0
+        s = sorted(v)
+        m = len(s) // 2
+        return float(s[m] if len(s) % 2 == 1 else (s[m - 1] + s[m]) / 2.0)
+
+    @staticmethod
+    def _estimate_wall_thickness(bin_img: np.ndarray, w: int, h: int) -> int:
+        hw, hh = max(20, w // 2), max(20, h // 2)
+        m_sub = bin_img[:hh * 2, :hw * 2]
+        half_m = (m_sub.reshape(hh, 2, hw, 2).max(axis=(1, 3))).astype(np.uint8)
+
+        max_dim = max(hw, hh)
+        max_k = max(4, round(max_dim / 22))
+        best = 0
+        best_k = 0
+        best_len = 0
+        k = 2
+        while k <= max_k:
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k, k))
+            opened = cv2.morphologyEx(half_m, cv2.MORPH_OPEN, kernel)
+            min_run = max(12, 5 * k)
+            tot = 0
+            for y in range(hh):
+                diff = np.diff(np.concatenate(([0], opened[y], [0])).astype(np.int16))
+                for s, e in zip(np.where(diff == 1)[0], np.where(diff == -1)[0]):
+                    if (e - s) >= min_run:
+                        tot += (e - s)
+            for x in range(hw):
+                diff = np.diff(np.concatenate(([0], opened[:, x], [0])).astype(np.int16))
+                for s, e in zip(np.where(diff == 1)[0], np.where(diff == -1)[0]):
+                    if (e - s) >= min_run:
+                        tot += (e - s)
+
+            if tot < max_dim * 1.5:
+                break
+            if tot * k > best:
+                best = tot * k
+                best_k = k
+                best_len = tot
+            k += 1 if k < 8 else 2
+
+        if not best_k or best_len < max_dim * 1.5:
+            return max(4, round(max(w, h) * 0.015))
+
+        guess = best_k * 2
+        lo, hi = max(3, guess - 3), guess + 3
+        hist = np.zeros(hi + 1, dtype=np.int32)
+        for y in range(h):
+            diff = np.diff(np.concatenate(([0], bin_img[y], [0])).astype(np.int16))
+            for s, e in zip(np.where(diff == 1)[0], np.where(diff == -1)[0]):
+                r = e - s
+                if lo <= r <= hi:
+                    hist[r] += 1
+        for x in range(w):
+            diff = np.diff(np.concatenate(([0], bin_img[:, x], [0])).astype(np.int16))
+            for s, e in zip(np.where(diff == 1)[0], np.where(diff == -1)[0]):
+                r = e - s
+                if lo <= r <= hi:
+                    hist[r] += 1
+
+        t = guess
+        for i in range(lo, hi + 1):
+            if hist[i] > hist[t]:
+                t = i
+        return max(4, int(t))
+
+    @staticmethod
+    def _horizontal_bands(mask: np.ndarray, w: int, h: int, T: int) -> List[Dict[str, Any]]:
+        min_len = max(14, round(2.5 * T))
+        active: List[Dict[str, Any]] = []
+        done: List[Dict[str, Any]] = []
+
+        def finish(b: Dict[str, Any]):
+            t = b['y1'] - b['y0'] + 1
+            if t < max(2, round(0.3 * T)) or t > 2.8 * T:
+                return
+            s = RasterProcessor._median(b['x0s'])
+            e = RasterProcessor._median(b['x1s'])
+            if e - s + 1 < min_len:
+                return
+            done.append({'c': (b['y0'] + b['y1']) / 2.0, 's': s, 'e': e, 't': t})
+
+        for y in range(h):
+            row = mask[y]
+            diff = np.diff(np.concatenate(([0], row, [0])).astype(np.int16))
+            starts = np.where(diff == 1)[0]
+            ends = np.where(diff == -1)[0]
+            runs = [(int(s), int(e - 1)) for s, e in zip(starts, ends) if (e - s) >= min_len]
+
+            for b in active:
+                b['hit'] = False
+            next_active = []
+
+            for run in runs:
+                best = None
+                best_ov = 0
+                for b in active:
+                    if b['hit']:
+                        continue
+                    ov = min(run[1], b['last'][1]) - max(run[0], b['last'][0]) + 1
+                    need = 0.6 * min(run[1] - run[0] + 1, b['last'][1] - b['last'][0] + 1)
+                    if ov >= need and ov > best_ov:
+                        best = b
+                        best_ov = ov
+                if best:
+                    best['hit'] = True
+                    best['y1'] = y
+                    best['x0s'].append(run[0])
+                    best['x1s'].append(run[1])
+                    best['last'] = run
+                    next_active.append(best)
+                else:
+                    next_active.append({
+                        'y0': y, 'y1': y,
+                        'x0s': [run[0]], 'x1s': [run[1]],
+                        'last': run, 'hit': True
+                    })
+
+            for b in active:
+                if not b['hit']:
+                    finish(b)
+            active = next_active
+
+        for b in active:
+            finish(b)
+        return done
+
+    @staticmethod
+    def _weighted_c(g: List[Dict[str, Any]]) -> float:
+        s = sum(b['c'] * (b['e'] - b['s'] + 1) for b in g)
+        wsum = sum(b['e'] - b['s'] + 1 for b in g)
+        return float(s / max(1e-6, wsum))
+
+    @staticmethod
+    def _chains_of(o: str, bands: List[Dict[str, Any]], T: int, max_gap: float, cluster_tol: float) -> List[Dict[str, Any]]:
+        sorted_bands = sorted(bands, key=lambda b: b['c'])
+        groups: List[List[Dict[str, Any]]] = []
+        for b in sorted_bands:
+            if groups and abs(b['c'] - RasterProcessor._weighted_c(groups[-1])) <= cluster_tol:
+                groups[-1].append(b)
+            else:
+                groups.append([b])
+
+        chains: List[Dict[str, Any]] = []
+        for g in groups:
+            c = RasterProcessor._weighted_c(g)
+            pieces = sorted([{'s': b['s'], 'e': b['e'], 't': b['t']} for b in g], key=lambda x: x['s'])
+            merged: List[Dict[str, Any]] = []
+            for p in pieces:
+                if merged and p['s'] <= merged[-1]['e'] + 1.0 * T:
+                    m = merged[-1]
+                    tlen = m['len'] + (p['e'] - p['s'])
+                    m['t'] = (m['t'] * m['len'] + p['t'] * (p['e'] - p['s'])) / max(1, tlen)
+                    m['e'] = max(m['e'], p['e'])
+                    m['len'] = tlen
+                else:
+                    merged.append({'s': p['s'], 'e': p['e'], 't': p['t'], 'len': p['e'] - p['s']})
+
+            cur: Optional[Dict[str, Any]] = None
+            for m in merged:
+                can_join = False
+                if cur:
+                    gap = m['s'] - cur['e']
+                    if gap <= max_gap:
+                        can_join = True
+
+                if can_join and cur is not None:
+                    cur['gaps'].append((cur['e'], m['s']))
+                    cur['t'] = max(cur['t'], m['t'])
+                    cur['e'] = m['e']
+                else:
+                    if cur:
+                        chains.append(cur)
+                    cur = {'o': o, 'c': c, 's': m['s'], 'e': m['e'], 't': m['t'], 'gaps': []}
+            if cur:
+                chains.append(cur)
+
+        return chains
+
+    @staticmethod
+    def _join_ends(hs: List[Dict[str, Any]], vs: List[Dict[str, Any]], T: int):
+        tol = 1.4 * T
+        reach = 8 * T
+        loose = set()
+
+        def snap(a: List[Dict[str, Any]], b: List[Dict[str, Any]], tag: str):
+            for ci, ch in enumerate(a):
+                for end in ['s', 'e']:
+                    pos = ch[end]
+                    best = None
+                    best_d = float('inf')
+                    for p in b:
+                        if ch['c'] < p['s'] - tol or ch['c'] > p['e'] + tol:
+                            continue
+                        d = abs(p['c'] - pos)
+                        if d <= tol and d < best_d:
+                            best = p
+                            best_d = d
+                    if not best:
+                        loose.add(f"{tag}{ci}{end}")
+                        continue
+                    loose.discard(f"{tag}{ci}{end}")
+                    ch[end] = best['c']
+                    if ch['c'] < best['s']:
+                        best['s'] = ch['c']
+                    if ch['c'] > best['e']:
+                        best['e'] = ch['c']
+
+        snap(hs, vs, 'h')
+        snap(vs, hs, 'v')
+
+        def extend(a: List[Dict[str, Any]], b: List[Dict[str, Any]], tag: str):
+            for ci, ch in enumerate(a):
+                for end in ['s', 'e']:
+                    key = f"{tag}{ci}{end}"
+                    if key not in loose:
+                        continue
+                    pos = ch[end]
+                    dir_val = 1 if end == 'e' else -1
+                    best = None
+                    best_d = float('inf')
+                    for p in b:
+                        if ch['c'] < p['s'] - T or ch['c'] > p['e'] + T:
+                            continue
+                        d = (p['c'] - pos) * dir_val
+                        if 0 < d <= reach and d < best_d:
+                            best = p
+                            best_d = d
+                    for q in a:
+                        if q is ch or abs(q['c'] - ch['c']) > 0.6 * T:
+                            continue
+                        d = (q['s'] - pos) if end == 'e' else (pos - q['e'])
+                        if 0 < d < best_d:
+                            best = None
+                            best_d = d
+                    if not best:
+                        continue
+                    face = best['c'] - dir_val * (best['t'] / 2.0)
+                    if (face - pos) * dir_val > 0.5 * T:
+                        ch['gaps'].append((pos, face) if end == 'e' else (face, pos))
+                    ch[end] = best['c']
+                    if ch['c'] < best['s']:
+                        best['s'] = ch['c']
+                    if ch['c'] > best['e']:
+                        best['e'] = ch['c']
+
+        extend(hs, vs, 'h')
+        extend(vs, hs, 'v')
+
+        for ch in hs + vs:
+            if ch['s'] > ch['e']:
+                ch['s'], ch['e'] = ch['e'], ch['s']
+            ch['gaps'] = [
+                (max(g[0], ch['s']), min(g[1], ch['e']))
+                for g in ch['gaps']
+                if g[1] > ch['s'] and g[0] < ch['e']
+            ]
+            ch['gaps'].sort(key=lambda g: g[0])
+
+    @staticmethod
+    def _window_score(bin_img: np.ndarray, w: int, h: int, ch: Dict[str, Any], a: float, b: float) -> float:
+        half = max(1, round(ch['t'] / 2.0))
+        crossed = 0
+        n = 0
+        u_start = int(math.ceil(a)) + 1
+        u_end = int(math.floor(b))
+        for u in range(u_start, u_end):
+            dark = 0
+            prev = 0
+            for k in range(-half, half + 1):
+                x = u if ch['o'] == 'h' else int(round(ch['c'])) + k
+                y = int(round(ch['c'])) + k if ch['o'] == 'h' else u
+                if 0 <= x < w and 0 <= y < h:
+                    v = bin_img[y, x]
+                    if v and not prev:
+                        dark += 1
+                    prev = v
+            n += 1
+            if dark >= 2:
+                crossed += 1
+        return (crossed / n) if n > 0 else 0.0
+
+    @staticmethod
     def process_image(image_path: str, scale: float = 0.01, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        2BUILDERS Deterministic Architectural Wall and Room Recognition Engine
-        Adapted directly from vectorise.ts and assemble.ts:
-        1. Adaptive background detection and tone check.
-        2. High-precision Otsu and adaptive stroke binarization.
-        3. Wall thickness T estimation via morphological sweeping.
-        4. Non-wall noise stripping with square opening k ~ 0.35 T.
-        5. Directional band stacking extracting continuous wall strips >= 2.5 T.
-        6. Band clustering and collinear centerline chains with gap preservation.
-        7. Watertight L-corner and T-junction snapping (tol = 1.6 T, doorway extensions up to 8 T).
-        8. Split chains at all perpendicular crossings to generate a planar graph with zero overlapping walls.
-        9. Opening recognition: window thin line scoring and door swing detection.
-        10. Closed room polygon extraction and exterior slab envelope.
+        2BUILDERS Watertight Architectural Geometry Engine
+        Pure deterministic computer vision:
+        1. Adaptive tone check & Otsu binarization
+        2. Morphological wall thickness T estimation
+        3. Row-by-row band extraction (vectorise.ts approach)
+        4. Band clustering with tolerance >= 1.4*T to merge double lines into single centerlines
+        5. L-corner & T-junction watertight snapping
+        6. Perpendicular crossing splitting with zero duplicate / overlapping segments
+        7. Physical gap opening classification (doors & windows)
+        8. Watertight grid floodfill for non-overlapping room polygons snapped to wall faces
         """
         if options is None:
             options = {}
@@ -274,139 +557,50 @@ class RasterProcessor:
             resize_ratio = 1.0
 
         height, width = img.shape[:2]
-        diag = max(height, width)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # 1. Background tone check and inversion
+        # 1. Background inversion check
         edge_pixels = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
-        bg_median = float(np.median(edge_pixels))
-        is_dark_bg = bg_median < 110
-        working_gray = 255 - gray if is_dark_bg else gray
+        if np.median(edge_pixels) < 110:
+            gray = 255 - gray
 
-        # 2. Multi-threshold binarization
-        blurred = cv2.GaussianBlur(working_gray, (3, 3), 0)
-        _, otsu = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        block_size = max(15, (round(diag * 0.02) // 2) * 2 + 1)
-        adapt = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block_size, 8)
-        raw_strokes = cv2.bitwise_or(otsu, adapt)
-        if cv2.countNonZero(raw_strokes) > 0.35 * height * width:
-            raw_strokes = otsu
+        # Otsu binarization
+        _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        bin_m = (otsu > 128).astype(np.uint8)
 
-        bin_m = (raw_strokes > 128).astype(np.uint8)
+        # 2. Wall thickness estimation
+        T = RasterProcessor._estimate_wall_thickness(bin_m, width, height)
+        T = max(4, T)
 
-        # 3. Cavity wall bridging and wall thickness T estimation
-        kw = max(4, round(diag * 0.009))
-        cavity_closed = cv2.morphologyEx(bin_m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw, kw)))
-        T = max(10, round(diag * 0.015))
+        # 3. Cavity wall bridging & filter mask
+        kw = max(3, round(T * 0.7))
+        cavity = cv2.morphologyEx(bin_m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw, kw)))
 
-        # 4. Filter non-wall noise: open mask with k = max(3, round(T * 0.35))
-        k_open = max(3, round(T * 0.35))
-        clean_mask = cv2.morphologyEx(cavity_closed, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (k_open, k_open)))
+        k_open = max(2, round(T * 0.35))
+        clean_mask = cv2.morphologyEx(cavity, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (k_open, k_open)))
 
-        # Directional walls
-        min_wall_len = max(26, round(diag * 0.032))
-        h_open = cv2.morphologyEx(clean_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (min_wall_len, 1)))
-        v_open = cv2.morphologyEx(clean_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, min_wall_len)))
+        # 4. Horizontal & vertical bands
+        h_bands = RasterProcessor._horizontal_bands(clean_mask, width, height, T)
+        v_bands_t = RasterProcessor._horizontal_bands(clean_mask.T, height, width, T)
 
-        # 5. Extract horizontal and vertical bands
-        def get_bands_from_mask(m, is_vert):
-            done = []
-            contours, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for c in contours:
-                x, y, bw, bh = cv2.boundingRect(c)
-                if not is_vert:
-                    if bw >= min_wall_len and bh <= 3.8 * T:
-                        done.append({'c': y + bh / 2.0, 's': x, 'e': x + bw, 't': max(bh, T)})
-                else:
-                    if bh >= min_wall_len and bw <= 3.8 * T:
-                        done.append({'c': x + bw / 2.0, 's': y, 'e': y + bh, 't': max(bw, T)})
-            return done
+        min_band_len = max(20, round(3.5 * T))
+        h_bands = [b for b in h_bands if (b['e'] - b['s'] + 1) >= min_band_len]
+        v_bands_t = [b for b in v_bands_t if (b['e'] - b['s'] + 1) >= min_band_len]
 
-        h_bands = get_bands_from_mask(h_open, False)
-        v_bands = get_bands_from_mask(v_open, True)
+        # 5. Chains with cluster tolerance to merge parallel cavity double lines
+        cluster_tol = max(6.0, 1.4 * T)
+        hs = RasterProcessor._chains_of('h', h_bands, T, 12 * T, cluster_tol)
+        vs = RasterProcessor._chains_of('v', v_bands_t, T, 12 * T, cluster_tol)
 
-        # 6. Chains of bands: cluster within 0.85 T, merge overlapping pieces, keep gaps
-        def weighted_c(group):
-            s = sum(b['c'] * (b['e'] - b['s'] + 1) for b in group)
-            wsum = sum((b['e'] - b['s'] + 1) for b in group)
-            return s / max(1e-6, wsum)
+        min_chain_len = max(30, round(5.0 * T))
+        hs = [ch for ch in hs if (ch['e'] - ch['s']) >= min_chain_len]
+        vs = [ch for ch in vs if (ch['e'] - ch['s']) >= min_chain_len]
 
-        def chains_of(bands, orient, max_gap):
-            sorted_bands = sorted(bands, key=lambda b: b['c'])
-            groups = []
-            for b in sorted_bands:
-                if groups and abs(b['c'] - weighted_c(groups[-1])) <= 0.85 * T:
-                    groups[-1].append(b)
-                else:
-                    groups.append([b])
-            chains = []
-            for g in groups:
-                c = weighted_c(g)
-                pieces = sorted([{'s': b['s'], 'e': b['e'], 't': b['t']} for b in g], key=lambda x: x['s'])
-                merged = []
-                for p in pieces:
-                    if merged and p['s'] <= merged[-1]['e'] + 1.2 * T:
-                        m = merged[-1]
-                        tot_len = m['len'] + (p['e'] - p['s'])
-                        m['t'] = (m['t'] * m['len'] + p['t'] * (p['e'] - p['s'])) / max(1, tot_len)
-                        m['e'] = max(m['e'], p['e'])
-                        m['len'] = tot_len
-                    else:
-                        merged.append({'s': p['s'], 'e': p['e'], 't': p['t'], 'len': p['e'] - p['s']})
-                cur = None
-                for m in merged:
-                    if cur and (m['s'] - cur['e'] <= max_gap):
-                        cur['gaps'].append((cur['e'], m['s']))
-                        cur['t'] = max(cur['t'], m['t'])
-                        cur['e'] = m['e']
-                    else:
-                        if cur: chains.append(cur)
-                        cur = {'o': orient, 'c': c, 's': m['s'], 'e': m['e'], 't': m['t'], 'gaps': []}
-                if cur: chains.append(cur)
-            return chains
+        # 6. Snap ends at corners and junctions
+        RasterProcessor._join_ends(hs, vs, T)
 
-        max_gap = 6 * T
-        hs = chains_of(h_bands, 'h', max_gap)
-        vs = chains_of(v_bands, 'v', max_gap)
-
-        # 7. Watertight joinEnds: snap chain ends onto meeting perpendicular wall lines (tol = 1.6 T)
-        tol = 1.6 * T
-        for ch in hs:
-            for end in ['s', 'e']:
-                pos = ch[end]
-                best = None
-                best_d = float('inf')
-                for p in vs:
-                    if ch['c'] < p['s'] - tol or ch['c'] > p['e'] + tol:
-                        continue
-                    d = abs(p['c'] - pos)
-                    if d <= tol and d < best_d:
-                        best = p
-                        best_d = d
-                if best:
-                    ch[end] = best['c']
-                    if ch['c'] < best['s']: best['s'] = ch['c']
-                    if ch['c'] > best['e']: best['e'] = ch['c']
-
-        for ch in vs:
-            for end in ['s', 'e']:
-                pos = ch[end]
-                best = None
-                best_d = float('inf')
-                for p in hs:
-                    if ch['c'] < p['s'] - tol or ch['c'] > p['e'] + tol:
-                        continue
-                    d = abs(p['c'] - pos)
-                    if d <= tol and d < best_d:
-                        best = p
-                        best_d = d
-                if best:
-                    ch[end] = best['c']
-                    if ch['c'] < best['s']: best['s'] = ch['c']
-                    if ch['c'] > best['e']: best['e'] = ch['c']
-
-        # 8. Split chains at all perpendicular crossings to guarantee zero overlapping walls
-        eps = 0.8 * T
+        # 7. Split at perpendicular crossings
+        eps = 0.6 * T
         splits = {id(ch): [ch['s'], ch['e']] for ch in hs + vs}
         for hc in hs:
             for vc in vs:
@@ -415,7 +609,6 @@ class RasterProcessor:
                     splits[id(hc)].append(min(hc['e'], max(hc['s'], vc['c'])))
                     splits[id(vc)].append(min(vc['e'], max(vc['s'], hc['c'])))
 
-        # Bounding box and scale computation
         all_xs = [ch['c'] for ch in vs] + [ch['s'] for ch in hs] + [ch['e'] for ch in hs]
         all_ys = [ch['c'] for ch in hs] + [ch['s'] for ch in vs] + [ch['e'] for ch in vs]
         min_px_x = min(all_xs) if all_xs else 0
@@ -425,84 +618,44 @@ class RasterProcessor:
 
         real_width = options.get("realWidth", 9.0) if options else 9.0
         bw_px = max(100, max_px_x - min_px_x)
-        inv_r = 1.0 / resize_ratio if resize_ratio != 1.0 else 1.0
         scale = (real_width / bw_px) * resize_ratio
 
         min_m_x = min_px_x * scale
         max_m_x = max_px_x * scale
         min_m_y = min_px_y * scale
         max_m_y = max_px_y * scale
+        ext_margin = max(0.40, T * scale * 2.0)
 
-        # Node registry with 0.6 T merging tolerance
-        nodes = []
-        def node_at(x, y):
+        # Node registry with 0.6 T tolerance
+        nodes: List[Tuple[str, float, float]] = []
+        def node_at(x: float, y: float) -> str:
             for n in nodes:
-                if abs(n[0] - x) <= 0.6 * T and abs(n[1] - y) <= 0.6 * T:
-                    return n[2]
-            nid = f'n{len(nodes)+1}'
-            nodes.append((round(x, 1), round(y, 1), nid))
+                if abs(n[1] - x) <= 0.6 * T and abs(n[2] - y) <= 0.6 * T:
+                    return n[0]
+            nid = f"n{len(nodes) + 1}"
+            nodes.append((nid, round(x, 1), round(y, 1)))
             return nid
 
-        # 9. Opening detection helper (windows with double lines, doors with openings)
-        def score_openings_on_piece(ch, a, b, piece_len_m):
-            half = max(1, round(ch['t'] / 2))
-            crossed = 0
-            n = 0
-            for u in range(int(a) + 1, int(b)):
-                dark = 0
-                prev = 0
-                for k in range(-half, half + 1):
-                    x = u if ch['o'] == 'h' else int(round(ch['c'])) + k
-                    y = int(round(ch['c'])) + k if ch['o'] == 'h' else u
-                    if 0 <= x < width and 0 <= y < height:
-                        v = bin_m[y, x]
-                        if v and not prev: dark += 1
-                        prev = v
-                n += 1
-                if dark >= 2: crossed += 1
-            win_score = crossed / n if n > 0 else 0
-            gap_w_m = (b - a) * scale
-            if win_score >= 0.5:
-                return {
-                    "type": "window",
-                    "width": round(min(piece_len_m * 0.7, max(0.9, gap_w_m)), 2),
-                    "height": 1.4,
-                    "sill_height": 0.9
-                }
-            else:
-                return {
-                    "type": "door",
-                    "width": round(min(piece_len_m * 0.7, max(0.85, min(1.2, gap_w_m))), 2),
-                    "height": 2.1,
-                    "sill_height": 0.0
-                }
-
-        # Build non-overlapping graph wall pieces
-        final_walls = []
-        shapely_lines = []
+        final_walls: List[Dict[str, Any]] = []
         seen_pairs = set()
 
         for ch in hs + vs:
-            pts = sorted(list(set([round(p, 1) for p in splits[id(ch)]])))
+            pts = sorted(list(set(round(p, 1) for p in splits[id(ch)])))
             cuts = []
             for p in pts:
-                if not cuts or (p - cuts[-1]) > 0.4 * T:
+                if not cuts or p - cuts[-1] > 0.6 * T:
                     cuts.append(p)
             if len(cuts) < 2:
                 continue
 
+            pieces: List[Dict[str, Any]] = []
             for i in range(len(cuts) - 1):
-                s, e = cuts[i], cuts[i+1]
-                if e - s < 0.6 * T:
+                s = cuts[i]
+                e = cuts[i + 1]
+                if (e - s) < 1.0 * T:
                     continue
-
-                if ch['o'] == 'h':
-                    ax, ay = s, ch['c']
-                    bx, by = e, ch['c']
-                else:
-                    ax, ay = ch['c'], s
-                    bx, by = ch['c'], e
-
+                ax, ay = (s, ch['c']) if ch['o'] == 'h' else (ch['c'], s)
+                bx, by = (e, ch['c']) if ch['o'] == 'h' else (ch['c'], e)
                 na = node_at(ax, ay)
                 nb = node_at(bx, by)
                 if na == nb:
@@ -517,181 +670,236 @@ class RasterProcessor:
                 y1_m = round(ay * scale, 3)
                 x2_m = round(bx * scale, 3)
                 y2_m = round(by * scale, 3)
-
                 piece_len_m = math.hypot(x2_m - x1_m, y2_m - y1_m)
-                if piece_len_m < 0.15:
+                if piece_len_m < 0.20:
                     continue
 
                 is_ext = (
-                    abs(min(x1_m, x2_m) - min_m_x) < 0.40 or
-                    abs(max(x1_m, x2_m) - max_m_x) < 0.40 or
-                    abs(min(y1_m, y2_m) - min_m_y) < 0.40 or
-                    abs(max(y1_m, y2_m) - max_m_y) < 0.40
+                    abs(min(x1_m, x2_m) - min_m_x) < ext_margin or
+                    abs(max(x1_m, x2_m) - max_m_x) < ext_margin or
+                    abs(min(y1_m, y2_m) - min_m_y) < ext_margin or
+                    abs(max(y1_m, y2_m) - max_m_y) < ext_margin
                 )
 
-                ops = []
-                for ga, gb in ch['gaps']:
-                    mid = (ga + gb) / 2.0
-                    if s <= mid <= e and (gb - ga) >= 0.7 * T:
-                        op_info = score_openings_on_piece(ch, ga, gb, piece_len_m)
-                        offset = round(max(0.1, (ga - s) * scale), 2)
-                        if offset + op_info["width"] <= piece_len_m - 0.05:
-                            ops.append({
-                                "type": op_info["type"],
-                                "offset": offset,
-                                "width": op_info["width"],
-                                "height": op_info["height"],
-                                "sill_height": op_info["sill_height"]
-                            })
+                wid = f"wall-{uuid.uuid4().hex[:8]}"
+                wall_obj = {
+                    'id': wid,
+                    'start': [x1_m, y1_m],
+                    'end': [x2_m, y2_m],
+                    'thickness': 0.25 if is_ext else 0.15,
+                    'height': 3.0,
+                    'type': "external" if is_ext else "internal",
+                    'layer': "WALLS",
+                    'openings': [],
+                    '_o': ch['o'],
+                    '_s': s,
+                    '_e': e,
+                    '_c': ch['c'],
+                    '_t': ch['t']
+                }
+                pieces.append(wall_obj)
 
-                if not ops:
-                    if is_ext and piece_len_m >= 1.2:
-                        win_w = 1.2 if piece_len_m >= 2.0 else 0.8
-                        ops.append({
-                            "type": "window",
-                            "offset": round((piece_len_m - win_w) / 2.0, 2),
-                            "width": win_w,
-                            "height": 1.4,
-                            "sill_height": 0.9
-                        })
-                    elif not is_ext and piece_len_m >= 1.4:
-                        door_w = 0.85
-                        ops.append({
-                            "type": "door",
-                            "offset": 0.20,
-                            "width": door_w,
-                            "height": 2.1,
-                            "sill_height": 0.0
-                        })
+            # Detect openings on pieces
+            for ga, gb in ch['gaps']:
+                width_px = gb - ga
+                if width_px < 0.75 * T:
+                    continue
+                mid = (ga + gb) / 2.0
+                piece = next((p for p in pieces if p['_s'] <= mid <= p['_e']), None)
+                if not piece:
+                    continue
+                win = RasterProcessor._window_score(bin_m, width, height, ch, ga, gb)
+                op_type = "window" if win >= 0.55 else ("door" if width_px <= 7 * T else "opening")
+                p_len = math.hypot(piece['end'][0] - piece['start'][0], piece['end'][1] - piece['start'][1])
+                gap_w_m = round(min(p_len * 0.7, max(0.8, width_px * scale)), 2)
+                offset_m = round(max(0.1, (ga - piece['_s']) * scale), 2)
 
-                shapely_lines.append(LineString([(x1_m, y1_m), (x2_m, y2_m)]))
-                final_walls.append({
-                    "id": f"wall-{uuid.uuid4().hex[:8]}",
-                    "start": [x1_m, y1_m],
-                    "end": [x2_m, y2_m],
-                    "thickness": 0.25 if is_ext else 0.15,
-                    "height": 3.0,
-                    "type": "external" if is_ext else "internal",
-                    "layer": "WALLS",
-                    "openings": ops
-                })
+                op_obj = {
+                    'id': f"op-{uuid.uuid4().hex[:6]}",
+                    'type': op_type,
+                    'offset': offset_m,
+                    'width': gap_w_m,
+                    'height': 1.4 if op_type == 'window' else 2.1,
+                    'sill_height': 0.9 if op_type == 'window' else 0.0
+                }
+                piece['openings'].append(op_obj)
 
-        # 10. Extract closed room polygons using grid floodfill with wall face snapping
-        cell = 4
-        gw, gh = int(np.ceil(width / cell)), int(np.ceil(height / cell))
-        k_door = max(8, round(diag * 0.022))
-        closed_rooms = cv2.morphologyEx(cavity_closed, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (k_door, k_door)))
-        grid = cv2.resize(closed_rooms, (gw, gh), interpolation=cv2.INTER_AREA)
-        grid_bin = (grid > 0.25).astype(np.uint8)
+            final_walls.extend(pieces)
 
-        flood_img = grid_bin.copy()
+        # 8. Rooms via Watertight Grid Floodfill
+        cell = max(1, round(T / 3.0))
+        gw = int(math.ceil(width / cell))
+        gh = int(math.ceil(height / cell))
+        WALL, OUT = 1, 2
+        grid = np.zeros((gh, gw), dtype=np.int32)
+
+        for wl in final_walls:
+            half = max(wl['_t'] / 2.0, cell * 0.75)
+            if wl['_o'] == 'h':
+                x0 = min(wl['_s'], wl['_e']) - half
+                x1 = max(wl['_s'], wl['_e']) + half
+                y0 = wl['_c'] - half
+                y1 = wl['_c'] + half
+            else:
+                x0 = wl['_c'] - half
+                x1 = wl['_c'] + half
+                y0 = min(wl['_s'], wl['_e']) - half
+                y1 = max(wl['_s'], wl['_e']) + half
+
+            gy0 = max(0, int(math.floor(y0 / cell)))
+            gy1 = min(gh - 1, int(math.floor(y1 / cell)))
+            gx0 = max(0, int(math.floor(x0 / cell)))
+            gx1 = min(gw - 1, int(math.floor(x1 / cell)))
+
+            for gy in range(gy0, gy1 + 1):
+                cy = (gy + 0.5) * cell
+                if cy < y0 or cy > y1:
+                    continue
+                for gx in range(gx0, gx1 + 1):
+                    cx = (gx + 0.5) * cell
+                    if x0 <= cx <= x1:
+                        grid[gy, gx] = WALL
+
+        # Floodfill exterior from border seeds
         flood_mask = np.zeros((gh + 2, gw + 2), dtype=np.uint8)
-        for corner in [(0, 0), (gw - 1, 0), (0, gh - 1), (gw - 1, gh - 1)]:
-            if flood_img[corner[1], corner[0]] == 0:
-                cv2.floodFill(flood_img, flood_mask, corner, 2)
+        border_seeds = [(0, 0), (gw - 1, 0), (0, gh - 1), (gw - 1, gh - 1)]
+        for gx in range(0, gw, max(1, gw // 20)):
+            border_seeds.extend([(gx, 0), (gx, gh - 1)])
+        for gy in range(0, gh, max(1, gh // 20)):
+            border_seeds.extend([(0, gy), (gw - 1, gy)])
 
-        room_cells = (flood_img == 0).astype(np.uint8)
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(room_cells)
+        for sx, sy in border_seeds:
+            if grid[sy, sx] == 0:
+                cv2.floodFill(grid, flood_mask, (sx, sy), OUT)
 
-        raw_room_polys = []
-        for lbl in range(1, num_labels):
-            area_cells = stats[lbl, cv2.CC_STAT_AREA]
-            if area_cells < 180:
-                continue
-            comp_mask = (labels == lbl).astype(np.uint8)
-            cnts, _ = cv2.findContours(comp_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if not cnts:
-                continue
-            cnt = max(cnts, key=cv2.contourArea)
-            peri = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.015 * peri, True)
-            if len(approx) < 3:
-                continue
-            pts_m = [[round(float(pt[0][0] * cell * scale), 3), round(float(pt[0][1] * cell * scale), 3)] for pt in approx]
-            area_m2 = round(float(area_cells * cell * cell * (scale ** 2)), 2)
-            if area_m2 >= 0.50:
-                raw_room_polys.append((pts_m, area_m2))
+        # Collect wall faces for snapping
+        face_x: List[float] = []
+        face_y: List[float] = []
+        for wl in final_walls:
+            if wl['_o'] == 'v':
+                face_x.extend([wl['_c'] - wl['_t'] / 2.0, wl['_c'] + wl['_t'] / 2.0])
+            else:
+                face_y.extend([wl['_c'] - wl['_t'] / 2.0, wl['_c'] + wl['_t'] / 2.0])
 
-        raw_room_polys.sort(key=lambda item: item[1], reverse=True)
-        final_rooms = []
-        room_names_pool = [
-            "Great Room / Living",
-            "Dining Area",
-            "Kitchen",
-            "Master Bedroom",
-            "Bedroom 2",
-            "Bedroom 3",
-            "Flex Room",
-            "Bathroom",
-            "Powder Room",
-            "Foyer / Entry",
-            "Hallway",
-            "Utility Room",
-            "Walk-in Closet"
+        def snap_to(v: float, faces: List[float]) -> float:
+            best = v
+            d = 1.5 * cell
+            for f in faces:
+                if abs(f - v) < d:
+                    d = abs(f - v)
+                    best = f
+            return best
+
+        min_room_cells = max(6, round((3.5 * T * 3.5 * T) / (cell * cell)))
+        raw_rooms: List[Tuple[List[List[float]], float]] = []
+        label = 10
+        total_house_cells = (bw_px // cell) * ((max_px_y - min_px_y) // cell)
+
+        for y in range(gh):
+            for x in range(gw):
+                if grid[y, x] == 0:
+                    val = label
+                    label += 1
+                    area, _, _, _ = cv2.floodFill(grid, flood_mask, (x, y), val)
+                    if area < min_room_cells:
+                        continue
+
+                    comp = (grid == val).astype(np.uint8)
+                    cnts, _ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if not cnts:
+                        continue
+                    cnt = max(cnts, key=cv2.contourArea)
+                    rx, ry, rw, rh = cv2.boundingRect(cnt)
+
+                    # Reject outer margins / title frame wrapping around the house
+                    if rw >= 0.82 * (bw_px / cell) and rh >= 0.82 * ((max_px_y - min_px_y) / cell):
+                        grid[comp > 0] = OUT
+                        continue
+
+                    peri = cv2.arcLength(cnt, True)
+                    approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+                    if len(approx) < 3:
+                        continue
+
+                    pts_m = []
+                    for pt in approx:
+                        gx_pt, gy_pt = float(pt[0][0]), float(pt[0][1])
+                        px = snap_to(gx_pt * cell, face_x)
+                        py = snap_to(gy_pt * cell, face_y)
+                        pts_m.append([round(px * scale, 3), round(py * scale, 3)])
+
+                    room_area_m2 = round(area * (cell * scale) ** 2, 2)
+                    if room_area_m2 >= 0.5:
+                        raw_rooms.append((pts_m, room_area_m2))
+
+        # Clean temporary private keys from walls
+        for wl in final_walls:
+            for k in ['_o', '_s', '_e', '_c', '_t']:
+                wl.pop(k, None)
+
+        # Sort rooms by area descending
+        raw_rooms.sort(key=lambda r: r[1], reverse=True)
+
+        names_pool = [
+            "Great Room / Living", "Dining Area", "Kitchen", "Master Bedroom",
+            "Bedroom 2", "Bedroom 3", "Master Bathroom", "Bathroom",
+            "Flex Room", "Foyer / Entry", "Hallway", "Walk-in Closet",
+            "Utility Room", "Powder Room", "Study / Office"
         ]
         used_names = set()
+        final_rooms: List[Dict[str, Any]] = []
 
-        for idx, (pts_m, a_m2) in enumerate(raw_room_polys):
-            xs = [p[0] for p in pts_m]
-            ys = [p[1] for p in pts_m]
+        for idx, (pts, a_m2) in enumerate(raw_rooms):
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
             cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
-            rel_y = (cy - min_m_y) / (max_m_y - min_m_y) if (max_m_y - min_m_y) > 0 else 0.5
-            rel_x = (cx - min_m_x) / (max_m_x - min_m_x) if (max_m_x - min_m_x) > 0 else 0.5
+            rel_x = (cx - min_m_x) / max(0.1, max_m_x - min_m_x)
+            rel_y = (cy - min_m_y) / max(0.1, max_m_y - min_m_y)
 
-            chosen_name = None
+            name = None
             if idx == 0 and "Great Room / Living" not in used_names:
-                chosen_name = "Great Room / Living"
-            elif "Master Bedroom" not in used_names and a_m2 >= 1.2:
-                chosen_name = "Master Bedroom"
-            elif "Kitchen" not in used_names and rel_y < 0.5 and rel_x > 0.4:
-                chosen_name = "Kitchen"
-            elif "Dining Area" not in used_names and rel_y < 0.5:
-                chosen_name = "Dining Area"
-            elif "Bedroom 2" not in used_names and a_m2 >= 1.0:
-                chosen_name = "Bedroom 2"
-            elif "Bedroom 3" not in used_names and a_m2 >= 0.8:
-                chosen_name = "Bedroom 3"
-            elif "Bathroom" not in used_names:
-                chosen_name = "Bathroom"
-            elif "Flex Room" not in used_names and a_m2 >= 0.6:
-                chosen_name = "Flex Room"
-            elif "Powder Room" not in used_names:
-                chosen_name = "Powder Room"
-            elif "Foyer / Entry" not in used_names and rel_y > 0.6:
-                chosen_name = "Foyer / Entry"
-            elif "Hallway" not in used_names:
-                chosen_name = "Hallway"
-            elif "Walk-in Closet" not in used_names:
-                chosen_name = "Walk-in Closet"
-            elif "Utility Room" not in used_names:
-                chosen_name = "Utility Room"
+                name = "Great Room / Living"
+            elif "Master Bedroom" not in used_names and a_m2 >= 1.5:
+                name = "Master Bedroom"
+            elif "Kitchen" not in used_names and a_m2 >= 1.0 and rel_x > 0.4:
+                name = "Kitchen"
+            elif "Dining Area" not in used_names and a_m2 >= 1.0:
+                name = "Dining Area"
+            elif "Bedroom 2" not in used_names and a_m2 >= 1.2:
+                name = "Bedroom 2"
+            elif "Bedroom 3" not in used_names and a_m2 >= 1.0:
+                name = "Bedroom 3"
+            elif "Master Bathroom" not in used_names and a_m2 >= 0.8:
+                name = "Master Bathroom"
+            elif "Bathroom" not in used_names and a_m2 >= 0.6:
+                name = "Bathroom"
+            elif "Flex Room" not in used_names and a_m2 >= 0.8:
+                name = "Flex Room"
 
-            if not chosen_name:
-                for candidate in room_names_pool:
-                    if candidate not in used_names:
-                        chosen_name = candidate
+            if not name:
+                for cand in names_pool:
+                    if cand not in used_names:
+                        name = cand
                         break
-            if not chosen_name:
-                chosen_name = f"Room {idx + 1}"
+            if not name:
+                name = f"Room {idx + 1}"
 
-            used_names.add(chosen_name)
+            used_names.add(name)
             final_rooms.append({
-                "id": f"room-{uuid.uuid4().hex[:8]}",
-                "name": chosen_name,
-                "boundary": pts_m,
-                "area": a_m2
+                'id': f"room-{uuid.uuid4().hex[:8]}",
+                'name': name,
+                'boundary': pts,
+                'area': a_m2
             })
 
-        # Exterior building perimeter slab
-        contours, _ = cv2.findContours(cavity_closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        slab_boundary = []
+        # Slab boundary
+        contours, _ = cv2.findContours(cavity, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        slab_boundary: List[List[float]] = []
         if contours:
             outer_c = max(contours, key=cv2.contourArea)
             peri = cv2.arcLength(outer_c, True)
-            approx_outer = cv2.approxPolyDP(outer_c, 0.015 * peri, True)
-            for pt in approx_outer:
-                px, py = pt[0]
-                slab_boundary.append([round(float(px * scale), 3), round(float(py * scale), 3)])
+            approx = cv2.approxPolyDP(outer_c, 0.015 * peri, True)
+            slab_boundary = [[round(float(p[0][0] * scale), 3), round(float(p[0][1] * scale), 3)] for p in approx]
 
         return {
             "imageDimensions": {"width": width, "height": height},
