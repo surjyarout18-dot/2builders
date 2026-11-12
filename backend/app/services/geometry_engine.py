@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import numpy as np
 import cv2
 import shapely
-from shapely.geometry import LineString, Polygon, MultiPolygon
+from shapely.geometry import LineString, Polygon, MultiPolygon, box
 from shapely.ops import unary_union, polygonize
 
 UNIT_TO_METERS = {
@@ -133,6 +133,21 @@ class LineMerger:
             })
 
         return merged
+
+def wall_footprints(walls: List[Dict[str, Any]]) -> List[Polygon]:
+    """Axis-aligned footprint rectangles for every wall centreline."""
+    polys: List[Polygon] = []
+    for w in walls:
+        (x1, y1), (x2, y2) = w["start"], w["end"]
+        t = max(0.02, float(w.get("thickness", 0.15)))
+        if abs(y1 - y2) <= abs(x1 - x2):
+            polys.append(box(min(x1, x2) - t / 2.0, y1 - t / 2.0,
+                             max(x1, x2) + t / 2.0, y1 + t / 2.0))
+        else:
+            polys.append(box(x1 - t / 2.0, min(y1, y2) - t / 2.0,
+                             x1 + t / 2.0, max(y1, y2) + t / 2.0))
+    return polys
+
 
 class DXFProcessor:
     @staticmethod
@@ -309,6 +324,170 @@ class RasterProcessor:
         return max(4, int(t))
 
     @staticmethod
+    def _keep_building_components(mask: np.ndarray) -> np.ndarray:
+        """Drops small annotation fragments (labels, ticks, arrow heads, symbols)."""
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+        if count <= 1:
+            return mask
+
+        min_area = max(90, 0.00035 * mask.size)
+        keep = np.zeros_like(mask)
+        for i in range(1, count):
+            if int(stats[i, cv2.CC_STAT_AREA]) < min_area:
+                continue
+            keep[labels == i] = 1
+        return keep if keep.any() else mask
+
+    @staticmethod
+    def _bands_from_binary(matrix: np.ndarray, min_len: int, min_t: int, max_t: int) -> List[Dict[str, Any]]:
+        """Tracks long horizontal runs across rows into bands of a given thickness."""
+        active: List[Dict[str, Any]] = []
+        done: List[Dict[str, Any]] = []
+
+        for y in range(matrix.shape[0]):
+            row = matrix[y]
+            diff = np.diff(np.concatenate(([0], row, [0])).astype(np.int16))
+            starts = np.where(diff == 1)[0]
+            ends = np.where(diff == -1)[0]
+            runs = [(int(a), int(b - 1)) for a, b in zip(starts, ends) if (b - a) >= min_len]
+
+            for band in active:
+                band['hit'] = False
+            nxt: List[Dict[str, Any]] = []
+            for run in runs:
+                best = None
+                best_ov = 0
+                for band in active:
+                    if band['hit']:
+                        continue
+                    ov = min(run[1], band['last'][1]) - max(run[0], band['last'][0]) + 1
+                    need = 0.5 * min(run[1] - run[0] + 1, band['last'][1] - band['last'][0] + 1)
+                    if ov >= need and ov > best_ov:
+                        best = band
+                        best_ov = ov
+                if best is not None:
+                    best['hit'] = True
+                    best['y1'] = y
+                    best['last'] = run
+                    best['s'] = min(best['s'], run[0])
+                    best['e'] = max(best['e'], run[1])
+                    nxt.append(best)
+                else:
+                    nxt.append({'y0': y, 'y1': y, 's': run[0], 'e': run[1], 'last': run, 'hit': True})
+            for band in active:
+                if not band['hit']:
+                    done.append(band)
+            active = nxt
+        done.extend(active)
+
+        bands: List[Dict[str, Any]] = []
+        for band in done:
+            thick = band['y1'] - band['y0'] + 1
+            if thick < min_t or thick > max_t:
+                continue
+            if band['e'] - band['s'] + 1 < min_len:
+                continue
+            bands.append({'c': (band['y0'] + band['y1']) / 2.0, 's': band['s'], 'e': band['e'], 't': thick})
+        return bands
+
+    @staticmethod
+    @staticmethod
+    def _pair_face_chains(chains: List[Dict[str, Any]], max_separation: float) -> List[Dict[str, Any]]:
+        """
+        A wall is drawn as two parallel face lines around a hollow core. Pair the
+        face chains belonging to the same wall and emit one wall on the centreline
+        with the separation as its real thickness. Faces are matched longest-match
+        first and widest separation first, so window symbols inside an opening do
+        not steal a real face.
+        """
+        if len(chains) < 2:
+            return chains
+
+        candidates = []
+        for i in range(len(chains)):
+            a = chains[i]
+            len_a = a['e'] - a['s']
+            for j in range(i + 1, len(chains)):
+                b = chains[j]
+                if a['o'] != b['o']:
+                    continue
+                sep = abs(b['c'] - a['c'])
+                if sep < 5.0 or sep > max_separation:
+                    continue
+                overlap = min(a['e'], b['e']) - max(a['s'], b['s'])
+                if overlap <= 0:
+                    continue
+                len_b = b['e'] - b['s']
+                coverage = overlap / max(1.0, min(len_a, len_b))
+                if coverage < 0.5:
+                    continue
+                candidates.append((coverage, sep, i, j))
+
+        used = [False] * len(chains)
+        merged: List[Dict[str, Any]] = []
+        for coverage, sep, i, j in sorted(candidates, key=lambda c: (-c[0], -c[1])):
+            if used[i] or used[j]:
+                continue
+            used[i] = used[j] = True
+            a, b = chains[i], chains[j]
+            total = (a['e'] - a['s']) + (b['e'] - b['s']) or 1.0
+            merged.append({
+                'o': a['o'],
+                'c': (a['c'] * (a['e'] - a['s']) + b['c'] * (b['e'] - b['s'])) / total,
+                's': min(a['s'], b['s']),
+                'e': max(a['e'], b['e']),
+                't': sep + (a['t'] + b['t']) / 2.0,
+                'gaps': sorted(a.get('gaps', []) + b.get('gaps', [])),
+            })
+
+        if len(merged) < 3:
+            # single-line drawings: no face pairs to merge, keep the faces as walls
+            return chains
+
+        return merged
+
+    @staticmethod
+    @staticmethod
+    def _wall_region_mask(bin_img: np.ndarray) -> np.ndarray:
+        """
+        Isolates the wall body from a floor plan raster.
+
+        Wall faces are drawn with a heavier pen than dimension chains, section
+        ticks, leader lines, room labels and furniture symbols. The stroke-weight
+        histogram therefore splits into a hairline mode and a wall mode; only the
+        wall mode is kept, wall cores are filled, and leftovers outside the main
+        wall network are discarded.
+        """
+        h, w = bin_img.shape[:2]
+        strokes = bin_img
+
+        solid = cv2.morphologyEx(bin_img, cv2.MORPH_CLOSE, np.ones((2, 2), np.uint8))
+        dist = cv2.distanceTransform(solid, cv2.DIST_L2, 5)
+        ink = dist[dist > 0]
+
+        if ink.size:
+            hist, edges = np.histogram(ink, bins=np.arange(0.0, 6.25, 0.25))
+            peak = int(np.argmax(hist))
+            # walk out of the hairline mode, then forward across the valley
+            i = peak
+            while i < len(hist) - 1 and hist[i] > 0.05 * hist[peak]:
+                i += 1
+            j = i
+            limit = max(3.0, 0.08 * hist[peak])
+            while j < len(hist) - 1 and hist[j] < limit:
+                j += 1
+
+            if j > i and hist[j] >= limit:
+                thick = float(edges[j])
+                core = (dist >= thick).astype(np.uint8)
+                if core.sum() >= 0.0015 * bin_img.size:
+                    k = max(3, int(round(2.0 * thick)) | 1)
+                    core = cv2.dilate(core, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+                    strokes = cv2.bitwise_and(core, solid)
+
+        return RasterProcessor._keep_building_components(strokes)
+
+    @staticmethod
     def _horizontal_bands(mask: np.ndarray, w: int, h: int, T: int) -> List[Dict[str, Any]]:
         min_len = max(14, round(2.5 * T))
         active: List[Dict[str, Any]] = []
@@ -423,8 +602,8 @@ class RasterProcessor:
 
     @staticmethod
     def _join_ends(hs: List[Dict[str, Any]], vs: List[Dict[str, Any]], T: int):
-        tol = 1.4 * T
-        reach = 8 * T
+        tol = 1.0 * T
+        reach = 1.6 * T
         loose = set()
 
         def snap(a: List[Dict[str, Any]], b: List[Dict[str, Any]], tag: str):
@@ -568,31 +747,43 @@ class RasterProcessor:
         _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
         bin_m = (otsu > 128).astype(np.uint8)
 
-        # 2. Wall thickness estimation
-        T = RasterProcessor._estimate_wall_thickness(bin_m, width, height)
+        # 2. Wall region mask: keep the heavy wall strokes only and fill the hollow
+        #    between the two faces of each wall. Dimension chains, section ticks,
+        #    leader lines, room labels and furniture hairlines are dropped here so
+        #    they can never be mistaken for walls.
+        cavity = RasterProcessor._wall_region_mask(bin_m)
+
+        # 3. Wall thickness measured on the solid wall bands
+        T = RasterProcessor._estimate_wall_thickness(cavity, width, height)
         T = max(4, T)
 
-        # 3. Cavity wall bridging & filter mask
-        kw = max(3, round(T * 0.7))
-        cavity = cv2.morphologyEx(bin_m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (kw, kw)))
+        clean_mask = cavity
 
-        k_open = max(2, round(T * 0.35))
-        clean_mask = cv2.morphologyEx(cavity, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (k_open, k_open)))
+        # 4. The two faces of every wall, one band per face
+        face_min_len = max(14, round(0.018 * max(width, height)))
+        h_faces = RasterProcessor._bands_from_binary(clean_mask, face_min_len, 2, 16)
+        v_faces = RasterProcessor._bands_from_binary(clean_mask.T, face_min_len, 2, 16)
 
-        # 4. Horizontal & vertical bands
-        h_bands = RasterProcessor._horizontal_bands(clean_mask, width, height, T)
-        v_bands_t = RasterProcessor._horizontal_bands(clean_mask.T, height, width, T)
+        # 5. Continuous face chains, then pair the two faces of each wall
+        face_t = max(4.0, RasterProcessor._median([b['t'] for b in h_faces + v_faces] or [4]))
+        face_gap = max(40.0, 0.16 * max(width, height))
+        h_chains = RasterProcessor._chains_of('h', h_faces, face_t, face_gap, 3.0)
+        v_chains = RasterProcessor._chains_of('v', v_faces, face_t, face_gap, 3.0)
 
-        min_band_len = max(20, round(3.5 * T))
-        h_bands = [b for b in h_bands if (b['e'] - b['s'] + 1) >= min_band_len]
-        v_bands_t = [b for b in v_bands_t if (b['e'] - b['s'] + 1) >= min_band_len]
+        max_separation = max(20.0, 0.05 * max(width, height))
+        h_bands = RasterProcessor._pair_face_chains(h_chains, max_separation)
+        v_bands_t = RasterProcessor._pair_face_chains(v_chains, max_separation)
 
-        # 5. Chains with cluster tolerance to merge parallel cavity double lines
-        cluster_tol = max(6.0, 1.4 * T)
-        hs = RasterProcessor._chains_of('h', h_bands, T, 12 * T, cluster_tol)
-        vs = RasterProcessor._chains_of('v', v_bands_t, T, 12 * T, cluster_tol)
+        # Wall thickness drives every later tolerance
+        T = max(6.0, RasterProcessor._median([b['t'] for b in h_bands + v_bands_t]))
 
-        min_chain_len = max(30, round(5.0 * T))
+        # 6. Chains: collinear pieces belong to the same wall, doors bridge over
+        cluster_tol = max(4.0, 0.35 * T)
+        max_gap = max(4.0 * T, 0.085 * max(width, height))
+        hs = RasterProcessor._chains_of('h', h_bands, T, max_gap, cluster_tol)
+        vs = RasterProcessor._chains_of('v', v_bands_t, T, max_gap, cluster_tol)
+
+        min_chain_len = max(24, round(2.0 * T))
         hs = [ch for ch in hs if (ch['e'] - ch['s']) >= min_chain_len]
         vs = [ch for ch in vs if (ch['e'] - ch['s']) >= min_chain_len]
 
@@ -618,7 +809,9 @@ class RasterProcessor:
 
         real_width = options.get("realWidth", 9.0) if options else 9.0
         bw_px = max(100, max_px_x - min_px_x)
-        scale = (real_width / bw_px) * resize_ratio
+        # Wall coordinates are already in resized pixel space, so the scale is
+        # simply real width over the measured building width.
+        scale = real_width / bw_px
 
         min_m_x = min_px_x * scale
         max_m_x = max_px_x * scale
@@ -682,11 +875,13 @@ class RasterProcessor:
                 )
 
                 wid = f"wall-{uuid.uuid4().hex[:8]}"
+                # real wall thickness read from the drawing, not a guessed constant
+                wall_t = round(min(0.45, max(0.10, ch['t'] * scale)), 3)
                 wall_obj = {
                     'id': wid,
                     'start': [x1_m, y1_m],
                     'end': [x2_m, y2_m],
-                    'thickness': 0.25 if is_ext else 0.15,
+                    'thickness': wall_t,
                     'height': 3.0,
                     'type': "external" if is_ext else "internal",
                     'layer': "WALLS",
@@ -772,24 +967,6 @@ class RasterProcessor:
             if grid[sy, sx] == 0:
                 cv2.floodFill(grid, flood_mask, (sx, sy), OUT)
 
-        # Collect wall faces for snapping
-        face_x: List[float] = []
-        face_y: List[float] = []
-        for wl in final_walls:
-            if wl['_o'] == 'v':
-                face_x.extend([wl['_c'] - wl['_t'] / 2.0, wl['_c'] + wl['_t'] / 2.0])
-            else:
-                face_y.extend([wl['_c'] - wl['_t'] / 2.0, wl['_c'] + wl['_t'] / 2.0])
-
-        def snap_to(v: float, faces: List[float]) -> float:
-            best = v
-            d = 1.5 * cell
-            for f in faces:
-                if abs(f - v) < d:
-                    d = abs(f - v)
-                    best = f
-            return best
-
         min_room_cells = max(6, round((3.5 * T * 3.5 * T) / (cell * cell)))
         raw_rooms: List[Tuple[List[List[float]], float]] = []
         label = 10
@@ -821,12 +998,13 @@ class RasterProcessor:
                     if len(approx) < 3:
                         continue
 
-                    pts_m = []
-                    for pt in approx:
-                        gx_pt, gy_pt = float(pt[0][0]), float(pt[0][1])
-                        px = snap_to(gx_pt * cell, face_x)
-                        py = snap_to(gy_pt * cell, face_y)
-                        pts_m.append([round(px * scale, 3), round(py * scale, 3)])
+                    # Contour runs through free cell centres, so the polygon never
+                    # enters a wall body; converting directly keeps it that way.
+                    pts_m = [
+                        [round(float(pt[0][0]) * cell * scale, 3),
+                         round(float(pt[0][1]) * cell * scale, 3)]
+                        for pt in approx
+                    ]
 
                     room_area_m2 = round(area * (cell * scale) ** 2, 2)
                     if room_area_m2 >= 0.5:
@@ -836,6 +1014,36 @@ class RasterProcessor:
         for wl in final_walls:
             for k in ['_o', '_s', '_e', '_c', '_t']:
                 wl.pop(k, None)
+
+        # Rooms must never be drawn on top of a wall: clip any overlap away.
+        if final_walls:
+            wall_union = unary_union(wall_footprints(final_walls))
+            trimmed_rooms: List[Tuple[List[List[float]], float]] = []
+            for pts, fallback_area in raw_rooms:
+                try:
+                    poly = Polygon(pts)
+                    if not poly.is_valid:
+                        poly = poly.buffer(0)
+                    if poly.is_empty:
+                        continue
+                    if poly.intersection(wall_union).area > 1e-4:
+                        poly = poly.difference(wall_union.buffer(0.002))
+                    if poly.is_empty:
+                        continue
+                    if poly.geom_type == 'MultiPolygon':
+                        poly = max(poly.geoms, key=lambda g: g.area)
+                    if poly.geom_type != 'Polygon':
+                        continue
+                    poly = poly.simplify(0.02, preserve_topology=True)
+                    if poly.geom_type != 'Polygon' or poly.is_empty:
+                        continue
+                    boundary = [[round(x, 3), round(y, 3)] for x, y in list(poly.exterior.coords)[:-1]]
+                    if len(boundary) < 3 or poly.area < 0.5:
+                        continue
+                    trimmed_rooms.append((boundary, round(poly.area, 2)))
+                except Exception:
+                    trimmed_rooms.append((pts, fallback_area))
+            raw_rooms = trimmed_rooms
 
         # Sort rooms by area descending
         raw_rooms.sort(key=lambda r: r[1], reverse=True)
