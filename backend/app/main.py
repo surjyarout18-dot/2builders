@@ -24,6 +24,8 @@ app.add_middleware(
 app.include_router(api_router)
 
 @app.get("/health")
+@app.get("/api/health")
+@app.get("/api/v1/health")
 def health_check() -> Dict[str, Any]:
     return {
         "status": "ok",
