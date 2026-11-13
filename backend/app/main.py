@@ -4,6 +4,7 @@ Sketch2Space FastAPI Main Application.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any
+from backend.app.api.endpoints import router as api_router
 
 app = FastAPI(
     title="Sketch2Space API",
@@ -19,6 +20,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_router)
 
 @app.get("/health")
 def health_check() -> Dict[str, Any]:
