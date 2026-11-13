@@ -79,3 +79,4 @@ def test_full_sketch2space_e2e_lifecycle():
     )
     assert chat_res.status_code == 200
     assert "m²" in chat_res.json()["response"]
+

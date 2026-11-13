@@ -159,3 +159,4 @@ npm run build
 This application is built under an open architectural standard:
 - **100% Free Forever** — No subscriptions, no credits, no paywalls.
 - Commercial & Personal usage permitted.
+

@@ -10,3 +10,4 @@ start cmd /k "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 
 echo [2/2] Starting Vite Frontend on http://localhost:5173...
 cd frontend
 npm run dev
+
