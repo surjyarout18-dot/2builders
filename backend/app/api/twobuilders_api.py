@@ -13,6 +13,7 @@ from ..models import Project, SourceFile, Floor, Wall, Opening, Room, ModelExpor
 from ..services.geometry_engine import RasterProcessor, DXFProcessor
 from ..services.twobuilders_plan import TwoBuildersPlanConverter
 from ..services.vastu_engine import VastuEngine
+from ..services.respan_tracing import trace_task, trace_workflow
 from .projects import serialize_project
 from ..paths import UPLOAD_DIR, EXPORT_DIR, ensure_dir
 
@@ -44,6 +45,36 @@ def get_plan_doc_from_project(project: Project) -> Optional[Dict[str, Any]]:
     settings = project.settings or {}
     return settings.get("twobuilders_plan")
 
+@trace_task("raster_extraction")
+def _extract_raster_geometry(img_path: str, real_width_m: float) -> Dict[str, Any]:
+    """CV step: wall and room geometry out of the uploaded plan raster."""
+    return RasterProcessor.process_image(
+        img_path,
+        scale=0.0125,
+        options={"realWidth": real_width_m}
+    )
+
+
+@trace_task("plan_document")
+def _build_plan_document(
+    project_id: str,
+    extracted_walls: List[Dict[str, Any]],
+    extracted_rooms: List[Dict[str, Any]],
+    scale_m_per_px: float,
+    options: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Schema step: 2builders.plan/1 document with Vastu report and fixtures."""
+    return TwoBuildersPlanConverter.from_raster_extraction(
+        plan_id=project_id,
+        image_url=f"/api/files/{project_id}/download",
+        extracted_walls=extracted_walls,
+        extracted_rooms=extracted_rooms,
+        scale_m_per_px=scale_m_per_px,
+        options=options
+    )
+
+
+@trace_workflow("plan_convert")
 def _process_and_save_plan(project_id: str, clean_name: str, img_path: str, payload_dict: dict, db: Session):
     """Core deterministic processing pipeline shared across endpoints."""
     real_w = payload_dict.get("realWidthM") or 9.0
@@ -52,19 +83,14 @@ def _process_and_save_plan(project_id: str, clean_name: str, img_path: str, payl
     furnished = payload_dict.get("furnished", True)
     north_deg = payload_dict.get("northDeg", 0.0)
 
-    raster_res = RasterProcessor.process_image(
-        img_path,
-        scale=0.0125,
-        options={"realWidth": real_w}
-    )
+    raster_res = _extract_raster_geometry(img_path, real_w)
 
     scale_m_per_px = raster_res.get("scale", 0.0125)
     extracted_walls = raster_res.get("walls", [])
     extracted_rooms = raster_res.get("rooms", [])
 
-    plan_doc = TwoBuildersPlanConverter.from_raster_extraction(
-        plan_id=project_id,
-        image_url=f"/api/files/{project_id}/download",
+    plan_doc = _build_plan_document(
+        project_id=project_id,
         extracted_walls=extracted_walls,
         extracted_rooms=extracted_rooms,
         scale_m_per_px=scale_m_per_px,
@@ -204,18 +230,7 @@ def convert_plan_direct(
                 except Exception as e:
                     print(f"PDF rasterization warning: {e}")
 
-        source_file = SourceFile(
-            id=file_id,
-            project_id=file_id,
-            filename=clean_name,
-            format=ext.lstrip("."),
-            file_path=img_path,
-            file_size=len(contents),
-            metadata_json={"dest_path": dest_path, "image_path": img_path}
-        )
-        db.add(source_file)
-        db.commit()
-
+        # The project row must exist before its source file (foreign key).
         project, plan_doc = _process_and_save_plan(
             project_id=file_id,
             clean_name=clean_name,
@@ -229,6 +244,19 @@ def convert_plan_direct(
             },
             db=db
         )
+
+        source_file = SourceFile(
+            id=file_id,
+            project_id=file_id,
+            filename=clean_name,
+            format=ext.lstrip("."),
+            file_path=img_path,
+            file_size=len(contents),
+            metadata_json={"dest_path": dest_path, "image_path": img_path}
+        )
+        db.add(source_file)
+        db.commit()
+        db.refresh(project)
 
         return {
             "planId": file_id,

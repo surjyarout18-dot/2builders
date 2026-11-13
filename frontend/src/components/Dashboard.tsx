@@ -813,23 +813,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                 </div>
               </div>
 
-              {/* 4 Pipeline Stages */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 text-[10px] font-mono text-left">
+              {/* 6 Realistic Architectural Pipeline Stages */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-4 text-[10px] font-mono text-left">
                 <div className={`p-2.5 rounded-xl border ${analysisPercent >= 15 ? 'bg-sky-950/40 border-sky-400 text-sky-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
-                  <span className="font-bold block mb-0.5">01. PREPROCESS</span>
-                  <span>Scale calibration</span>
+                  <span className="font-bold block mb-0.5">01. CLEAN NOISE</span>
+                  <span>Clear extra lines</span>
                 </div>
-                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 45 ? 'bg-indigo-950/40 border-indigo-400 text-indigo-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
-                  <span className="font-bold block mb-0.5">02. CENTERLINES</span>
-                  <span>Cavity consolidation</span>
+                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 35 ? 'bg-indigo-950/40 border-indigo-400 text-indigo-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
+                  <span className="font-bold block mb-0.5">02. DETECT WALLS</span>
+                  <span>Watertight bands</span>
                 </div>
-                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 80 ? 'bg-purple-950/40 border-purple-400 text-purple-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
-                  <span className="font-bold block mb-0.5">03. DOLLHOUSE</span>
-                  <span>PBR 3D synthesis</span>
+                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 55 ? 'bg-cyan-950/40 border-cyan-400 text-cyan-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
+                  <span className="font-bold block mb-0.5">03. DOORS & WINS</span>
+                  <span>Openings & swings</span>
                 </div>
-                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 95 ? 'bg-emerald-950/40 border-emerald-400 text-emerald-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
-                  <span className="font-bold block mb-0.5">04. VASTU SHASTRA</span>
-                  <span>8-zone energy check</span>
+                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 75 ? 'bg-amber-950/40 border-amber-400 text-amber-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
+                  <span className="font-bold block mb-0.5">04. ROOM NAMES</span>
+                  <span>Topology labels</span>
+                </div>
+                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 90 ? 'bg-purple-950/40 border-purple-400 text-purple-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
+                  <span className="font-bold block mb-0.5">05. BUILD 3D</span>
+                  <span>Mesh extrusion</span>
+                </div>
+                <div className={`p-2.5 rounded-xl border ${analysisPercent >= 98 ? 'bg-emerald-950/40 border-emerald-400 text-emerald-300' : 'bg-slate-950/50 border-slate-800 text-slate-500'}`}>
+                  <span className="font-bold block mb-0.5">06. REALISTIC WAY</span>
+                  <span>PBR staging & Vastu</span>
                 </div>
               </div>
             </div>
@@ -1256,46 +1264,76 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
           />
         </div>
 
-        {/* HOW IT WORKS IN 3 SIMPLE STEPS (floordesign.ai style) */}
+        {/* HOW IT WORKS: 6-STEP ARCHITECTURAL 3D PIPELINE */}
         <div className="space-y-6 pt-4">
           <div className="text-center space-y-1.5 max-w-xl mx-auto">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
-              Simple 3-Step Process
+              The 2builders 6-Step Workflow
             </span>
             <h2 className="text-xl sm:text-3xl font-black text-white">
-              How 2builders Converts 2D to 3D
+              How We Turn Any 2D Floor Plan Into a Living 3D Model
             </h2>
-            <p className="text-xs text-slate-400">Pure geometric precision without manual CAD drafting</p>
+            <p className="text-xs text-slate-400">Sub-millimeter deterministic precision in a realistic way</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 font-black">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-2.5 hover:border-sky-500/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 font-black text-xs">
                 01
               </div>
-              <h3 className="font-bold text-sm text-white">Upload Any Floor Plan</h3>
+              <h3 className="font-bold text-sm text-white">Upload & Clear Extra Lines</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Upload brochure drawings, hand sketches, photos, or architectural vector PDF files. Medial axis skeletonization eliminates double cavity walls.
+                Upload scans, photos, sketches, or CAD drawings. Morphological opening strips text, dimension ticks, and hatching to isolate clean structural strokes.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-400/30 flex items-center justify-center text-indigo-400 font-black">
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-2.5 hover:border-indigo-500/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-400/30 flex items-center justify-center text-indigo-400 font-black text-xs">
                 02
               </div>
-              <h3 className="font-bold text-sm text-white">Configure Style & Height</h3>
+              <h3 className="font-bold text-sm text-white">Detect Walls</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Choose Japandi, Modern, or Vastu material palettes, set ceiling heights, and let the engine place parametric furniture and calculate Brahmasthan.
+                Stacks directional wall runs into contiguous bands, clusters collinear walls into single centerlines, and snaps corners with zero overlaps.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-400/30 flex items-center justify-center text-purple-400 font-black">
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-2.5 hover:border-cyan-500/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400 font-black text-xs">
                 03
               </div>
-              <h3 className="font-bold text-sm text-white">Explore 3D & Export</h3>
+              <h3 className="font-bold text-sm text-white">Detect Windows & Doors</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Orbit in 3D dollhouse, walk through at eye-level with WASD keys, or download standard GLB, Wavefront OBJ, 3D printing STL, and CAD DXF blueprints.
+                Identifies wall gap openings, evaluates double-line glass signatures for exterior windows, and detects quarter-circle door swings.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-2.5 hover:border-amber-500/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-400 font-black text-xs">
+                04
+              </div>
+              <h3 className="font-bold text-sm text-white">Detect Room Names</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Extracts closed rectilinear room polygons via multi-seed floodfilling and assigns room identities (Living, Master Bedroom, Kitchen, Dining, Bath).
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-2.5 hover:border-purple-500/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-400/30 flex items-center justify-center text-purple-400 font-black text-xs">
+                05
+              </div>
+              <h3 className="font-bold text-sm text-white">Build 3D Model</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Generates a clean planar 3D mesh with exact wall thicknesses, lintels, sill heights, and watertight corner miters in Three.js and WebGL.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 text-left space-y-2.5 hover:border-emerald-500/40 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-emerald-400 font-black text-xs">
+                06
+              </div>
+              <h3 className="font-bold text-sm text-white">Realistic Way</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                PBR materials, Carrara marble flooring, glazed window panes, wooden door frames, interior furniture staging, and 8-zone Vastu Shastra overlay.
               </p>
             </div>
           </div>
