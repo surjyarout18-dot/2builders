@@ -83,11 +83,16 @@ def _process_and_save_plan(project_id: str, clean_name: str, img_path: str, payl
     furnished = payload_dict.get("furnished", True)
     north_deg = payload_dict.get("northDeg", 0.0)
 
-    raster_res = _extract_raster_geometry(img_path, real_w)
-
-    scale_m_per_px = raster_res.get("scale", 0.0125)
-    extracted_walls = raster_res.get("walls", [])
-    extracted_rooms = raster_res.get("rooms", [])
+    if img_path.lower().endswith(".dxf"):
+        dxf_res = DXFProcessor.process_dxf(img_path, scale=1.0, options={"realWidth": real_w})
+        scale_m_per_px = dxf_res.get("scale", 1.0)
+        extracted_walls = dxf_res.get("walls", [])
+        extracted_rooms = dxf_res.get("rooms", [])
+    else:
+        raster_res = _extract_raster_geometry(img_path, real_w)
+        scale_m_per_px = raster_res.get("scale", 0.0125)
+        extracted_walls = raster_res.get("walls", [])
+        extracted_rooms = raster_res.get("rooms", [])
 
     plan_doc = _build_plan_document(
         project_id=project_id,

@@ -29,3 +29,14 @@ def synthetic_floorplan_path(tmp_path) -> str:
     path = str(tmp_path / "synthetic_floorplan.jpg")
     cv2.imwrite(path, img)
     return path
+
+@pytest.fixture
+def synthetic_dxf_path(tmp_path) -> str:
+    import ezdxf
+    path = str(tmp_path / "synthetic_plan.dxf")
+    doc = ezdxf.new('R2010')
+    msp = doc.modelspace()
+    msp.add_lwpolyline([(0, 0), (10, 0), (10, 8), (0, 8), (0, 0)], dxfattribs={'layer': 'WALLS_EXT'})
+    msp.add_line((5, 0), (5, 8), dxfattribs={'layer': 'WALLS_INT'})
+    doc.saveas(path)
+    return path

@@ -275,6 +275,9 @@ function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
 
 export const BuildingScene: React.FC = () => {
   const project = useProjectStore((s) => s.project);
+  const activeFloorId = useProjectStore((s) => s.activeFloorId);
+  const setActiveFloorId = useProjectStore((s) => s.setActiveFloorId);
+  const addFloor = useProjectStore((s) => s.addFloor);
   const isolateActiveFloor = useProjectStore((s) => s.isolateActiveFloor);
   const setIsolateActiveFloor = useProjectStore((s) => s.setIsolateActiveFloor);
   const wireframe = useProjectStore((s) => s.wireframe);
@@ -441,6 +444,46 @@ export const BuildingScene: React.FC = () => {
           >
             <PlayCircle size={12} className={isCinematicTourActive ? 'animate-spin text-slate-950' : 'text-sky-400'} />
           </button>
+
+          {/* Multi-Floor Level Switcher & Vertical Stacking Control */}
+          {project && project.floors.length > 0 && (
+            <>
+              <div className="h-4 w-[1px] bg-slate-700/60 mx-0.5 shrink-0" />
+              <div className="flex items-center gap-1 bg-slate-900/80 rounded-lg p-0.5 border border-slate-800 shrink-0">
+                <Layers size={12} className="text-sky-400 ml-1 shrink-0" />
+                <select
+                  value={activeFloorId || ''}
+                  onChange={(e) => setActiveFloorId(e.target.value)}
+                  className="bg-transparent text-slate-200 text-[11px] font-bold outline-none cursor-pointer py-0.5 max-w-[90px] sm:max-w-[130px] truncate"
+                  title="Select Active Floor / Level"
+                >
+                  {project.floors.map((fl, idx) => (
+                    <option key={fl.id} value={fl.id} className="bg-slate-950 text-slate-100">
+                      {fl.name || `Level ${idx + 1}`} ({fl.elevation.toFixed(1)}m)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => addFloor()}
+                  className="px-1.5 py-0.5 bg-cad-surface hover:bg-sky-500/20 text-sky-400 hover:text-sky-200 rounded text-[11px] font-black border border-slate-700 transition-all shrink-0 cursor-pointer"
+                  title="Add Next Floor Level (+3.05m)"
+                >
+                  +
+                </button>
+                <button
+                  onClick={() => setIsolateActiveFloor(!isolateActiveFloor)}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all shrink-0 cursor-pointer ${
+                    isolateActiveFloor
+                      ? 'bg-amber-400 text-slate-950 font-black'
+                      : 'bg-cad-surface text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Toggle Isolate Active Level vs Stacked Multi-Floor View"
+                >
+                  {isolateActiveFloor ? 'Solo' : 'Stack'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right HUD: Camera Presets, Toggles, Quick Export & Share */}

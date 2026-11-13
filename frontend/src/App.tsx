@@ -118,6 +118,14 @@ export function App() {
             </div>
 
             <div className="hidden md:flex items-center gap-4 text-slate-500 shrink-0">
+              <button
+                onClick={() => useProjectStore.getState().validateCurrentGeometry()}
+                className="hover:text-sky-300 transition-colors cursor-pointer flex items-center gap-1 font-mono text-[10px]"
+                title="Run Geometry & Mesh Topology Validation"
+              >
+                <span>Geometry:</span>
+                <strong className="text-emerald-400 hover:underline">Verify Topology</strong>
+              </button>
               <span>Engine: <strong className="text-slate-300">Deterministic Geometry</strong></span>
               <span>Units: <strong className="text-slate-300">{project.unit.toUpperCase()}</strong></span>
               <span>Scale: <strong className="text-slate-300">1px = {project.scale.toFixed(4)}m</strong></span>

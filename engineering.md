@@ -1,542 +1,802 @@
-# Engineering Specification --- No-AI Floor-Plan-to-3D Application
+# Engineering Specification: AI Floor-Plan to Editable 3D Application
 
-**Architecture decision:** Automatic extraction using deterministic
-image processing and geometry algorithms. No AI, machine learning,
-neural networks, hosted inference APIs, or paid third-party APIs are
-used.
+**Document status:** Proposed architecture\
+**Version:** 1.0\
+**Date:** 2026-11-13\
+**Product scope:** Web application that accepts 2D floor-plan
+images/PDFs, extracts architectural structure, creates an editable 3D
+model, and allows export.
 
-**Product objective:** Let a user upload a raster floor plan,
-automatically extract a first-pass 2D plan using conventional computer
-vision, correct the result in an editor, and generate an editable 3D
-model.
+------------------------------------------------------------------------
 
-## 1. Product principles
+## 1. Executive summary
 
-1.  **No AI at runtime or build time.** Do not use LLMs,
-    image-generation systems, ML classifiers, neural networks,
-    embeddings, or cloud AI APIs.
-2.  **Free and open-source software first.** Use permissively or openly
-    licensed libraries; verify each dependency's current license before
-    distribution.
-3.  **Deterministic processing.** The same image and settings should
-    produce repeatable extraction results.
-4.  **Human-correctable output.** Automatic extraction is a starting
-    point, not a promise of perfect interpretation.
-5.  **Local-first operation.** The core workflow should run on the
-    user's device or self-hosted server without paid external services.
-6.  **Editable geometry.** The final model must retain walls, openings,
-    room boundaries, and dimensions as structured objects rather than a
-    single baked mesh.
+Build a browser-based application that converts an uploaded floor-plan
+image into a **structured, editable 3D building model**. The system must
+not rely on image generation as the source of geometry. It should use
+computer vision to infer a 2D architectural representation, convert that
+representation into parametric geometry, and render the result in a
+browser-based 3D editor.
 
-## 2. Scope
+The core pipeline is:
 
-### In scope
+1.  Upload and validate a plan.
+2.  Preprocess and normalize the image.
+3.  Detect architectural elements and their geometry.
+4.  Convert detections into a normalized 2D floor-plan graph.
+5.  Resolve scale and dimensions, with explicit uncertainty when
+    unknown.
+6.  Generate parametric 3D geometry.
+7.  Present the result in an interactive editor for correction.
+8.  Save project versions and export supported formats.
 
--   Upload PNG, JPEG, and optionally TIFF floor-plan images.
--   Image preview, crop, rotate, deskew, contrast and threshold
-    controls.
--   Scale calibration from a known dimension or user-entered drawing
-    scale.
--   Automatic wall-line and wall-region extraction using OpenCV
-    operations.
--   Candidate corner, junction, opening, and enclosed-region detection.
--   Conversion of detected geometry into editable 2D entities.
--   Manual correction tools for walls, corners, openings, and room
-    boundaries.
--   3D generation from corrected 2D geometry.
--   Materials, wall height, floor thickness, door/window dimensions, and
-    basic camera controls.
--   Export to GLB and OBJ; optional STL export for mesh-oriented
-    workflows.
--   Project save/load and reproducible processing settings.
+**Product principle:** AI proposes; deterministic geometry code
+constructs; the user verifies and corrects.
 
-### Out of scope for the initial release
+### 1.1 MVP outcome
 
--   Semantic room understanding beyond geometric heuristics and user
-    labels.
--   Guaranteed recognition of every architectural symbol or drawing
-    convention.
--   Structural engineering, code compliance, quantity surveying, or
-    construction-document certification.
--   Cloud collaboration, accounts, billing, and mobile-native
-    applications.
--   AI-based recognition or generative design.
+A user can upload a clean, single-storey, top-down floor-plan image,
+confirm or enter one known dimension, review detected
+walls/rooms/openings, correct errors in a 2D editor, and view a
+dimensionally consistent 3D model with adjustable wall height and
+thickness.
 
-## 3. User workflow
+### 1.2 Explicit non-goals for MVP
 
-1.  User creates a project and uploads a floor-plan image.
-2.  The app normalizes orientation and provides crop/deskew controls.
-3.  User calibrates scale using a known dimension or enters a scale
-    ratio.
-4.  User selects extraction settings and runs deterministic processing.
-5.  The app overlays candidate walls, centerlines, corners, openings,
-    and enclosed regions on the source image.
-6.  User reviews confidence-like *heuristic scores* and corrects
-    mistakes. These scores are geometric diagnostics, not probabilities
-    from a trained model.
-7.  The corrected 2D plan becomes the canonical source of truth.
-8.  User sets wall height, thickness, floor thickness, door/window
-    heights, and material defaults.
-9.  The app generates a 3D model and lets the user inspect it.
-10. User saves the project or exports GLB/OBJ/STL.
+-   Guaranteed construction-document accuracy.
+-   Automatic structural engineering or code compliance.
+-   Reliable reconstruction from perspective photos of paper plans.
+-   Multi-storey stair connectivity and complex roof generation.
+-   Photorealistic rendering as a substitute for accurate geometry.
+-   Fully automatic interpretation of every architectural convention.
+-   Native BIM authoring or IFC round-trip fidelity.
 
-## 4. System architecture
+------------------------------------------------------------------------
+
+## 2. Product requirements
+
+### 2.1 User journeys
+
+**Journey A --- Upload and convert** 1. User creates a project. 2. User
+uploads PNG, JPG, or PDF. 3. Application checks file size, type, page
+count, and image quality. 4. User selects the page (for PDF) and
+confirms plan orientation. 5. User enters a known measurement or chooses
+a clearly marked estimate. 6. User starts conversion and sees job
+progress. 7. System presents a 2D detection overlay and confidence
+indicators. 8. User accepts or corrects walls, rooms, doors, and
+windows. 9. User opens the generated 3D model.
+
+**Journey B --- Correct the plan** 1. User selects an element in 2D or
+3D. 2. User adjusts endpoints, dimensions, thickness, type, or position.
+3. Related geometry updates. 4. Validation identifies gaps, overlaps,
+invalid polygons, and unsupported topology. 5. User saves a new project
+revision.
+
+**Journey C --- Export** 1. User chooses GLB as the initial 3D export.
+2. System generates the export asynchronously. 3. User downloads the
+artifact. 4. Later releases may add OBJ, STL, DXF, and IFC, with
+format-specific limitations documented.
+
+### 2.2 Functional requirements
+
+  ID      Requirement                                    MVP
+  ------- ---------------------------------------------- ---------------
+  FR-01   Register/sign in and manage projects           Yes
+  FR-02   Upload PNG/JPG/PDF with validation             Yes
+  FR-03   Deskew, crop, denoise, normalize plan          Yes
+  FR-04   Detect wall lines/regions                      Yes
+  FR-05   Detect room regions                            Yes
+  FR-06   Detect doors and windows                       Yes, assisted
+  FR-07   Calibrate pixels to real-world units           Yes
+  FR-08   Edit 2D geometry and element properties        Yes
+  FR-09   Generate editable 3D walls/floors/openings     Yes
+  FR-10   Orbit, pan, zoom, select in 3D                 Yes
+  FR-11   Save revisions and restore previous revision   Yes
+  FR-12   Export GLB                                     Yes
+  FR-13   Furniture recognition and auto-placement       Later
+  FR-14   Multi-floor buildings                          Later
+  FR-15   Photorealistic rendering                       Later
+
+### 2.3 Non-functional requirements
+
+-   **Correctness:** Geometry generation must be deterministic for a
+    given normalized plan and parameter set.
+-   **Transparency:** Mark inferred values separately from
+    user-confirmed values.
+-   **Recoverability:** A failed AI job must not corrupt the project or
+    source upload.
+-   **Performance target:** For a typical clean plan up to 3000 × 3000
+    pixels, aim for an initial conversion in under 90 seconds on the
+    selected worker hardware. Benchmark before promising this as an SLA.
+-   **Responsiveness:** 2D/3D editing should remain interactive for a
+    typical residential plan.
+-   **Security:** Private-by-default projects, signed download URLs,
+    tenant authorization, upload scanning, and strict file validation.
+-   **Accessibility:** Keyboard-accessible core controls, labels,
+    contrast, and non-color confidence indicators.
+-   **Observability:** Correlated request/job IDs, structured logs,
+    traces, metrics, and model-version tracking.
+
+------------------------------------------------------------------------
+
+## 3. System architecture
+
+### 3.1 High-level components
 
 ``` text
-Browser (React + Vite)
-  ├── Image import / preprocessing controls
-  ├── 2D plan editor (Konva)
-  ├── 3D viewport (Three.js)
-  └── Project and export UI
-          │ REST / JSON
-          ▼
-Python API (FastAPI)
-  ├── Project and file endpoints
-  ├── Extraction orchestration
-  ├── Scale and geometry validation
-  └── Model/export endpoints
-          │
-          ▼
-Deterministic processing modules
-  ├── OpenCV preprocessing
-  ├── Line / contour / morphology analysis
-  ├── Geometry graph construction
-  ├── Polygonization and topology repair (Shapely)
-  └── Mesh generation / export (Trimesh)
-          │
-          ▼
-SQLite (MVP) + local filesystem
+Browser (Next.js / React)
+  ├── Authentication and project UI
+  ├── 2D plan editor (SVG/Canvas)
+  ├── 3D editor (Three.js)
+  └── Upload / job progress / export UI
+          |
+          v
+API layer (FastAPI)
+  ├── Auth and authorization
+  ├── Projects and revisions
+  ├── Upload orchestration
+  ├── Job status and results
+  └── Export orchestration
+          |
+          +------ PostgreSQL
+          |         ├── users / projects
+          |         ├── revisions / elements
+          |         └── jobs / audit events
+          |
+          +------ Object storage
+          |         ├── source images
+          |         ├── normalized images
+          |         ├── overlays / previews
+          |         └── exports
+          |
+          +------ Queue (Redis-compatible)
+                    |
+                    v
+              AI / geometry workers
+                ├── image preprocessing
+                ├── model inference
+                ├── vectorization
+                ├── topology repair
+                ├── scale calibration
+                ├── 3D mesh generation
+                └── export generation
 ```
 
-For a single-user/local deployment, processing can run in-process
-without Redis or a separate worker. For a multi-user self-hosted
-deployment, introduce a queue only when jobs are demonstrably
-long-running or concurrent.
+### 3.2 Recommended stack
 
-## 5. Recommended stack
+  -------------------------------------------------------------------------
+  Layer                    Recommended choice       Reason
+  ------------------------ ------------------------ -----------------------
+  Web app                  Next.js + TypeScript     Mature React
+                                                    application framework
 
-  -----------------------------------------------------------------------
-  Layer                   Technology              Responsibility
-  ----------------------- ----------------------- -----------------------
-  Web UI                  React + Vite +          Application shell and
-                          TypeScript              state
+  UI                       Tailwind CSS + component Consistent product UI
+                           library                  
 
-  2D editor               Konva.js / react-konva  Image overlay and
-                                                  vector editing
+  2D editor                SVG or Konva             Precise selectable
+                                                    vector elements
 
-  3D viewer               Three.js                Interactive rendering
+  3D viewport              Three.js / React Three   Browser 3D rendering
+                           Fiber                    and interaction
 
-  API                     Python + FastAPI        Project, processing,
-                                                  and export APIs
+  API                      Python + FastAPI         Python AI ecosystem and
+                                                    typed APIs
 
-  Image processing        OpenCV                  Thresholding,
-                                                  morphology, edges,
-                                                  contours, Hough lines
+  Validation               Pydantic                 Strict request and
+                                                    domain schemas
 
-  Geometry                Shapely                 Polygon operations,
-                                                  unions, intersections,
-                                                  validity
+  CV                       OpenCV                   Image preprocessing and
+                                                    classical vision
 
-  Mesh processing         Trimesh                 Extrusion, mesh
-                                                  inspection, GLB/OBJ/STL
-                                                  export
+  ML                       PyTorch                  Training and inference
 
-  Validation              Pydantic                Request and project
-                                                  schema validation
+  Detection/segmentation   Fine-tuned               Plan-specific element
+                           segmentation/detection   extraction
+                           models                   
 
-  Database                SQLite initially;       Project metadata
-                          PostgreSQL if needed    
+  Geometry                 Shapely + custom         2D polygon operations
+                           geometry layer           and validation
 
-  Storage                 Local filesystem        Source images and
-                                                  project assets
+  Mesh                     Trimesh or custom mesh   Mesh creation and
+                           builder                  export
 
-  Tests                   pytest + Vitest +       Unit, integration, and
-                          Playwright              browser tests
-  -----------------------------------------------------------------------
+  Database                 PostgreSQL               Relational project and
+                                                    geometry metadata
 
-Do not add PyTorch, TensorFlow, ONNX Runtime, hosted vision APIs, or
-other ML dependencies.
+  Queue/cache              Redis-compatible queue   Async processing and
+                                                    job state
 
-## 6. Automatic extraction pipeline (non-AI)
+  Object storage           S3-compatible storage    Durable source and
+                                                    generated files
 
-### 6.1 Input normalization
+  Deployment               Docker on managed        Reproducible services
+                           container hosting        
 
--   Validate file type, file size, dimensions, and decode success.
--   Preserve the original image unchanged.
--   Create a working copy in a known color space.
--   Detect orientation only through deterministic image heuristics;
-    always allow manual rotate/deskew.
--   Crop to the drawing region using user selection or simple
-    border/foreground heuristics.
+  Monitoring               OpenTelemetry + error    End-to-end diagnosis
+                           tracking + metrics       
+  -------------------------------------------------------------------------
 
-### 6.2 Preprocessing
+The stack is a recommendation, not a claim about Sketch2Space's private
+implementation.
 
--   Convert to grayscale.
--   Apply optional median or bilateral denoising.
--   Estimate background and normalize contrast.
--   Generate one or more binary masks using Otsu thresholding and
-    adaptive thresholding.
--   Allow user adjustment of threshold and polarity.
--   Use morphological opening/closing to remove specks and bridge small
-    gaps.
--   Keep preprocessing parameters in the project so results can be
-    reproduced.
+### 3.3 Service boundaries
 
-### 6.3 Wall candidate extraction
+Start with a **modular monolith plus separate workers**, not many
+microservices. Keep clear internal modules so they can be split if load
+or team ownership later justifies it.
 
-Use several deterministic signals rather than a single detector: -
-Connected components and contour analysis on the binary mask. -
-Morphological kernels at multiple orientations to identify long
-horizontal and vertical strokes. - Canny edge detection for boundary
-candidates. - Probabilistic Hough transform for straight-line
-candidates. - Parallel-line pairing and thickness estimation to identify
-likely double-line walls. - Skeletonization or medial-axis
-approximation, where useful, to estimate wall centerlines. - Merge
-near-collinear segments within configurable angular and distance
-tolerances.
+-   `api`: HTTP endpoints, auth, validation, orchestration.
+-   `domain`: project, floor-plan, element, revision, and unit models.
+-   `vision`: preprocessing and ML inference.
+-   `vectorization`: raster-to-vector conversion.
+-   `topology`: graph construction and geometric repair.
+-   `geometry3d`: parametric solids and mesh generation.
+-   `exports`: GLB generation and artifact validation.
+-   `worker`: queue consumers and retry handling.
 
-The algorithm should support arbitrary orientation eventually, but the
-MVP may prioritize orthogonal and near-orthogonal plans with a
-configurable angle tolerance.
+------------------------------------------------------------------------
 
-### 6.4 Geometry graph construction
+## 4. AI and geometry pipeline
 
--   Convert line segments to a graph of vertices and edges.
--   Snap nearby endpoints within a scale-aware tolerance.
--   Split segments at intersections.
--   Remove duplicate and near-zero-length segments.
--   Resolve small gaps only when a deterministic rule and user-visible
-    setting justify the connection.
--   Preserve original pixel coordinates alongside calibrated world
-    coordinates.
+### 4.1 Pipeline stages
 
-### 6.5 Wall representation
+``` text
+Original upload
+   |
+   v
+File validation and page extraction
+   |
+   v
+Image normalization
+   |
+   v
+Architectural element inference
+   |
+   v
+Raster masks + object detections
+   |
+   v
+Vectorization (lines, polygons, openings)
+   |
+   v
+Topology and constraint validation
+   |
+   v
+Scale calibration + unit normalization
+   |
+   v
+Canonical FloorPlan JSON
+   |
+   v
+Parametric 3D geometry
+   |
+   v
+GLB + browser scene
+```
 
-Support two representations: 1. **Wall region:** polygonal area
-extracted from thick raster strokes. 2. **Wall centerline plus
-thickness:** line segments with a thickness attribute.
+Persist intermediate artifacts. This makes failures diagnosable and
+allows geometry improvements without rerunning inference.
 
-Use centerline-plus-thickness as the canonical editable wall
-representation where reliable. Retain region polygons as evidence and
-for irregular wall shapes. Do not silently discard ambiguous geometry.
+### 4.2 Image ingestion and preprocessing
 
-### 6.6 Openings
+Inputs: - PNG/JPEG images. - PDF pages rendered to images. - Optional
+later: SVG/DXF imports.
 
-Doors and windows are difficult to distinguish reliably without semantic
-recognition. Use geometric heuristics only: - Find gaps in otherwise
-continuous wall candidates. - Detect short perpendicular strokes, arcs,
-and repeated parallel lines as possible symbols. - Compare gap width
-against configurable door/window width ranges. - Present candidates as
-**unclassified openings** by default. - Let the user assign door,
-window, or generic opening and set dimensions. - Never claim a symbol
-has been semantically recognized unless it is explicitly confirmed by
-the user.
+Validation: - MIME type and file signature must agree. - Enforce maximum
+file size, page count, and pixel dimensions. - Reject encrypted PDFs
+unless a supported password flow is implemented. - Scan uploads and
+store outside the application web root. - Never trust filenames or
+client-supplied MIME types.
 
-### 6.7 Room candidate extraction
+Preprocessing: - Convert to grayscale while preserving original. -
+Estimate skew and rotate. - Detect/crop page boundary where possible. -
+Normalize contrast and thresholding. - Produce multiple image scales for
+inference. - Preserve transform metadata so model coordinates can be
+mapped back to original pixels.
 
--   Build a planar graph from wall boundaries.
--   Polygonize closed linework using Shapely.
--   Filter tiny sliver polygons and obvious artifacts using configurable
-    area and shape thresholds.
--   Treat enclosed polygons as candidate spaces, not guaranteed rooms.
--   Let users merge, split, label, or discard candidates.
--   Handle open-plan layouts and incomplete boundaries without inventing
-    walls.
+### 4.3 Model strategy
 
-### 6.8 Diagnostics and user correction
+Do not assume one generic object detector solves floor-plan
+reconstruction. Use a staged model strategy:
 
-Display: - Source image and processed overlay. - Wall candidates,
-centerlines, estimated thickness, junctions, gaps, and candidate
-spaces. - Algorithm settings and processing warnings. - Heuristic
-quality indicators such as segment length, continuity, and topology
-validity. - A review checklist for disconnected endpoints, open
-contours, duplicate walls, and unclassified openings.
+**MVP model tasks** 1. Semantic segmentation: wall pixels, room regions,
+background, symbols/annotation where feasible. 2. Object detection: door
+symbols, window symbols, stairs, and selected fixtures. 3. OCR: room
+labels and dimension strings, treated as hints rather than ground truth.
 
-A user must be able to undo/redo edits and rerun extraction without
-losing the original image or manually confirmed geometry. Reruns should
-create a new extraction revision.
+**Model selection** - Establish a labeled evaluation dataset before
+choosing an architecture. - Benchmark U-Net/DeepLab-style segmentation
+and transformer-based segmentation approaches. - Benchmark object
+detectors for discrete symbols. - Use pretrained weights as a starting
+point; fine-tune on licensed, representative floor-plan data. - Track
+model version, preprocessing version, confidence, and evaluation metrics
+for each result.
 
-## 7. Scale calibration and coordinate system
+**Training data** - Obtain data with clear licensing and permission. -
+Include varied drawing styles, scan quality, line weights, scale,
+languages, and residential/commercial layouts. - Label walls, wall
+junctions, room masks, doors, windows, stairs, dimensions, text, and
+uncertain symbols. - Split train/validation/test by source/project, not
+random image crops, to avoid leakage. - Maintain a human-reviewed gold
+set.
 
--   Store image geometry in pixel coordinates.
--   Require calibration before presenting physical dimensions or
-    generating dimensionally meaningful exports.
--   Calibration options: user selects two points and enters their
-    real-world distance; optionally enter a drawing scale.
--   Store `pixels_per_meter` (or a clearly documented unit conversion)
-    and calibration provenance.
--   Use a single canonical world coordinate system, e.g. X/Y in meters
-    for the plan and Z for elevation.
--   Define rounding tolerances in world units and convert to pixel
-    tolerances through calibration.
--   If scale is unknown, allow a visually proportionate 3D preview but
-    label dimensions as uncalibrated.
+### 4.4 Vectorization and topology
 
-## 8. Canonical project data model
+The model output is not yet a usable floor plan. Convert masks and
+detections into vector geometry.
 
-Keep source raster, extraction output, user edits, and generated mesh
-separate. Suggested JSON shape:
+Recommended operations: - Skeletonize wall masks where appropriate. -
+Detect line segments and merge collinear fragments. - Snap endpoints
+within a configurable tolerance. - Infer junctions and build a wall
+graph. - Extract room polygons from enclosed regions. - Associate
+doors/windows with host walls. - Preserve confidence and provenance on
+every inferred element. - Flag ambiguous geometry for user review rather
+than silently inventing it.
+
+Topology checks: - Wall endpoints should connect or be explicitly marked
+as free ends. - Room polygons must be closed and
+non-self-intersecting. - Openings must lie on a host wall and fit within
+its length. - Adjacent room boundaries should not create impossible
+overlaps. - Geometry must use a single coordinate convention and unit
+system.
+
+### 4.5 Scale calibration
+
+Pixel dimensions alone do not establish real-world dimensions.
+
+Preferred calibration order: 1. User selects a known dimension line and
+enters its real measurement. 2. OCR proposes a dimension value; user
+confirms it. 3. User selects two points and enters their distance. 4. If
+no reference exists, offer an explicitly labeled approximate scale and
+show that dimensions are estimates.
+
+Store: - `pixels_per_meter` - calibration source (`user`,
+`ocr_confirmed`, `estimated`) - confidence - calibration points - unit
+system
+
+Never present estimated dimensions as measured facts.
+
+------------------------------------------------------------------------
+
+## 5. Canonical data model
+
+Use a versioned JSON schema as the contract between AI, geometry,
+editor, and export code.
+
+### 5.1 Coordinate convention
+
+Adopt: - 2D plan: X/Y in meters, origin at a stable plan origin. - 3D
+scene: X/Z for plan coordinates and Y for height. - SI units internally;
+convert for display. - Angles in radians internally.
+
+### 5.2 Example FloorPlan JSON
 
 ``` json
 {
   "schema_version": "1.0",
-  "project": {
-    "id": "project-id",
-    "name": "Untitled plan",
-    "units": "m",
-    "pixels_per_meter": 120.0
+  "project_id": "uuid",
+  "revision": 1,
+  "units": "m",
+  "calibration": {
+    "pixels_per_meter": 120.0,
+    "source": "user",
+    "confidence": 1.0
   },
-  "source": {
-    "asset_id": "source-image",
-    "width_px": 2400,
-    "height_px": 1800,
-    "rotation_degrees": 0
+  "defaults": {
+    "wall_height": 3.0,
+    "wall_thickness": 0.15,
+    "floor_thickness": 0.12
   },
-  "settings": {
-    "threshold_mode": "adaptive",
-    "threshold_value": 0,
-    "wall_angle_tolerance_degrees": 8,
-    "snap_tolerance_m": 0.03
-  },
-  "walls": [
+  "levels": [
     {
-      "id": "wall-1",
-      "start": [0.0, 0.0],
-      "end": [4.0, 0.0],
-      "thickness": 0.15,
-      "height": 2.7,
-      "kind": "interior",
-      "source": "automatic",
-      "status": "reviewed"
-    }
-  ],
-  "openings": [
-    {
-      "id": "opening-1",
-      "wall_id": "wall-1",
-      "offset": 1.2,
-      "width": 0.9,
-      "height": 2.1,
-      "sill_height": 0.0,
-      "kind": "unclassified",
-      "source": "automatic",
-      "status": "needs_review"
-    }
-  ],
-  "spaces": [
-    {
-      "id": "space-1",
-      "boundary": [[0,0],[4,0],[4,3],[0,3]],
-      "label": "",
-      "status": "candidate"
+      "id": "level-1",
+      "name": "Ground Floor",
+      "elevation": 0.0,
+      "walls": [
+        {
+          "id": "wall-1",
+          "start": [0.0, 0.0],
+          "end": [5.0, 0.0],
+          "thickness": 0.15,
+          "height": 3.0,
+          "type": "interior",
+          "confidence": 0.96,
+          "source": "model"
+        }
+      ],
+      "rooms": [],
+      "openings": [],
+      "fixtures": []
     }
   ]
 }
 ```
 
-Validate all imported and saved project data. Use stable IDs for
-entities. Version the schema and provide migrations.
+### 5.3 Core entities
 
-## 9. 2D editor requirements
+-   `Project`: owner, name, timestamps, active revision.
+-   `FloorPlanRevision`: immutable snapshot of normalized plan data.
+-   `Level`: floor elevation and associated elements.
+-   `Wall`: endpoints, thickness, height, material, confidence, source.
+-   `Room`: closed polygon, label, area, optional finish properties.
+-   `Opening`: door/window type, host wall, offset, width, height, sill
+    height, swing.
+-   `Fixture`: optional furniture or plumbing fixture with transform and
+    dimensions.
+-   `ProcessingJob`: state, stage, progress, errors, worker/model
+    versions.
+-   `Asset`: source image, overlays, preview, mesh, export.
 
--   Pan, zoom, fit-to-screen, and toggle source-image visibility.
--   Select, move, delete, split, merge, and draw walls.
--   Edit wall endpoints, thickness, and type.
--   Add, move, resize, and classify openings.
--   Create, split, merge, and label spaces.
--   Snap to endpoints, intersections, and orthogonal axes with
-    configurable snapping.
--   Show dimensions and scale.
--   Undo/redo command history.
--   Lock the source image layer.
--   Clearly distinguish automatic candidates from user-confirmed
-    entities.
+Use immutable revisions for editing history. A save creates a new
+revision or a controlled revision update; do not mutate the original AI
+output without retaining provenance.
 
-## 10. 3D generation
+------------------------------------------------------------------------
 
--   Generate floor surfaces from valid space polygons.
--   Extrude wall centerlines by wall thickness and wall height, with
-    correct junction handling.
--   Create openings by segmenting wall solids around opening intervals;
-    avoid merely drawing door/window planes over solid walls.
--   Add simple door and window frames/panels as editable components.
--   Use configurable floor thickness, ceiling visibility, wall height,
-    and material presets.
--   Generate meshes from the canonical 2D model, not from the source
-    bitmap.
--   Validate mesh watertightness where required by the export format.
--   Keep object IDs and source entity IDs in metadata where the format
-    permits.
--   Three.js handles browser visualization; Trimesh handles server-side
-    mesh generation and export.
+## 6. 3D geometry generation
 
-## 11. API outline
+### 6.1 Parametric representation first
 
-  ---------------------------------------------------------------------------------------------
-  Method                  Route                                         Purpose
-  ----------------------- --------------------------------------------- -----------------------
-  POST                    `/api/projects`                               Create project
+Store architectural objects as parameters, not only as a triangle mesh.
+Meshes are derived artifacts.
 
-  GET                     `/api/projects/{id}`                          Read project
+A wall is defined by: - start and end points, - thickness, - height, -
+base elevation, - material, - optional openings.
 
-  PUT                     `/api/projects/{id}`                          Save canonical plan
+Generate wall solids from the centerline and thickness. Resolve wall
+intersections and corners consistently to avoid gaps or duplicate faces.
 
-  POST                    `/api/projects/{id}/source`                   Upload source image
+### 6.2 Openings
 
-  POST                    `/api/projects/{id}/preprocess`               Return preview/masks
+Doors and windows should be cut into host wall geometry or generated as
+wall segments around an opening. For MVP, segmented wall construction
+can be easier to validate than arbitrary boolean mesh operations.
 
-  POST                    `/api/projects/{id}/extract`                  Run deterministic
-                                                                        extraction
+Door properties: - width, height, offset along host wall, - swing
+direction and hinge side, - optional door leaf mesh.
 
-  GET                     `/api/projects/{id}/extractions/{revision}`   Read extraction
-                                                                        revision
+Window properties: - width, height, offset, - sill height, - frame and
+glazing as later visual detail.
 
-  POST                    `/api/projects/{id}/validate`                 Validate plan topology
+### 6.3 Floors and ceilings
 
-  POST                    `/api/projects/{id}/model`                    Generate 3D model
+-   Create floor polygons from valid room or building boundary polygons.
+-   Handle holes and disconnected regions explicitly.
+-   MVP can omit ceilings or provide a toggleable ceiling plane.
+-   Avoid assuming every enclosed region is a room; support manual
+    classification.
 
-  GET                     `/api/projects/{id}/export/{format}`          Export GLB/OBJ/STL
-  ---------------------------------------------------------------------------------------------
+### 6.4 Mesh validation
 
-Use explicit request schemas, size limits, timeouts, and structured
-error responses. Long-running processing can later return a job ID and
-expose a status endpoint.
+Before rendering/export: - no NaN or infinite coordinates; - no
+zero-area faces; - expected winding and normals; - no unintended open
+boundaries for closed solids; - valid transforms; - opening dimensions
+fit host walls; - mesh bounds are plausible; - exported GLB reopens in a
+test viewer.
 
-## 12. Persistence and storage
+------------------------------------------------------------------------
 
-MVP: - SQLite for project metadata and revision records. - Local
-filesystem for original images, derived masks, project JSON, and
-exports. - Store checksums and file sizes. - Never overwrite original
-source assets. - Keep extraction revisions and user-edited canonical
-revisions separate.
+## 7. Frontend architecture
 
-Scale-up: - PostgreSQL for concurrent multi-user deployments. -
-S3-compatible object storage only if needed; self-hosted MinIO is an
-option, but adds operational overhead. - Redis/Valkey and a worker queue
-only when concurrency or processing duration requires it.
+### 7.1 Main application screens
 
-## 13. Security and privacy
+1.  Authentication.
+2.  Project dashboard.
+3.  New project / upload wizard.
+4.  Processing progress.
+5.  2D review and correction workspace.
+6.  3D editor.
+7.  Export and revision history.
 
--   Validate file signatures rather than trusting file extensions.
--   Enforce upload size and pixel-dimension limits to mitigate
-    decompression bombs.
--   Decode images in a constrained process where practical.
--   Sanitize filenames and never use user-provided paths directly.
--   Apply per-project access controls if accounts are introduced.
--   Use CSRF protection for cookie-authenticated deployments and rate
-    limits for public endpoints.
--   Keep uploaded floor plans private by default.
--   Provide project and source-file deletion.
--   Avoid telemetry containing floor-plan contents or precise project
-    geometry.
--   Pin dependencies and scan for known vulnerabilities.
+### 7.2 Editor layout
 
-## 14. Performance targets
+Suggested workspace: - Left: element tree and layers. - Center:
+switchable 2D/3D canvas. - Right: selected-element properties. - Top:
+save status, undo/redo, units, export. - Bottom: warnings and AI
+confidence/review queue.
 
-Initial targets on a typical modern laptop/server; validate with a
-representative benchmark corpus: - UI remains responsive while image
-processing runs. - 2--8 megapixel images supported in the MVP, with
-configurable limits. - First extraction preview within a few seconds for
-ordinary plans; report progress for larger images. - 2D editor remains
-interactive for several thousand vector entities. - 3D preview handles
-ordinary residential plans smoothly. - Avoid promising universal timing
-until measured on target hardware.
+### 7.3 2D editor
 
-## 15. Testing and evaluation
+Requirements: - pan/zoom and fit-to-view; - select/multi-select; - draw
+wall, room, door, and window; - move endpoints and snap; - edit numeric
+dimensions; - undo/redo; - show source raster underneath vector
+geometry; - toggle AI confidence overlay; - highlight unresolved
+warnings.
 
-Build a consented, varied test corpus with: - Clean digital plans,
-scanned plans, low-contrast images, skewed images, noisy images. -
-Orthogonal and non-orthogonal walls. - Different line weights, scales,
-and drawing conventions. - Plans with and without dimensions, symbols,
-furniture, and annotations.
+Use SVG for vector interaction where feasible. Canvas/Konva may be
+better for large scenes. Keep geometry state independent of rendering
+state.
 
-Metrics: - Wall centerline precision/recall within a physical or pixel
-tolerance. - Wall thickness error. - Endpoint/junction localization
-error. - Opening candidate recall and false-positive rate. - Space
-polygon intersection-over-union. - Geometry validity and percentage of
-plans requiring manual correction. - Processing time and peak memory.
+### 7.4 3D editor
 
-Test layers: - Unit tests for image processing and geometric
-operations. - Golden-image regression tests for deterministic
-extraction. - Property tests for snapping, splitting, polygonization,
-and mesh generation. - API integration tests. - Playwright end-to-end
-tests for upload → extract → edit → 3D → export. - Export round-trip
-checks in independent viewers where practical.
+Requirements: - orbit, pan, zoom; - select objects and highlight; -
+toggle floors, walls, openings, fixtures; - isolate or hide levels; -
+adjust wall height/thickness; - show dimensions and grid; - reset camera
+and fit model; - synchronize selection with 2D editor.
 
-Do not optimize only for a single clean sample plan. Track failure
-categories and preserve difficult test cases.
+Avoid making the 3D viewport the only way to correct geometry. Numeric
+and 2D controls are essential.
 
-## 16. Deployment and cost model
+### 7.5 State management
 
-The application can be run locally at no hosting cost, or self-hosted on
-infrastructure the operator controls. A public hosted service may incur
-costs for compute, storage, bandwidth, domain registration, and backups.
-Free tiers have limits and can change; do not promise unlimited free
-hosting.
+-   Server state: query/cache library.
+-   Local editor state: dedicated state store with undo/redo history.
+-   Persist domain changes through revision APIs.
+-   Do not store large binary assets in client state.
+-   Debounce property updates; use explicit save or autosave with
+    conflict handling.
 
-Recommended rollout: 1. Local development and local single-user
-deployment. 2. Optional self-hosted Docker Compose deployment. 3. Public
-hosting only after measuring resource requirements and selecting a
-sustainable free or low-cost provider.
+------------------------------------------------------------------------
 
-No paid API keys or AI services are required by this design.
+## 8. API design
 
-## 17. Key risks and mitigations
+Prefix endpoints with `/api/v1`.
+
+### 8.1 Projects
+
+  Method   Endpoint           Purpose
+  -------- ------------------ ------------------------
+  POST     `/projects`        Create project
+  GET      `/projects`        List user's projects
+  GET      `/projects/{id}`   Project detail
+  PATCH    `/projects/{id}`   Rename/update metadata
+  DELETE   `/projects/{id}`   Soft-delete project
+
+### 8.2 Upload and processing
+
+  --------------------------------------------------------------------------
+  Method                  Endpoint                   Purpose
+  ----------------------- -------------------------- -----------------------
+  POST                    `/projects/{id}/uploads`   Request signed upload
+                                                     URL or upload session
+
+  POST                    `/projects/{id}/process`   Start conversion job
+
+  GET                     `/jobs/{id}`               Read job status
+
+  GET                     `/jobs/{id}/result`        Read structured
+                                                     detection result
+
+  POST                    `/jobs/{id}/retry`         Retry eligible failed
+                                                     job
+  --------------------------------------------------------------------------
+
+Use object-storage signed uploads for larger files. Verify the uploaded
+object before processing.
+
+### 8.3 Revisions and exports
+
+  Method   Endpoint                           Purpose
+  -------- ---------------------------------- ---------------------------------------
+  GET      `/projects/{id}/revisions`         List revisions
+  GET      `/projects/{id}/revisions/{rev}`   Read revision
+  POST     `/projects/{id}/revisions`         Save corrected plan
+  POST     `/projects/{id}/exports`           Start export
+  GET      `/exports/{id}`                    Export status and signed download URL
+
+### 8.4 Example job state
+
+`queued -> validating -> preprocessing -> detecting -> vectorizing -> calibrating -> generating_3d -> packaging -> succeeded`
+
+Terminal alternatives: - `failed`: retryable or non-retryable error with
+safe user-facing message. - `cancelled`: user or system cancelled.
+
+Progress must reflect actual pipeline stages, not arbitrary percentage
+increments.
+
+### 8.5 API principles
+
+-   Validate all inputs with typed schemas.
+-   Enforce ownership/tenant authorization on every project, job,
+    revision, and asset access.
+-   Use idempotency keys for job creation and export requests.
+-   Return stable error codes and correlation IDs.
+-   Use pagination for project/revision lists.
+-   Use optimistic concurrency or revision IDs to prevent lost updates.
+-   Never expose internal object-storage credentials or unrestricted
+    bucket paths.
+
+------------------------------------------------------------------------
+
+## 9. Database and storage
+
+### 9.1 PostgreSQL tables
+
+Suggested tables: - `users` - `projects` - `project_members` (only if
+collaboration is planned) - `floor_plan_revisions` - `processing_jobs` -
+`assets` - `exports` - `audit_events`
+
+Store canonical JSON in a JSONB column initially, with relational
+columns for ownership, IDs, revision, status, and frequently queried
+metadata. Normalize high-volume element tables only when query patterns
+justify it.
+
+### 9.2 Object storage layout
+
+Example logical keys:
+
+``` text
+users/{user_id}/projects/{project_id}/source/{asset_id}.png
+users/{user_id}/projects/{project_id}/intermediate/{job_id}/normalized.png
+users/{user_id}/projects/{project_id}/intermediate/{job_id}/overlay.png
+users/{user_id}/projects/{project_id}/revisions/{revision}/preview.glb
+users/{user_id}/projects/{project_id}/exports/{export_id}/model.glb
+```
+
+Use opaque IDs, private buckets, encryption at rest, short-lived signed
+URLs, lifecycle rules, and deletion workflows.
+
+------------------------------------------------------------------------
+
+## 10. Background processing and reliability
+
+AI inference and mesh generation must not run in the web request
+process.
+
+Worker requirements: - queue-based processing; - bounded concurrency
+based on CPU/GPU memory; - retry with exponential backoff for transient
+errors; - dead-letter handling for repeated failures; - stage-level
+timeouts; - cancellation checks between stages; - idempotent stage
+outputs; - job leases/heartbeats; - cleanup of abandoned temporary
+files.
+
+Separate CPU-heavy preprocessing/vectorization from GPU inference if
+profiling shows contention. Begin with one worker image and split queues
+by workload as needed.
+
+------------------------------------------------------------------------
+
+## 11. Security, privacy, and compliance
+
+-   Authenticate users and authorize every object access.
+-   Validate file signatures, size, dimensions, PDF page count, and
+    decompression limits.
+-   Scan uploads; isolate PDF/image parsing from the public API process.
+-   Protect against path traversal, parser exploits, oversized images,
+    and decompression bombs.
+-   Rate-limit uploads and expensive processing jobs.
+-   Use private object storage and expiring signed URLs.
+-   Encrypt traffic and storage.
+-   Keep secrets in the hosting platform's secret manager.
+-   Log metadata, not raw floor-plan contents or sensitive user data.
+-   Define retention, export, and deletion policies.
+-   Obtain rights to all training/evaluation data.
+-   Do not use customer floor plans for training unless the user has
+    clearly consented and the policy permits it.
+-   Maintain audit records for access and project deletion.
+
+Floor plans can reveal sensitive information about homes and workplaces;
+treat them as confidential user content.
+
+------------------------------------------------------------------------
+
+## 12. Testing and quality strategy
+
+### 12.1 Test layers
+
+**Unit tests** - coordinate transforms; - scale calibration; - wall
+offset/solid generation; - polygon validation; - opening placement; -
+serialization and schema migration.
+
+**Integration tests** - upload to object storage; - job
+enqueue/consume; - model inference contract; - database revision
+creation; - export creation and download authorization.
+
+**Golden-image/model tests** - fixed labeled floor-plan dataset; -
+segmentation IoU/F1; - wall centerline precision/recall; - door/window
+detection precision/recall; - room polygon accuracy; - calibration
+error.
+
+**Geometry tests** - wall length and thickness invariants; - room area
+and perimeter tolerances; - no invalid polygons; - no mesh NaNs or
+zero-area faces; - known sample plans produce expected bounds and
+volumes.
+
+**End-to-end tests** - upload a sample plan; - calibrate scale; -
+correct one wall; - verify 3D updates; - save revision; - export GLB; -
+reopen and verify artifact.
+
+### 12.2 Human review metrics
+
+Track: - percentage of elements accepted without edits; - average
+corrections per plan; - conversion completion rate; - time from upload
+to usable 3D; - failed-job rate; - scale calibration error; -
+user-reported geometry defects.
+
+Model accuracy alone is insufficient. Measure whether users can reach a
+usable model with reasonable correction effort.
+
+------------------------------------------------------------------------
+
+## 13. Deployment and environments
+
+Recommended environments: - `local`: Docker Compose for API, PostgreSQL,
+queue, object storage emulator. - `staging`: production-like services
+with test data. - `production`: private networking, managed database,
+private object storage, worker services.
+
+Deployable units: 1. Web frontend. 2. API web service. 3. CPU worker. 4.
+GPU worker, only if the selected model requires it and cost is
+justified. 5. PostgreSQL. 6. Redis-compatible queue. 7. Object storage.
+
+CI/CD: - lint, type-check, unit tests; - build immutable container
+images; - run database migrations as a controlled release step; - run
+integration and smoke tests; - deploy staging; - promote to production
+with rollback strategy.
+
+Backups: - managed PostgreSQL backups and tested restore procedure; -
+object-storage versioning or backup policy; - documented retention and
+deletion behavior.
+
+------------------------------------------------------------------------
+
+## 14. Risks and mitigations
 
   -----------------------------------------------------------------------
-  Risk                                Mitigation
-  ----------------------------------- -----------------------------------
-  Dense annotations mistaken for      Multi-stage filtering, overlays,
-  walls                               editable review
+  Risk                    Impact                  Mitigation
+  ----------------------- ----------------------- -----------------------
+  Poor-quality or unusual Low extraction accuracy Quality checks,
+  plans                                           confidence flags,
+                                                  manual correction
 
-  Broken or faint wall lines          Configurable morphology and
-                                      gap-bridging; never silently force
-                                      uncertain joins
+  Missing scale           Incorrect dimensions    Require calibration or
+                                                  label estimates
 
-  Door/window symbols are ambiguous   Mark as unclassified openings and
-                                      require user confirmation
+  Wall junction ambiguity Broken 3D geometry      Topology rules and
+                                                  review UI
 
-  Non-orthogonal or curved plans      Support general segments
-                                      progressively; prioritize
-                                      orthogonal MVP
+  Door/window symbol      Incorrect openings      Assisted placement and
+  variation                                       editable detections
 
-  Wrong physical scale                Require calibration and show
-                                      calibration status prominently
+  Model data licensing    Legal and product risk  Dataset provenance and
+                                                  license review
 
-  Bad topology creates invalid meshes Geometry validation and repair
-                                      tools before 3D generation
+  GPU cost                High operating cost     Benchmark smaller
+                                                  models, batch
+                                                  inference, queue limits
 
-  User expects perfect one-click      Set clear expectations; make
-  conversion                          correction workflow central
+  Huge/hostile uploads    Security/availability   Limits, scanning,
+                                                  isolated parsers
 
-  Free hosting limits                 Local-first and self-hosted
-                                      deployment options
+  Mesh artifacts          Bad exports             Parametric geometry and
+                                                  automated mesh
+                                                  validation
+
+  User assumes            Safety/liability risk   Clear disclaimers and
+  construction accuracy                           no code-compliance
+                                                  claims
   -----------------------------------------------------------------------
 
-## 18. Definition of done for MVP
+------------------------------------------------------------------------
 
--   A user can upload a supported floor-plan image.
--   Preprocessing options are visible and reproducible.
--   User can calibrate scale.
--   Deterministic OpenCV extraction produces editable wall and space
-    candidates on the supported benchmark subset.
--   User can correct walls and openings in 2D with undo/redo.
--   Validated geometry generates a navigable 3D model.
--   GLB export opens in an independent viewer.
--   Project can be saved, reopened, and edited without losing source
-    image or confirmed geometry.
--   No AI/ML dependencies or paid external services are present in the
-    runtime dependency graph.
--   Known limitations and supported input assumptions are documented.
+## 15. Decisions to make before implementation
 
-## 19. Architecture decisions
+1.  Target users: homeowners, interior designers, architects, or
+    real-estate teams?
+2.  Input quality: clean digital plans only, or scans and hand sketches
+    too?
+3.  Units: metric only initially, or metric and imperial?
+4.  Accuracy target and acceptable manual correction effort?
+5.  Single-floor MVP or multi-floor from day one?
+6.  Export requirement: GLB only initially, or CAD/BIM formats?
+7.  Hosting region, data residency, and retention requirements?
+8.  Is model training data available and licensed?
 
--   **ADR-001:** No AI/ML. All extraction is deterministic image
-    processing and geometry.
--   **ADR-002:** User-confirmed canonical vector geometry is the source
-    of truth for 3D generation.
--   **ADR-003:** Local-first MVP with SQLite and filesystem storage.
--   **ADR-004:** OpenCV + Shapely + Trimesh + Three.js form the
-    processing/rendering core.
--   **ADR-005:** Automatic opening detection is heuristic; semantic
-    classification is user-confirmed.
+**Recommended default:** Start with clean single-floor plans, metric
+units, one user-confirmed scale reference, editable 2D correction, 3D
+GLB preview/export, and no construction-certification claims.
+
+------------------------------------------------------------------------
+
+## 16. Definition of done for MVP
+
+The MVP is ready for controlled beta when: - users can create projects
+and upload supported plan files; - uploads are validated and stored
+privately; - asynchronous processing produces a versioned canonical
+plan; - walls and rooms are editable in 2D; - scale source and
+uncertainty are visible; - 3D walls, floors, and basic openings are
+generated deterministically; - users can inspect and correct the 3D
+model; - revisions can be saved and restored; - GLB export passes
+automated validation; - access control, deletion, logging, monitoring,
+and backup procedures are tested; - evaluation results are documented on
+a held-out test set.

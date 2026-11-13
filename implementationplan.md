@@ -1,340 +1,460 @@
-# Implementation Plan --- No-AI Floor-Plan-to-3D Application
+# Implementation Plan: AI Floor-Plan to Editable 3D Application
 
-**Delivery approach:** Build a deterministic, computer-vision-based
-application. Do not introduce AI, ML models, LLMs, hosted inference
-APIs, or paid third-party APIs.
+**Document status:** Proposed delivery plan\
+**Version:** 1.0\
+**Date:** 2026-11-13\
+**Planning assumption:** A Sketch2Space-style web application: upload a
+2D floor-plan image/PDF, extract editable architectural elements,
+generate a 3D model, and export GLB.
 
-**Indicative schedule:** 14 weeks for a small experienced team. A solo
-developer should expect a longer schedule. Dates are estimates, not
-commitments.
+------------------------------------------------------------------------
 
 ## 1. Delivery strategy
 
-Build a vertical slice early: 1. Upload an image. 2. Calibrate scale. 3.
-Extract simple wall candidates with OpenCV. 4. Correct them in a 2D
-editor. 5. Generate a basic 3D model. 6. Export GLB.
+Build a narrow, measurable MVP before attempting full automatic
+architectural understanding.
 
-Then improve extraction robustness, editing, persistence, and
-deployment. The product should not wait for perfect automatic
-recognition; user correction is a core capability.
+**MVP promise:** For a clean, single-storey floor plan, the application
+creates a useful editable 3D draft. The user confirms scale and can
+correct AI-detected geometry.
 
-## 2. Milestones
+Do not promise perfect automatic conversion. The product's
+differentiator should be a fast AI-assisted workflow with transparent
+uncertainty and effective editing.
 
-  ------------------------------------------------------------------------
-  Phase                                        Weeks Outcome
-  --------------------- ---------------------------- ---------------------
-  0\. Discovery and                                1 Supported-plan
-  benchmark                                          assumptions and test
-                                                     corpus
+### 1.1 MVP scope
 
-  1\. Platform                                  2--3 Web app, API,
-  foundation                                         projects, upload
+Included: - authentication and project dashboard; - PNG/JPG and
+single-page or selected-page PDF upload; - image preprocessing; -
+initial wall/room detection; - assisted door/window detection; - scale
+calibration; - canonical floor-plan JSON; - 2D correction editor; -
+parametric 3D walls and floors; - basic doors/windows; - Three.js
+viewer; - project revisions; - GLB export; - job progress and error
+handling.
 
-  2\. Image                                     4--6 Deterministic
-  preprocessing and                                  wall/line/space
-  extraction                                         candidates
+Deferred: - multi-storey linking; - automatic furniture layout; -
+photorealistic rendering; - roof generation; - collaboration; -
+mobile-native editor; - IFC/DWG/DXF round-trip; - code compliance and
+structural analysis.
 
-  3\. 2D editor and                             7--8 Editable canonical
-  validation                                         plan
+------------------------------------------------------------------------
 
-  4\. 3D generation and                        9--10 Editable 3D preview
-  export                                             and GLB/OBJ
+## 2. Workstreams
 
-  5\. Hardening and                           11--14 Quality, performance,
-  beta                                               documentation,
-                                                     release
-  ------------------------------------------------------------------------
+1.  Product discovery and UX.
+2.  Data acquisition and annotation.
+3.  Backend and platform foundation.
+4.  Computer vision and geometry pipeline.
+5.  2D/3D frontend editor.
+6.  Export and artifact validation.
+7.  Security, quality, deployment, and beta operations.
 
-## 3. Detailed work plan
+These workstreams can overlap, but the canonical data contract must be
+agreed early.
 
-### Phase 0 --- Discovery and benchmark (Week 1)
+------------------------------------------------------------------------
 
-**Tasks** - Define supported input formats, image-size limits, and MVP
-plan styles. - Assemble a legally usable benchmark corpus of
-representative plans. - Annotate reference wall centerlines, wall
-thicknesses, openings, and room boundaries for evaluation. - Decide
-initial support for orthogonal plans and document non-orthogonal
-limitations. - Define coordinate conventions, units, and calibration
-interaction. - Confirm dependency licenses and create a software bill of
-materials.
+## 3. Milestone plan
 
-**Acceptance criteria** - Benchmark contains clean, scanned, noisy,
-skewed, and varied line-weight examples. - Reference annotations and
-evaluation tolerances are documented. - Product clearly states that
-automatic extraction is a first pass requiring review.
+The estimates below assume a small experienced team: one frontend
+engineer, one backend/geometry engineer, one ML/CV engineer, and
+part-time product/design/QA. A smaller team should extend the calendar
+rather than silently reduce testing.
+
+### Phase 0 --- Discovery and technical validation (Week 1)
+
+**Tasks** - Interview 5--8 target users. - Collect 30--50 representative
+sample floor plans with permission. - Define supported input styles and
+minimum image quality. - Choose initial element taxonomy. - Create a
+clickable workflow prototype. - Benchmark one segmentation approach and
+one detection approach. - Test conversion of a manually defined 2D wall
+graph into GLB. - Confirm hosting, data residency, and storage
+constraints.
+
+**Deliverables** - Product requirements and acceptance criteria. -
+Labeled sample dataset plan and rights checklist. - UX flow and editor
+wireframes. - Technical proof of concept: JSON wall graph to 3D GLB. -
+Risk register and revised estimates.
+
+**Exit criteria** - Team can create a valid 3D model from canonical
+JSON. - Input scope is constrained. - No unresolved blocker around data
+rights or deployment.
 
 ### Phase 1 --- Platform foundation (Weeks 2--3)
 
-**Tasks** - Create React + Vite + TypeScript frontend. - Create FastAPI
-backend with Pydantic request models. - Add project create/read/update
-endpoints. - Implement secure image upload and local filesystem
-storage. - Add SQLite project metadata and schema versioning. - Build
-image preview, zoom, pan, rotate, crop, and deskew controls. - Add a
-simple project save/reopen flow. - Add automated linting, formatting,
-and CI tests.
+**Backend** - Create FastAPI project and module structure. - Configure
+PostgreSQL migrations. - Configure object storage and private signed
+uploads. - Add authentication and project ownership checks. - Define
+project, asset, job, revision schemas. - Add queue and worker
+skeleton. - Add structured logs and correlation IDs.
 
-**Acceptance criteria** - User can create a project, upload an image,
-and reopen the project. - Original image remains unchanged. - Invalid
-files, oversized files, and malformed requests are rejected safely. - No
-paid API credentials or AI/ML dependencies are needed.
+**Frontend** - Create Next.js application and design system. - Implement
+sign-in and project dashboard. - Implement project creation and upload
+wizard. - Add upload progress and processing status page. - Establish
+API client and error conventions.
 
-### Phase 2 --- Preprocessing and deterministic extraction (Weeks 4--6)
+**DevOps** - Dockerize frontend, API, and worker. - Set up local
+development environment. - Create staging environment and CI pipeline. -
+Configure secrets and environment-specific settings.
 
-**Week 4: preprocessing** - Grayscale conversion and contrast
-normalization. - Median/bilateral denoising options. - Otsu and adaptive
-thresholding. - Morphological open/close operations with adjustable
-kernels. - Side-by-side preview of source and processed mask. - Persist
-preprocessing settings.
+**Deliverables** - Authenticated project creation. - Secure upload and
+asset record. - Asynchronous job can be enqueued and observed. - CI
+passes lint, type checks, and basic tests.
 
-**Week 5: line and wall candidates** - Connected components and contour
-extraction. - Horizontal/vertical morphology passes. - Canny edge
-detection and probabilistic Hough transform. - Segment filtering by
-length and orientation. - Collinear segment merging and endpoint
-snapping. - Estimate wall thickness where parallel boundaries are
-detected. - Preserve ambiguous candidates instead of silently deleting
-them.
+**Exit criteria** - User can upload a file to private storage. - Worker
+receives a job and reports status. - Unauthorized users cannot access
+another user's project or asset.
 
-**Week 6: graph and space candidates** - Build geometry graph and split
-intersections. - Polygonize closed linework with Shapely. - Filter
-sliver polygons and obvious artifacts. - Detect wall gaps as
-unclassified opening candidates. - Produce extraction overlays and
-diagnostics. - Add extraction revision history and deterministic
-regression fixtures.
+### Phase 2 --- Image processing and AI extraction (Weeks 4--6)
 
-**Acceptance criteria** - Repeated runs with identical inputs/settings
-produce stable results. - Extraction produces inspectable candidate
-geometry for the supported benchmark subset. - Every automatic entity is
-labeled as automatic/unreviewed. - Uncertain openings are unclassified
-and never presented as confirmed doors/windows. - Processing warnings
-identify common failure conditions.
+**Data** - Define annotation guide. - Annotate initial gold set. - Split
+train/validation/test by source project. - Record data provenance and
+licenses.
 
-### Phase 3 --- 2D editor and geometry validation (Weeks 7--8)
+**CV** - Implement image/PDF page extraction. - Implement deskew,
+denoise, threshold, and coordinate transforms. - Train or fine-tune
+wall/room segmentation model. - Implement door/window detector or begin
+with assisted manual placement if training data is insufficient. - Add
+OCR as an optional source of dimension/label hints. - Return masks,
+detections, confidence, and model version.
 
-**Tasks** - Build Konva-based vector editing layer over locked source
-image. - Add select, draw, move, delete, split, merge, and endpoint
-editing for walls. - Add wall thickness/type editing. - Add opening
-placement, resizing, and classification. - Add space polygon editing,
-labels, merge, and split. - Add snapping to endpoints, intersections,
-and orthogonal axes. - Add dimension display and scale calibration. -
-Add undo/redo command history. - Add topology validation for
-disconnected endpoints, overlaps, invalid polygons, duplicate walls, and
-unsupported openings. - Separate automatic extraction revisions from
-user-confirmed canonical plan state.
+**Pipeline** - Persist normalized image and overlay. - Add stage-level
+job status. - Add retry handling and timeouts. - Add low-quality input
+rejection/warnings.
 
-**Acceptance criteria** - User can fix a deliberately imperfect
-extraction without restarting the project. - Undo/redo restores geometry
-and attributes correctly. - User-confirmed geometry survives extraction
-reruns. - Validation issues are actionable and visually highlighted.
+**Deliverables** - AI inference worker. - Visual detection overlay. -
+Evaluation report on held-out plans. - Versioned model output contract.
 
-### Phase 4 --- 3D generation and export (Weeks 9--10)
+**Exit criteria** - Pipeline runs end-to-end on the agreed sample set. -
+Model quality is measured, not assumed. - Low-confidence and unsupported
+cases are surfaced to the user.
 
-**Week 9: geometry** - Convert calibrated 2D geometry to world
-coordinates. - Generate floor polygons. - Extrude wall segments with
-thickness and height. - Resolve wall junction overlaps. - Cut openings
-by segmenting wall solids around opening intervals. - Add basic door and
-window components. - Add configurable materials, floor thickness, and
-wall height.
+### Phase 3 --- Vectorization and canonical floor plan (Weeks 6--8)
 
-**Week 10: viewer and export** - Build Three.js viewport with orbit,
-pan, zoom, selection, and visibility controls. - Synchronize selected 3D
-objects with source 2D entities where feasible. - Generate GLB and OBJ
-exports using Trimesh. - Add optional STL export after mesh
-validation. - Preserve entity metadata where format support allows. -
-Test exports in independent viewers.
+**Tasks** - Convert segmentation masks into candidate wall geometry. -
+Merge line fragments and snap endpoints. - Extract room polygons. -
+Associate door/window detections with walls. - Implement topology
+validation. - Implement scale calibration from user-entered reference
+dimension. - Define and validate canonical FloorPlan JSON schema. -
+Store AI provenance and confidence per element. - Build fixtures for
+geometry regression tests.
 
-**Acceptance criteria** - A calibrated, validated plan generates a
-dimensionally consistent 3D preview. - Openings are actual gaps in wall
-geometry, not merely visual overlays. - GLB export opens in an
-independent viewer. - Invalid geometry produces clear errors rather than
-corrupt output.
+**Deliverables** - Canonical plan JSON. - Geometry validation report. -
+Scale calibration workflow. - API endpoint to retrieve structured plan
+result.
 
-### Phase 5 --- Hardening and beta (Weeks 11--14)
+**Exit criteria** - Sample plans produce valid or explicitly flagged
+geometry. - Unit conversion and coordinate transforms pass tests. - No
+unknown scale is silently presented as exact.
 
-**Week 11: robustness** - Expand benchmark regression suite. - Improve
-skew handling, line merging, and gap diagnostics. - Profile memory and
-processing time. - Add cancellation and progress reporting for long
-extraction jobs.
+### Phase 4 --- 2D correction editor (Weeks 8--10)
 
-**Week 12: usability** - Add first-run guidance and example project. -
-Explain scale calibration and extraction limitations. - Improve keyboard
-shortcuts and editor affordances. - Add clear distinction between
-candidates and reviewed geometry.
+**Tasks** - Render source raster with vector overlay. - Implement pan,
+zoom, fit-to-view. - Implement select and inspect. - Add wall endpoint
+editing and snapping. - Add create/delete wall. - Add room polygon
+editing. - Add door/window placement and property editing. - Add
+warnings and confidence visualization. - Add undo/redo. - Save edits as
+a new revision.
 
-**Week 13: reliability and security** - Test upload limits and malformed
-image handling. - Add project backup/export and deletion. - Add API
-error handling and structured logs. - Test large projects and browser
-compatibility. - Pin dependencies and run vulnerability checks.
+**Deliverables** - Functional 2D review workspace. - Revision
+save/load. - User can fix a deliberately incorrect wall and opening.
 
-**Week 14: beta release** - Package local deployment, optionally with
-Docker Compose. - Write setup, user, troubleshooting, and limitations
-documentation. - Run end-to-end acceptance tests. - Publish benchmark
-results and known failure categories. - Tag a beta release and collect
-feedback.
+**Exit criteria** - A user can correct the model without editing raw
+JSON. - Saved geometry survives reload. - Undo/redo does not corrupt
+canonical state.
 
-**Acceptance criteria** - Fresh environment can run the app from
-documented instructions. - End-to-end upload → preprocess → extract →
-edit → 3D → export passes. - No AI/ML or paid API dependency is
-present. - Known limitations and benchmark scope are public and
-accurate.
+### Phase 5 --- 3D geometry and editor (Weeks 10--12)
 
-## 4. Backlog by subsystem
+**Tasks** - Generate wall solids from centerlines and thickness. -
+Resolve corners and junctions. - Generate floor meshes from valid
+polygons. - Generate wall openings and basic door/window meshes. - Add
+wall height/thickness defaults and overrides. - Render scene with
+Three.js. - Implement orbit, pan, zoom, fit model. - Implement selection
+and property panel. - Synchronize selection between 2D and 3D. - Add
+geometry validation before rendering.
 
-### Frontend
+**Deliverables** - Editable 3D scene. - Deterministic mesh generation. -
+Basic architectural elements visible in 3D.
 
--   [ ] React/Vite project shell and routing
--   [ ] Project dashboard and project lifecycle
--   [ ] Upload and image preview
--   [ ] Preprocessing settings panel
--   [ ] Extraction overlay controls
--   [ ] 2D editor and command history
--   [ ] Scale/dimension UI
--   [ ] 3D viewport and model controls
--   [ ] Export and project download UI
+**Exit criteria** - A corrected 2D plan generates the expected 3D
+layout. - Geometry tests pass for reference plans. - No NaN/invalid mesh
+data in tested scenes.
 
-### Backend
+### Phase 6 --- Export, hardening, and beta (Weeks 13--14)
 
--   [ ] FastAPI app and API versioning
--   [ ] Pydantic project schemas
--   [ ] SQLite persistence and migrations
--   [ ] Safe file upload and storage
--   [ ] Extraction service interface
--   [ ] Extraction revision persistence
--   [ ] Geometry validation service
--   [ ] Mesh generation and export endpoints
+**Tasks** - Generate GLB asynchronously. - Validate exported GLB by
+reopening it in a test loader. - Add export history and expiring
+download links. - Add project deletion and asset retention workflow. -
+Run end-to-end, security, and load tests. - Test database
+backup/restore. - Review privacy copy and accuracy disclaimer. - Run
+beta with 5--10 users. - Collect correction counts, completion time, and
+qualitative feedback. - Fix highest-impact defects.
 
-### Computer vision and geometry
+**Deliverables** - Controlled beta release. - GLB export. - Operations
+runbook. - Known limitations and model evaluation report.
 
--   [ ] Grayscale/contrast normalization
--   [ ] Thresholding modes
--   [ ] Morphological operations
--   [ ] Contour and connected-component analysis
--   [ ] Hough line detection
--   [ ] Segment filtering and merging
--   [ ] Endpoint snapping and intersection splitting
--   [ ] Wall thickness estimation
--   [ ] Gap/opening candidates
--   [ ] Polygonization and space candidates
--   [ ] Geometry diagnostics and regression fixtures
+**Exit criteria** - MVP definition of done in the Engineering
+Specification is met. - Critical security and data-loss bugs are
+closed. - Beta users can complete the main workflow.
 
-### Quality
+------------------------------------------------------------------------
 
--   [ ] Benchmark corpus and annotation format
--   [ ] Unit tests for algorithms
--   [ ] Golden-image tests
--   [ ] Property tests for geometry
--   [ ] API integration tests
--   [ ] Browser end-to-end tests
--   [ ] GLB export validation
--   [ ] Performance and memory benchmarks
+## 4. Suggested sprint backlog
 
-## 5. Roles and ownership
+### Sprint 0 --- Proof of concept
 
-For a small team: - **Frontend engineer:** upload, image controls, 2D
-editor, 3D viewer. - **Backend/geometry engineer:** API, persistence,
-coordinate model, mesh generation. - **Computer-vision engineer:**
-OpenCV pipeline, extraction diagnostics, benchmark metrics. -
-**QA/product owner:** benchmark curation, usability, acceptance
-criteria, release checks.
+-   [ ] Agree supported plan types.
+-   [ ] Collect permitted sample plans.
+-   [ ] Define coordinate convention and units.
+-   [ ] Build JSON-to-GLB proof of concept.
+-   [ ] Choose first segmentation/detection baselines.
+-   [ ] Draft UX flow and acceptance criteria.
 
-A solo developer can combine roles, but should preserve the phase gates
-and avoid building all extraction logic before the editing workflow
-exists.
+### Sprint 1 --- Application foundation
 
-## 6. Quality gates and metrics
+-   [ ] Initialize frontend and backend repositories.
+-   [ ] Configure local Docker environment.
+-   [ ] Add auth and project CRUD.
+-   [ ] Add database migrations.
+-   [ ] Add private object storage.
+-   [ ] Add upload validation.
+-   [ ] Add queue and worker skeleton.
+-   [ ] Add CI checks.
 
-Track performance against an annotated test set. Initial target
-thresholds should be set only after a baseline run; do not invent
-accuracy claims.
+### Sprint 2 --- Processing foundation
 
-Metrics to record: - Wall centerline precision and recall within a
-documented tolerance. - Endpoint and junction localization error. -
-Estimated wall thickness error. - Opening candidate recall and
-false-positive rate. - Space polygon intersection-over-union. -
-Percentage of extracted entities requiring manual correction. - Geometry
-validity rate before 3D generation. - Extraction duration and peak
-memory by image size.
+-   [ ] Implement PDF page rasterization.
+-   [ ] Implement image preprocessing.
+-   [ ] Add job stage state machine.
+-   [ ] Add job polling or server-sent events.
+-   [ ] Save normalized image and preview.
+-   [ ] Add worker retries and timeout behavior.
 
-Release gates: 1. **Extraction gate:** supported examples produce stable
-candidates and useful diagnostics. 2. **Editing gate:** user can correct
-extraction defects and preserve edits. 3. **Geometry gate:** validated
-plans generate consistent meshes. 4. **Export gate:** GLB opens in
-independent viewers. 5. **Privacy/security gate:** files are private by
-default and upload validation is tested.
+### Sprint 3 --- AI baseline
 
-## 7. Risks and contingency plans
+-   [ ] Finalize annotation schema.
+-   [ ] Annotate first training/evaluation batch.
+-   [ ] Train segmentation baseline.
+-   [ ] Evaluate wall and room masks.
+-   [ ] Implement door/window detection baseline.
+-   [ ] Return confidence and model version.
+-   [ ] Create visual overlay endpoint.
+
+### Sprint 4 --- Vectorization
+
+-   [ ] Extract wall candidates from masks.
+-   [ ] Merge and snap line segments.
+-   [ ] Extract room polygons.
+-   [ ] Associate openings with host walls.
+-   [ ] Add topology validation.
+-   [ ] Add scale calibration.
+-   [ ] Version canonical JSON schema.
+
+### Sprint 5 --- 2D editor
+
+-   [ ] Render source and vector overlay.
+-   [ ] Add pan/zoom/selection.
+-   [ ] Add wall editing and snapping.
+-   [ ] Add room editing.
+-   [ ] Add door/window editing.
+-   [ ] Add undo/redo.
+-   [ ] Save and reload revisions.
+
+### Sprint 6 --- 3D generation
+
+-   [ ] Generate wall solids.
+-   [ ] Resolve wall intersections.
+-   [ ] Generate floor meshes.
+-   [ ] Add doors and windows.
+-   [ ] Add geometry validation.
+-   [ ] Render with Three.js.
+-   [ ] Add 3D navigation and selection.
+
+### Sprint 7 --- Export and release
+
+-   [ ] Add GLB export job.
+-   [ ] Validate generated GLB.
+-   [ ] Add export download UI.
+-   [ ] Add deletion and retention behavior.
+-   [ ] Run end-to-end and security tests.
+-   [ ] Verify backup/restore.
+-   [ ] Run beta and prioritize fixes.
+
+------------------------------------------------------------------------
+
+## 5. Team responsibilities
 
   -----------------------------------------------------------------------
-  Risk                                Response
+  Role                                Primary responsibility
   ----------------------------------- -----------------------------------
-  OpenCV extraction is weak on        Narrow supported input profile,
-  annotated scans                     improve preprocessing controls,
-                                      keep manual correction fast
+  Product manager / founder           Scope, user research, acceptance
+                                      criteria, prioritization
 
-  Door/window symbols vary too much   Treat as generic opening
-                                      candidates; require user
-                                      classification
+  Product designer                    Upload flow, 2D/3D workspace,
+                                      correction usability
 
-  Non-orthogonal plans are difficult  Deliver orthogonal support first;
-                                      add general-angle support as a
-                                      measured enhancement
+  Frontend engineer                   Next.js, 2D editor, Three.js, API
+                                      integration
 
-  Geometry graph becomes fragmented   Add graph diagnostics, snap
-                                      controls, and manual join tools
+  Backend engineer                    FastAPI, data model, auth, jobs,
+                                      storage, exports
 
-  Meshes fail at wall junctions       Validate and repair polygons before
-                                      extrusion; add junction-specific
-                                      tests
+  ML/CV engineer                      Dataset, segmentation, detection,
+                                      evaluation, inference
 
-  Solo delivery takes longer than 14  Preserve vertical slice and defer
-  weeks                               advanced recognition,
-                                      collaboration, and deployment
+  Geometry engineer                   Vectorization, topology, parametric
+                                      solids, mesh validation
 
-  Public free hosting is insufficient Ship local-first and self-hosted
-                                      options; state free-tier
-                                      limitations honestly
+  QA engineer                         Golden dataset, API/E2E tests,
+                                      regression and release
+
+  DevOps/platform engineer            CI/CD, secrets, environments,
+                                      monitoring, backups
   -----------------------------------------------------------------------
 
-## 8. First 10 engineering actions
+In a small team, backend and geometry can be one role; ML and CV can be
+one role. Do not omit product design or QA---manual correction is a
+central part of the product.
 
-1.  Create the repository and frontend/backend workspace.
-2.  Add dependency manifests and license inventory; exclude all AI/ML
-    packages.
-3.  Add a small, legally usable floor-plan benchmark set.
-4.  Define and version the canonical project JSON schema.
-5.  Implement image upload and immutable source asset storage.
-6.  Implement scale calibration and pixel-to-world coordinate
-    conversion.
-7.  Build preprocessing previews with OpenCV.
-8.  Implement a first wall-candidate detector using morphology and Hough
-    lines.
-9.  Render candidate lines over the source image and allow basic manual
-    correction.
-10. Extrude a manually corrected wall plan into a Three.js preview and
-    export a first GLB.
+------------------------------------------------------------------------
 
-## 9. Explicit non-AI dependency policy
+## 6. Acceptance criteria by capability
 
-Allowed core libraries: - OpenCV for deterministic image processing. -
-Shapely for computational geometry. - Trimesh for mesh operations and
-export. - Three.js and Konva.js for visualization/editing. - FastAPI,
-Pydantic, SQLite/PostgreSQL, and standard Python/TypeScript tooling.
+### Upload
 
-Not allowed: - LLM APIs or chat-completion APIs. - Vision-language
-models or image-recognition APIs. - Neural-network inference runtimes or
-pretrained model weights. - Hosted AI services or paid extraction
-APIs. - Hidden ML-based features in third-party services.
+-   Supported formats are explicit.
+-   Invalid, oversized, or malformed files fail safely.
+-   Source is stored privately.
+-   User sees actionable error messages.
 
-Review transitive dependencies before release. A library being free to
-download does not automatically mean every hosted service or deployment
-tier is free.
+### AI extraction
 
-## 10. Release definition
+-   Walls and rooms are returned in a documented schema.
+-   Each inferred element includes confidence and provenance.
+-   Unsupported/ambiguous cases are flagged.
+-   Model and preprocessing versions are recorded.
 
-The beta is ready when a user can: - Upload a supported floor-plan
-image. - Calibrate its scale. - Run deterministic extraction. - Inspect
-and correct candidate walls and openings. - Validate the 2D geometry. -
-Generate and navigate a 3D model. - Export a usable GLB. - Save and
-reopen the project.
+### Scale
 
-The release notes must state the supported input assumptions, known
-extraction failure modes, and the fact that the application uses no AI.
+-   User can calibrate from a known dimension.
+-   Unit conversion is consistent.
+-   Estimated scale is visibly marked as estimated.
+-   Dimensions update predictably when calibration changes.
+
+### 2D editor
+
+-   User can select, move, add, and delete supported elements.
+-   Snap behavior is predictable and can be overridden.
+-   Undo/redo works.
+-   Edits persist as revisions.
+
+### 3D
+
+-   Wall height and thickness are editable.
+-   Openings align to host walls.
+-   2D and 3D selections stay synchronized.
+-   Camera controls and fit-to-model work.
+-   Geometry validation errors are visible.
+
+### Export
+
+-   GLB opens in a standards-compliant viewer.
+-   Export contains expected scale and orientation.
+-   Failed export does not mark the job successful.
+-   Download URL is time-limited and access-controlled.
+
+------------------------------------------------------------------------
+
+## 7. Model evaluation and release gates
+
+Create a held-out test set before selecting a production model.
+Suggested metrics:
+
+  Area                    Metric
+  ----------------------- -------------------------------------------
+  Wall segmentation       IoU, precision, recall
+  Room segmentation       IoU and room-count accuracy
+  Door/window detection   Precision, recall, mAP
+  Wall geometry           Endpoint/centerline distance error
+  Room geometry           Polygon IoU and area error
+  Scale                   Relative dimension error
+  Product usability       Correction count and time-to-usable-model
+
+Do not set a model release threshold without reviewing the dataset and
+use case. Define thresholds after baseline evaluation with
+representative users. Release a model only when it improves the agreed
+metrics without unacceptable regressions.
+
+------------------------------------------------------------------------
+
+## 8. Operational checklist
+
+### Before beta
+
+-   [ ] Authentication and authorization tested.
+-   [ ] Private bucket and signed URLs verified.
+-   [ ] Upload parser limits configured.
+-   [ ] Queue retries and dead-letter behavior tested.
+-   [ ] Worker concurrency bounded.
+-   [ ] Logs include correlation/job IDs.
+-   [ ] Errors do not expose secrets or source file contents.
+-   [ ] Database backup and restore tested.
+-   [ ] Project deletion and asset cleanup tested.
+-   [ ] Model/data provenance documented.
+-   [ ] User-facing accuracy limitations published.
+
+### Before general availability
+
+-   [ ] Load test representative upload and conversion volumes.
+-   [ ] Cost per successful conversion measured.
+-   [ ] Alerting configured for job failures and queue backlog.
+-   [ ] Support workflow for failed conversions established.
+-   [ ] Retention and privacy policy reviewed.
+-   [ ] Disaster recovery procedure documented.
+-   [ ] Security review completed.
+-   [ ] Model drift and correction metrics monitored.
+
+------------------------------------------------------------------------
+
+## 9. Key risks and contingency plans
+
+**AI detection is not good enough** - Ship assisted conversion: AI
+proposes wall/room candidates, user traces or corrects them. - Narrow
+supported input styles. - Improve data annotation before adding more
+model complexity.
+
+**Geometry output is unstable** - Keep a canonical parametric
+representation. - Add topology repair and regression fixtures. - Do not
+use raw generated meshes as the editable source of truth.
+
+**Door/window detection is weak** - Allow manual placement in the 2D
+editor. - Prioritize reliable walls and rooms first.
+
+**Inference costs are high** - Resize images intelligently. - Use CPU
+preprocessing and GPU only for model inference where needed. - Cache
+outputs by immutable source asset and pipeline version. - Limit
+free-tier job volume.
+
+**Users expect construction-grade accuracy** - State clearly that output
+is a visualization draft, not construction documentation. - Show
+estimated dimensions and unresolved warnings. - Require professional
+verification for construction use.
+
+------------------------------------------------------------------------
+
+## 10. First 10 engineering actions
+
+1.  Create a repository and agree branch/review conventions.
+2.  Write the canonical FloorPlan JSON schema and coordinate convention.
+3.  Build a small deterministic JSON-to-GLB geometry prototype.
+4.  Collect a legally usable set of representative plans.
+5.  Annotate a small gold dataset and write annotation rules.
+6.  Benchmark wall/room segmentation on that dataset.
+7.  Stand up FastAPI, PostgreSQL, object storage, and queue locally.
+8.  Implement secure upload and an asynchronous no-op processing job.
+9.  Build the 2D overlay/review screen against mocked canonical JSON.
+10. Run a vertical slice: upload → detect → review → 3D → GLB export.
+
+**The first vertical slice is the most important milestone.** It proves
+that AI output can become a usable editable model, rather than producing
+only an attractive but structurally unreliable image.

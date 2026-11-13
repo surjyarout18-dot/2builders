@@ -253,6 +253,101 @@ class DXFProcessor:
             "walls": merged_walls
         }
 
+    @staticmethod
+    def process_dxf(file_path: str, scale: float = 1.0, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Processes DXF file into structured architectural walls and room polygons,
+        matching the output contract of RasterProcessor.
+        """
+        raw_data = DXFProcessor.parse_dxf(file_path, scale=1.0)
+        raw_walls = raw_data.get("walls", [])
+        bounds = raw_data.get("bounds", {"min": [0, 0], "max": [10, 10]})
+
+        min_x, min_y = bounds["min"]
+        max_x, max_y = bounds["max"]
+        dxf_width = max(0.1, max_x - min_x)
+
+        real_width = options.get("realWidth", 9.0) if options else 9.0
+        # If DXF is already in meters (e.g. 2-60 units), scale_factor is 1.0
+        if 2.0 <= dxf_width <= 60.0:
+            scale_factor = 1.0
+        elif dxf_width > 60.0:
+            # Millimeters: convert to meters
+            scale_factor = 0.001
+        else:
+            scale_factor = real_width / dxf_width
+
+        normalized_walls: List[Dict[str, Any]] = []
+        shapely_lines = []
+
+        for i, w in enumerate(raw_walls):
+            sx = round((w["start"][0] - min_x) * scale_factor, 3)
+            sy = round((w["start"][1] - min_y) * scale_factor, 3)
+            ex = round((w["end"][0] - min_x) * scale_factor, 3)
+            ey = round((w["end"][1] - min_y) * scale_factor, 3)
+            w_len = math.hypot(ex - sx, ey - sy)
+            if w_len < 0.05:
+                continue
+
+            layer_name = str(w.get("layer", "WALLS")).upper()
+            is_ext = any(k in layer_name for k in ["EXT", "OUTER", "PERIMETER"]) or (
+                sx <= 0.15 or ex <= 0.15 or sx >= (max_x - min_x) * scale_factor - 0.15 or
+                sy <= 0.15 or ey <= 0.15 or sy >= (max_y - min_y) * scale_factor - 0.15
+            )
+
+            wall_obj = {
+                "id": f"w-dxf-{i + 1}",
+                "start": [sx, sy],
+                "end": [ex, ey],
+                "thickness": 0.20 if is_ext else 0.15,
+                "height": 3.0,
+                "type": "external" if is_ext else "internal",
+                "layer": w.get("layer", "WALLS"),
+                "openings": []
+            }
+            normalized_walls.append(wall_obj)
+            shapely_lines.append(LineString([[sx, sy], [ex, ey]]))
+
+        # Discover room polygons using Shapely polygonize
+        rooms: List[Dict[str, Any]] = []
+        try:
+            mls = unary_union(shapely_lines)
+            polys = list(polygonize(mls))
+            polys = [p for p in polys if p.is_valid and p.area >= 1.0]
+            if len(polys) > 1:
+                max_poly = max(polys, key=lambda p: p.area)
+                if max_poly.area > sum(p.area for p in polys if p != max_poly) * 0.7:
+                    polys.remove(max_poly)
+
+            names_pool = [
+                "Living Room", "Master Bedroom", "Kitchen", "Dining Area",
+                "Bedroom 2", "Bathroom", "Foyer", "Balcony", "Study"
+            ]
+            for r_idx, poly in enumerate(polys):
+                poly_simplified = poly.simplify(0.02, preserve_topology=True)
+                coords = [[round(x, 3), round(y, 3)] for x, y in list(poly_simplified.exterior.coords)[:-1]]
+                if len(coords) < 3:
+                    continue
+                room_name = names_pool[r_idx % len(names_pool)]
+                rooms.append({
+                    "id": f"room-{r_idx + 1}",
+                    "name": room_name,
+                    "area": round(poly.area, 2),
+                    "boundary": coords
+                })
+        except Exception:
+            pass
+
+        return {
+            "scale": scale_factor,
+            "walls": normalized_walls,
+            "rooms": rooms,
+            "bounds": {
+                "min": [0.0, 0.0],
+                "max": [round((max_x - min_x) * scale_factor, 2), round((max_y - min_y) * scale_factor, 2)]
+            }
+        }
+
 class RasterProcessor:
     @staticmethod
     def _median(v: List[float]) -> float:
