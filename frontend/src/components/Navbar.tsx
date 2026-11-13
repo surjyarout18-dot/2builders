@@ -220,71 +220,44 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
 
           <div className="h-4 w-[1px] bg-cad-border mx-1" />
 
-          {/* 3D View Presets (when 3D or split view is active) */}
-          {viewMode !== '2d' && (
-            <div className="flex items-center gap-1">
-              <select
-                value={cameraPreset}
-                onChange={(e) => setCameraPreset(e.target.value as CameraPreset)}
-                className="bg-cad-surface border border-cad-border text-[11px] rounded px-2 py-1 text-slate-300 outline-none"
-                title="Camera Preset"
-              >
-                <option value="orbit">Orbit Camera</option>
-                <option value="isometric">Isometric View</option>
-                <option value="top">Top View</option>
-                <option value="front">Front View</option>
-                <option value="side">Side View</option>
-              </select>
-
-              <button
-                onClick={() => setWireframe(!wireframe)}
-                title="Toggle Wireframe"
-                className={`p-1.5 rounded border border-cad-border text-xs ${
-                  wireframe ? 'bg-cad-accent text-slate-950 font-bold' : 'bg-cad-surface text-slate-300'
-                }`}
-              >
-                <Grid size={14} />
-              </button>
-            </div>
-          )}
-
-          <div className="h-4 w-[1px] bg-cad-border mx-1" />
-
           {/* Import Floor Plan */}
           <button
             onClick={() => setImportModalOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+            title="Import Floor Plan (PNG, JPG, PDF, SVG, DXF)"
           >
             <Upload size={14} className="text-cad-accent" />
-            <span>Import</span>
+            <span className="hidden xl:inline">Import</span>
           </button>
 
           {/* Calibrate Scale */}
           <button
             onClick={() => setCalibrateModalOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+            title="Calibrate Floor Plan Scale"
           >
             <Ruler size={14} className="text-yellow-400" />
-            <span>Calibrate</span>
+            <span className="hidden xl:inline">Calibrate</span>
           </button>
 
           {/* 2builders Review Questions */}
           <button
             onClick={() => useProjectStore.getState().setReviewModalOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs rounded font-medium transition-colors"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs rounded font-medium transition-colors"
             title="Open Plan Verification Review"
           >
             <CheckCircle2 size={14} className="text-sky-400" />
-            <span>Review</span>
+            <span className="hidden xl:inline">Review</span>
           </button>
 
           {/* Validate Geometry */}
           <button
             onClick={() => validateCurrentGeometry()}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-slate-200 text-xs rounded font-medium transition-colors"
+            title="Validate geometric watertightness and wall junctions"
           >
             <CheckCircle2 size={14} className="text-emerald-400" />
-            <span>Validate</span>
+            <span className="hidden xl:inline">Validate</span>
           </button>
 
           {/* Viewer Help Guide */}
@@ -293,18 +266,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
               useProjectStore.getState().setViewerGuideFormat('glb');
               useProjectStore.getState().setViewerGuideOpen(true);
             }}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-sky-400 text-xs rounded font-medium transition-colors"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-cad-surface hover:bg-cad-border border border-cad-border text-sky-400 text-xs rounded font-medium transition-colors"
             title="Guide on how to open 3D models and CAD blueprints locally"
           >
             <HelpCircle size={14} />
-            <span>Viewer Guide</span>
+            <span className="hidden 2xl:inline">Guide</span>
           </button>
 
           {/* Save to Backend */}
           <button
             onClick={() => saveToBackend()}
             disabled={isLoading}
-            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-semibold shadow transition-colors"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded font-semibold shadow transition-colors"
+            title="Save Project (Ctrl+S)"
           >
             <Save size={14} />
             <span>Save</span>
@@ -313,10 +287,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenDashboard }) => {
           {/* Share & Export 3D */}
           <button
             onClick={() => useProjectStore.getState().setShareModalOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded font-semibold shadow transition-colors"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded font-semibold shadow transition-colors"
+            title="Download Universal CAD & 3D Exports"
           >
             <Download size={14} />
-            <span>Share / Export</span>
+            <span className="hidden sm:inline">Export</span>
           </button>
 
           {/* 100% Free & Unlimited Badge */}

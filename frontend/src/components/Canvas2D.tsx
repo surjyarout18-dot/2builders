@@ -795,9 +795,10 @@ export const Canvas2D: React.FC = () => {
         rcy /= room.boundary.length;
         const sLight = worldToScreen(rcx, rcy);
 
-        // Ceiling Junction Box / Light Fixture
+        // Ceiling Junction Box / Light Fixture (Offset above room centroid to avoid badge collision)
+        const fixtureY = sLight.y - 22;
         ctx.beginPath();
-        ctx.arc(sLight.x, sLight.y, 7, 0, Math.PI * 2);
+        ctx.arc(sLight.x, fixtureY, 7, 0, Math.PI * 2);
         ctx.fillStyle = '#f59e0b';
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
@@ -805,10 +806,10 @@ export const Canvas2D: React.FC = () => {
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.moveTo(sLight.x - 5, sLight.y);
-        ctx.lineTo(sLight.x + 5, sLight.y);
-        ctx.moveTo(sLight.x, sLight.y - 5);
-        ctx.lineTo(sLight.x, sLight.y + 5);
+        ctx.moveTo(sLight.x - 5, fixtureY);
+        ctx.lineTo(sLight.x + 5, fixtureY);
+        ctx.moveTo(sLight.x, fixtureY - 5);
+        ctx.lineTo(sLight.x, fixtureY + 5);
         ctx.strokeStyle = '#78350f';
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -831,19 +832,23 @@ export const Canvas2D: React.FC = () => {
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
         ctx.lineWidth = 1.5;
         ctx.moveTo(sSwitch.x, sSwitch.y);
-        ctx.quadraticCurveTo(sSwitch.x, sLight.y, sLight.x, sLight.y);
+        ctx.quadraticCurveTo(sSwitch.x, fixtureY, sLight.x, fixtureY);
         ctx.stroke();
         ctx.setLineDash([]);
       }
 
-      // Duplex Outlets along walls
+      // Duplex Outlets along walls (Offset to 30% from start to avoid midpoint dimension collisions)
       for (const wall of activeFloor.walls) {
-        const midX = (wall.start[0] + wall.end[0]) / 2;
-        const midY = (wall.start[1] + wall.end[1]) / 2;
-        const sSocket = worldToScreen(midX, midY);
+        const dx = wall.end[0] - wall.start[0];
+        const dy = wall.end[1] - wall.start[1];
+        const len = Math.hypot(dx, dy);
+        if (len < 1.0) continue;
+        const sockX = wall.start[0] + dx * 0.3;
+        const sockY = wall.start[1] + dy * 0.3;
+        const sSocket = worldToScreen(sockX, sockY);
 
         ctx.beginPath();
-        ctx.arc(sSocket.x, sSocket.y, 5, 0, Math.PI * 2);
+        ctx.arc(sSocket.x, sSocket.y, 4, 0, Math.PI * 2);
         ctx.fillStyle = '#10b981';
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
@@ -934,7 +939,7 @@ export const Canvas2D: React.FC = () => {
         ctx.fillStyle = '#fef08a';
         ctx.font = 'bold 9px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('350 Lux', sCenter.x, sCenter.y - 12);
+        ctx.fillText('350 Lux', sCenter.x, sCenter.y + 20);
       }
     } else if (activeSpecialLayer === 'landscape') {
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;

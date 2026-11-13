@@ -181,9 +181,9 @@ function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
                 <WallMesh wall={wall} elevation={floor.elevation} />
 
                 {/* Engineering 3D Dimension Annotation */}
-                {renderMode === 'engineering' && showDimensions && len >= 0.8 && (
+                {renderMode === 'engineering' && showDimensions && len >= 1.8 && (
                   <group position={[midX, floor.elevation + wall.height + 0.15, midZ]}>
-                    <Html center distanceFactor={16} zIndexRange={[50, 0]}>
+                    <Html center distanceFactor={24} zIndexRange={[50, 0]}>
                       <span className="bg-slate-950/90 border border-cyan-500/60 text-cyan-300 font-mono text-[9px] px-1 py-0.5 rounded shadow pointer-events-none select-none whitespace-nowrap">
                         {len.toFixed(2)}m
                       </span>
