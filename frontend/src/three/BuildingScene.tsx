@@ -216,13 +216,13 @@ function SceneContent({ showRoomLabels }: { showRoomLabels: boolean }) {
 
             return (
               <group key={room.id}>
-                {/* 3D Room Name & Area Tag */}
-                {showRoomLabels && (
-                  <group position={[cx, floor.elevation + 0.1, cz]}>
-                    <Html center distanceFactor={14} zIndexRange={[100, 0]}>
-                      <div className="bg-slate-950/85 backdrop-blur-md border border-slate-700/80 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-100 shadow-xl whitespace-nowrap select-none pointer-events-none flex flex-col items-center">
-                        <span className="text-cad-accent font-semibold">{room.name}</span>
-                        <span className="text-[9px] text-slate-400 font-mono">{room.area.toFixed(1)} m²</span>
+                {/* 3D Room Name & Area Tag (Non-overlapping single-line pill) */}
+                {showRoomLabels && (floor.rooms.length <= 6 || room.area >= 3.0) && (
+                  <group position={[cx, floor.elevation + 0.15, cz]}>
+                    <Html center distanceFactor={24} zIndexRange={[60, 0]}>
+                      <div className="bg-slate-950/90 backdrop-blur-md border border-slate-700/80 px-2.5 py-0.5 rounded-full text-[9px] font-semibold text-slate-200 shadow-xl whitespace-nowrap select-none pointer-events-none flex items-center gap-1.5 ring-1 ring-sky-500/20">
+                        <span className="text-sky-300 font-bold">{room.name}</span>
+                        <span className="text-[8px] text-slate-400 font-mono">{room.area.toFixed(1)}m²</span>
                       </div>
                     </Html>
                   </group>
@@ -358,7 +358,7 @@ export const BuildingScene: React.FC = () => {
       {/* Unified 3D Viewport HUD Bar (Responsive, Never-Overlapping) */}
       <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10 gap-2 overflow-hidden">
         {/* Left HUD: Render Mode & 3D Architectural Aids */}
-        <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-cad-panel/90 backdrop-blur-md border border-cad-border/80 rounded-xl p-1 shadow-xl text-[11px] font-medium text-slate-300 max-w-[55%] overflow-x-auto no-scrollbar shrink-0">
+        <div className="pointer-events-auto flex items-center gap-1 bg-cad-panel/90 backdrop-blur-md border border-cad-border/80 rounded-xl p-1 shadow-xl text-[11px] font-medium text-slate-300 shrink-0">
           {/* Mode Switcher: Realistic vs CAD */}
           <div className="flex items-center bg-slate-900/80 rounded-lg p-0.5 border border-slate-800 shrink-0">
             <button
@@ -371,7 +371,7 @@ export const BuildingScene: React.FC = () => {
               title="Realistic 3D Architectural Shading"
             >
               <Sparkles size={12} className={renderMode === 'realistic' ? 'text-slate-950' : 'text-sky-400'} />
-              <span className="hidden sm:inline">Realistic</span>
+              <span className="hidden xl:inline">Realistic</span>
             </button>
             <button
               onClick={() => setRenderMode('engineering')}
@@ -383,7 +383,7 @@ export const BuildingScene: React.FC = () => {
               title="Engineering CAD Shading & Geometry Inspection"
             >
               <Box size={12} className={renderMode === 'engineering' ? 'text-slate-950' : 'text-amber-400'} />
-              <span className="hidden sm:inline">CAD</span>
+              <span className="hidden xl:inline">CAD</span>
             </button>
           </div>
 
@@ -392,7 +392,7 @@ export const BuildingScene: React.FC = () => {
           {/* Cut-away vs Full Walls */}
           <button
             onClick={() => setWallCutaway(!wallCutaway)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+            className={`p-1.5 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
               wallCutaway
                 ? 'bg-sky-500/20 text-sky-300 border border-sky-400/50'
                 : 'text-slate-300 hover:bg-cad-surface border border-transparent'
@@ -400,13 +400,12 @@ export const BuildingScene: React.FC = () => {
             title="Toggle 900mm Cut-away Walls vs Full Ceiling Height"
           >
             <Scissors size={12} className="text-sky-400" />
-            <span className="hidden md:inline">{wallCutaway ? 'Cutaway' : 'Walls'}</span>
           </button>
 
           {/* Vastu Zones */}
           <button
             onClick={() => setShowVastuZones(!showVastuZones)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+            className={`px-1.5 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 flex items-center gap-1 ${
               showVastuZones
                 ? 'bg-amber-400 text-slate-950 font-black shadow'
                 : 'text-slate-300 hover:bg-cad-surface border border-transparent'
@@ -414,27 +413,26 @@ export const BuildingScene: React.FC = () => {
             title="Toggle Vastu Shastra 8-Zone Overlay & Conformance"
           >
             <span>☸</span>
-            <span className="hidden lg:inline">Vastu</span>
+            <span className="hidden 2xl:inline">Vastu</span>
           </button>
 
           {/* Walkthrough */}
           <button
             onClick={() => setIsWalkthroughActive(!isWalkthroughActive)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+            className={`p-1.5 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
               isWalkthroughActive
                 ? 'bg-amber-400 text-slate-950 shadow font-bold'
                 : 'text-slate-300 hover:bg-cad-surface border border-transparent'
             }`}
-            title="Toggle Eye-Level Architectural Walkthrough"
+            title="Toggle Eye-Level Architectural Walkthrough (WASD)"
           >
             <Footprints size={12} className={isWalkthroughActive ? 'text-slate-950' : 'text-amber-400'} />
-            <span className="hidden xl:inline">{isWalkthroughActive ? 'Exit Walk' : 'Walk'}</span>
           </button>
 
           {/* Cinematic 360 Drone Tour */}
           <button
             onClick={() => setCinematicTourActive(!isCinematicTourActive)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
+            className={`p-1.5 rounded-lg text-[11px] font-bold transition-all shrink-0 ${
               isCinematicTourActive
                 ? 'bg-amber-400 text-slate-950 animate-pulse font-black shadow'
                 : 'text-slate-300 hover:bg-cad-surface border border-transparent'
@@ -442,7 +440,6 @@ export const BuildingScene: React.FC = () => {
             title="Toggle 360° Cinematic Drone Flythrough Tour"
           >
             <PlayCircle size={12} className={isCinematicTourActive ? 'animate-spin text-slate-950' : 'text-sky-400'} />
-            <span className="hidden xl:inline">Tour</span>
           </button>
         </div>
 

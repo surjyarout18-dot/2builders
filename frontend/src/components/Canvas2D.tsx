@@ -464,7 +464,26 @@ export const Canvas2D: React.FC = () => {
 
     if (!activeFloor) return;
 
-    // 3. Render Rooms (solid fill + area label)
+    // Spatial collision registry to strictly prevent any label or dimension overlaps
+    const occupiedRects: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    const checkCollision = (x1: number, y1: number, x2: number, y2: number, margin = 4) => {
+      for (const r of occupiedRects) {
+        if (
+          x1 - margin < r.x2 &&
+          x2 + margin > r.x1 &&
+          y1 - margin < r.y2 &&
+          y2 + margin > r.y1
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+    const registerRect = (x1: number, y1: number, x2: number, y2: number) => {
+      occupiedRects.push({ x1, y1, x2, y2 });
+    };
+
+    // 3. Render Room Geometry (Solid fill + Crisp Boundaries)
     for (const room of activeFloor.rooms) {
       if (room.boundary.length < 3) continue;
       const isRoomSelected = selectedEntity?.type === 'room' && selectedEntity.id === room.id;
@@ -477,13 +496,27 @@ export const Canvas2D: React.FC = () => {
         ctx.lineTo(pt.x, pt.y);
       }
       ctx.closePath();
-      ctx.fillStyle = isRoomSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(30, 41, 59, 0.6)';
+      ctx.fillStyle = isRoomSelected ? 'rgba(56, 189, 248, 0.22)' : 'rgba(30, 41, 59, 0.55)';
       ctx.fill();
       ctx.strokeStyle = isRoomSelected ? '#38bdf8' : '#475569';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = isRoomSelected ? 2 : 1.2;
       ctx.stroke();
+    }
 
-      // Room Label Badge with Collision Avoidance & Rounded Backdrop
+    // 3.1 Render Room Badges with Strict Collision Prevention & Smart LOD
+    // Sort so selected room is always processed first, then larger rooms
+    const sortedRooms = [...activeFloor.rooms].sort((a, b) => {
+      if (selectedEntity?.type === 'room') {
+        if (selectedEntity.id === a.id) return -1;
+        if (selectedEntity.id === b.id) return 1;
+      }
+      return b.area - a.area;
+    });
+
+    for (const room of sortedRooms) {
+      if (room.boundary.length < 3) continue;
+      const isRoomSelected = selectedEntity?.type === 'room' && selectedEntity.id === room.id;
+
       let cx = 0, cy = 0;
       let minSx = Infinity, maxSx = -Infinity, minSy = Infinity, maxSy = -Infinity;
       for (const p of room.boundary) {
@@ -501,10 +534,51 @@ export const Canvas2D: React.FC = () => {
       const roomScreenWidth = maxSx - minSx;
       const roomScreenHeight = maxSy - minSy;
 
-      // Only display label if room has sufficient screen clearance or is selected
-      if (roomScreenWidth >= 35 && roomScreenHeight >= 28 || isRoomSelected) {
-        ctx.save();
-        const areaStr = `${room.area.toFixed(1)} m²`;
+      // Skip tiny rooms unless selected to prevent unreadable clumps
+      if (!isRoomSelected && (roomScreenWidth < 38 || roomScreenHeight < 26)) {
+        continue;
+      }
+
+      const areaStr = `${room.area.toFixed(1)} m²`;
+
+      // Check if compact single-line mode is needed for medium rooms
+      const isCompact = !isRoomSelected && (roomScreenWidth < 65 || roomScreenHeight < 38);
+
+      ctx.save();
+      if (isCompact) {
+        // Single-line compact badge
+        ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const labelText = `${room.name.length > 10 ? room.name.slice(0, 9) + '…' : room.name} • ${room.area.toFixed(0)}m²`;
+        const textMetrics = ctx.measureText(labelText);
+        const badgeW = textMetrics.width + 10;
+        const badgeH = 16;
+        const bx = labelScreen.x - badgeW / 2;
+        const by = labelScreen.y - badgeH / 2;
+
+        if (!isRoomSelected && checkCollision(bx, by, bx + badgeW, by + badgeH, 4)) {
+          ctx.restore();
+          continue; // Skip overlapping badge
+        }
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+        ctx.strokeStyle = 'rgba(71, 85, 105, 0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(bx, by, badgeW, badgeH, 4);
+        } else {
+          ctx.rect(bx, by, badgeW, badgeH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(labelText, labelScreen.x, labelScreen.y);
+        registerRect(bx, by, bx + badgeW, by + badgeH);
+      } else {
+        // Full two-line architectural room badge
         ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         const nameW = ctx.measureText(room.name).width;
         ctx.font = '9px monospace';
@@ -513,6 +587,42 @@ export const Canvas2D: React.FC = () => {
         const badgeH = 26;
         const bx = labelScreen.x - badgeW / 2;
         const by = labelScreen.y - badgeH / 2;
+
+        if (!isRoomSelected && checkCollision(bx, by, bx + badgeW, by + badgeH, 4)) {
+          // If 2-line badge collides, attempt compact 1-line fallback
+          ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          const labelText = `${room.name} • ${room.area.toFixed(0)}m²`;
+          const textMetrics = ctx.measureText(labelText);
+          const cBadgeW = textMetrics.width + 10;
+          const cBadgeH = 16;
+          const cbx = labelScreen.x - cBadgeW / 2;
+          const cby = labelScreen.y - cBadgeH / 2;
+
+          if (checkCollision(cbx, cby, cbx + cBadgeW, cby + cBadgeH, 4)) {
+            ctx.restore();
+            continue; // Skip overlapping badge
+          }
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+          ctx.strokeStyle = 'rgba(71, 85, 105, 0.7)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(cbx, cby, cBadgeW, cBadgeH, 4);
+          } else {
+            ctx.rect(cbx, cby, cBadgeW, cBadgeH);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillText(labelText, labelScreen.x, labelScreen.y);
+          registerRect(cbx, cby, cbx + cBadgeW, cby + cBadgeH);
+          ctx.restore();
+          continue;
+        }
 
         // Draw crisp backdrop pill
         ctx.fillStyle = isRoomSelected ? 'rgba(14, 165, 233, 0.95)' : 'rgba(15, 23, 42, 0.88)';
@@ -538,8 +648,10 @@ export const Canvas2D: React.FC = () => {
         ctx.font = 'bold 9px monospace';
         ctx.fillStyle = isRoomSelected ? '#082f49' : '#38bdf8';
         ctx.fillText(areaStr, labelScreen.x, labelScreen.y + 6);
-        ctx.restore();
+
+        registerRect(bx, by, bx + badgeW, by + badgeH);
       }
+      ctx.restore();
     }
 
     // 4. Render Walls with Real Footprint
@@ -578,9 +690,15 @@ export const Canvas2D: React.FC = () => {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Dimension Label with Overlap Prevention
+      // Dimension Label with Collision Avoidance & Architectural LOD
       const wallScreenLen = Math.hypot(cEnd.x - cStart.x, cEnd.y - cStart.y);
-      const shouldShowDim = isWallSelected || (wallScreenLen >= 42 && (wall.type === 'external' || zoom >= 0.65 || wallScreenLen >= 75));
+      // External walls show at screen length >= 52px; internal walls only show when zoomed in (zoom >= 0.82) or selected
+      const shouldShowDim = isWallSelected || (
+        wallScreenLen >= 52 && (
+          wall.type === 'external' ||
+          (zoom >= 0.82 && wallScreenLen >= 75)
+        )
+      );
 
       if (shouldShowDim) {
         const midX = (cStart.x + cEnd.x) / 2;
@@ -594,22 +712,30 @@ export const Canvas2D: React.FC = () => {
         const dimMetrics = ctx.measureText(dimStr);
         const pillW = dimMetrics.width + 8;
         const pillH = 14;
+        const bx = midX - pillW / 2;
+        const by = midY - pillH / 2;
 
-        ctx.fillStyle = isWallSelected ? 'rgba(3, 105, 161, 0.95)' : 'rgba(15, 23, 42, 0.88)';
-        ctx.strokeStyle = isWallSelected ? '#38bdf8' : 'rgba(100, 116, 139, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(midX - pillW / 2, midY - pillH / 2, pillW, pillH, 3);
+        // Skip non-selected dimension if it collides with a room badge or another dimension
+        if (!isWallSelected && checkCollision(bx, by, bx + pillW, by + pillH, 4)) {
+          ctx.restore();
         } else {
-          ctx.rect(midX - pillW / 2, midY - pillH / 2, pillW, pillH);
-        }
-        ctx.fill();
-        ctx.stroke();
+          ctx.fillStyle = isWallSelected ? 'rgba(3, 105, 161, 0.95)' : 'rgba(15, 23, 42, 0.88)';
+          ctx.strokeStyle = isWallSelected ? '#38bdf8' : 'rgba(100, 116, 139, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(bx, by, pillW, pillH, 3);
+          } else {
+            ctx.rect(bx, by, pillW, pillH);
+          }
+          ctx.fill();
+          ctx.stroke();
 
-        ctx.fillStyle = isWallSelected ? '#ffffff' : (wall.type === 'external' ? '#f8fafc' : '#cbd5e1');
-        ctx.fillText(dimStr, midX, midY);
-        ctx.restore();
+          ctx.fillStyle = isWallSelected ? '#ffffff' : (wall.type === 'external' ? '#f8fafc' : '#cbd5e1');
+          ctx.fillText(dimStr, midX, midY);
+          registerRect(bx, by, bx + pillW, by + pillH);
+          ctx.restore();
+        }
       }
 
       // Render Openings (Doors & Windows)
