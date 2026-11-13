@@ -1,2 +1,2 @@
-# backend package
+# backend/__init__.py
 
