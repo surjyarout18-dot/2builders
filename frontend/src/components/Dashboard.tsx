@@ -25,7 +25,8 @@ import {
   Grid,
   X,
   FileCode,
-  Crown
+  Crown,
+  Cpu
 } from 'lucide-react';
 import { Project } from '../types';
 import { useProjectStore } from '../store/useProjectStore';
@@ -73,6 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
   const setTwoBuildersPlan = useProjectStore((s) => s.setTwoBuildersPlan);
   const setMegaMenuOpen = useProjectStore((s) => s.setMegaMenuOpen);
   const setGeneratorModalOpen = useProjectStore((s) => s.setGeneratorModalOpen);
+  const setCadStudioOpen = useProjectStore((s) => s.setCadStudioOpen);
   const setPremiumModalOpen = useProjectStore((s) => s.setPremiumModalOpen);
   const generateAILayout = useProjectStore((s) => s.generateAILayout);
   const userTier = useProjectStore((s) => s.userTier);
@@ -639,6 +641,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
               <span>AI Generator</span>
             </button>
 
+            {/* Algorithmic CAD Studio & Blueprint Lab */}
+            <button
+              onClick={() => setCadStudioOpen(true)}
+              className="flex items-center gap-1.5 text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 px-3.5 py-1.5 rounded-full font-bold transition-all shadow-md shadow-cyan-500/10 cursor-pointer"
+              title="Interactive Algorithmic CAD & Line-Clearing Studio"
+            >
+              <Cpu size={14} className="text-cyan-400 animate-pulse" />
+              <span className="hidden sm:inline">CAD Lab</span>
+              <span className="text-[9px] bg-cyan-500/30 text-cyan-200 px-1.5 py-0.2 rounded font-black uppercase font-mono">
+                New
+              </span>
+            </button>
+
             {/* 100% Free & Unlimited Badge/Button */}
             <button
               onClick={() => {
@@ -771,6 +786,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectProject }) => {
                 <span>Demo Blueprints</span>
                 <span className="text-[9px] bg-slate-800 text-amber-300 px-1.5 py-0.2 rounded font-mono">
                   4 Samples
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCadStudioOpen(true)}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all text-cyan-400 hover:text-cyan-200 hover:bg-cyan-950/40 border border-cyan-500/30"
+                title="Launch Algorithmic CAD & Line-Clearing Studio"
+              >
+                <Cpu size={14} className="text-cyan-400 animate-pulse" />
+                <span>CAD Lab</span>
+                <span className="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.2 rounded font-mono font-black uppercase">
+                  New
                 </span>
               </button>
             </div>

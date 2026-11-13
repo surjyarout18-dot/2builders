@@ -79,6 +79,8 @@ interface ProjectState {
   setMegaMenuOpen: (open: boolean) => void;
   isGeneratorModalOpen: boolean;
   setGeneratorModalOpen: (open: boolean) => void;
+  isCadStudioOpen: boolean;
+  setCadStudioOpen: (open: boolean) => void;
   activeSpecialLayer: 'none' | 'electrical' | 'plumbing' | 'lighting' | 'landscape';
   setActiveSpecialLayer: (layer: 'none' | 'electrical' | 'plumbing' | 'lighting' | 'landscape') => void;
   isCinematicTourActive: boolean;
@@ -270,6 +272,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setMegaMenuOpen: (isMegaMenuOpen) => set({ isMegaMenuOpen }),
   isGeneratorModalOpen: false,
   setGeneratorModalOpen: (isGeneratorModalOpen) => set({ isGeneratorModalOpen }),
+  isCadStudioOpen: false,
+  setCadStudioOpen: (isCadStudioOpen) => set({ isCadStudioOpen }),
   activeSpecialLayer: 'none',
   setActiveSpecialLayer: (activeSpecialLayer) => set({ activeSpecialLayer }),
   isCinematicTourActive: false,
