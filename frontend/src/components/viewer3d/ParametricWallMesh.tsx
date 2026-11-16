@@ -104,7 +104,7 @@ export const ParametricWallMesh: React.FC<ParametricWallMeshProps> = ({
       resultBlocks.push({ s0: 0, s1: wallLen, y0: 0, y1: wallHeight });
     }
 
-    return resultBlocks.map((b) => {
+    return resultBlocks.map((b, idx) => {
       const segLen = b.s1 - b.s0;
       const segHeight = b.y1 - b.y0;
       const midS = (b.s0 + b.s1) / 2;
@@ -117,7 +117,7 @@ export const ParametricWallMesh: React.FC<ParametricWallMeshProps> = ({
       const angleY = Math.atan2(dx, dz);
 
       return {
-        key: `${b.s0}-${b.s1}-${b.y0}-${b.y1}`,
+        key: `${wall.id}_blk_${idx}_${b.s0.toFixed(3)}_${b.y0.toFixed(3)}`,
         position: [posX, midY, posZ] as [number, number, number],
         rotation: [0, angleY, 0] as [number, number, number],
         size: [wall.thickness, segHeight, segLen] as [number, number, number],

@@ -28,6 +28,16 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ isOpen, onCl
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<string>('');
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleDrag = (e: React.DragEvent) => {

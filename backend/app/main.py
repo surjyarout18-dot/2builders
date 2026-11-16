@@ -7,7 +7,7 @@ from typing import Dict, Any
 from backend.app.api.endpoints import router as api_router
 
 app = FastAPI(
-    title="Sketch2Space API",
+    title="2builders API",
     description="AI-powered 2D architectural floor plan to editable 3D model conversion engine.",
     version="1.0.0"
 )
@@ -29,7 +29,7 @@ app.include_router(api_router)
 def health_check() -> Dict[str, Any]:
     return {
         "status": "ok",
-        "service": "Sketch2Space Engine",
+        "service": "2builders Engine",
         "version": "1.0.0",
         "free_forever": True
     }

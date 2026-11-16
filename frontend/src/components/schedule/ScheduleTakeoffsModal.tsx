@@ -25,6 +25,16 @@ export const ScheduleTakeoffsModal: React.FC<ScheduleTakeoffsModalProps> = ({
   const { model, unitSystem, toggleUnitSystem } = useFloorPlanStore();
   const [activeTab, setActiveTab] = useState<'rooms' | 'finishes' | 'components'>('rooms');
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const floor = model.floors[0] || { rooms: [], walls: [], doors: [], windows: [] };
