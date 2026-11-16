@@ -8,7 +8,8 @@ import {
   Building,
   Layers,
   Compass,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 import { createProjectApi, uploadFloorPlanApi, analyzeFloorPlanApi } from '../../services/api';
@@ -66,7 +67,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ isOpen, onCl
       setCurrentStep('1/4: Ingesting image & bilateral smoothing...');
       const proj = await createProjectApi(projectName);
 
-      setCurrentStep('2/4: Uploading to private processing queue...');
+      setCurrentStep('2/4: Uploading to processing queue...');
       await uploadFloorPlanApi(proj.id, selectedFile);
 
       setCurrentStep('3/4: Morphological wall detection & contour vectorization...');
@@ -89,22 +90,28 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ isOpen, onCl
     }
   };
 
-  const handleSelectSample = (sample: 'villa' | 'studio') => {
+  const handleSelectSample = (sample: 'villa' | 'duplex' | 'studio') => {
     loadSamplePlan(sample);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <div className="flex w-full max-w-3xl flex-col rounded-2xl border border-[#1F2942] bg-[#111726] shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#1F2942] px-6 py-4 bg-[#0A0D14]/70">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00F0FF]/10 text-[#00F0FF]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00F0FF]/15 text-[#00F0FF]">
               <UploadCloud className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#F1F5F9]">Upload 2D Floor Plan Image</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[#F1F5F9]">Upload 2D Floor Plan Image</h2>
+                <span className="flex items-center gap-1 rounded-full bg-[#10B981]/15 px-2 py-0.5 text-[10px] font-semibold text-[#10B981]">
+                  <ShieldCheck className="h-3 w-3" />
+                  100% Free
+                </span>
+              </div>
               <p className="text-xs text-[#94A3B8]">Convert JPG, PNG, WEBP or PDF scans into real editable 3D geometry</p>
             </div>
           </div>
@@ -186,38 +193,51 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ isOpen, onCl
             </button>
           )}
 
-          {/* Or Test Sample Drawings */}
+          {/* Ready Architectural Templates */}
           <div className="relative flex items-center justify-center">
             <div className="w-full border-t border-[#1F2942]" />
             <span className="absolute bg-[#111726] px-3 font-mono text-xs uppercase text-[#94A3B8]">
-              Or load ready architectural samples
+              Or Explore Architectural Templates
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => handleSelectSample('villa')}
-              className="flex items-center gap-3.5 rounded-xl border border-[#1F2942] bg-[#161F33] p-4 text-left transition-all hover:border-[#00F0FF] hover:bg-[#1A253E]"
+              className="flex flex-col gap-2 rounded-xl border border-[#1F2942] bg-[#161F33] p-4 text-left transition-all hover:border-[#00F0FF] hover:bg-[#1A253E]"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00F0FF]/10 text-[#00F0FF]">
-                <Building className="h-5 w-5" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#00F0FF]/10 text-[#00F0FF]">
+                <Building className="h-4 w-4" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-[#F1F5F9]">Contemporary 2-Bedroom Villa</h4>
-                <p className="text-xs text-[#94A3B8]">Master suite, living room, bath & outdoor terrace (72.5 m²)</p>
+                <h4 className="text-sm font-semibold text-[#F1F5F9]">2-Bedroom Villa</h4>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">Master suite, porch columns & 3D roof (72.5 m²)</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleSelectSample('duplex')}
+              className="flex flex-col gap-2 rounded-xl border border-[#1F2942] bg-[#161F33] p-4 text-left transition-all hover:border-[#00F0FF] hover:bg-[#1A253E]"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#A855F7]/10 text-[#A855F7]">
+                <Layers className="h-4 w-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-[#F1F5F9]">2-Storey Duplex</h4>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">Multi-floor stacking, internal staircase & loft (148 m²)</p>
               </div>
             </button>
 
             <button
               onClick={() => handleSelectSample('studio')}
-              className="flex items-center gap-3.5 rounded-xl border border-[#1F2942] bg-[#161F33] p-4 text-left transition-all hover:border-[#00F0FF] hover:bg-[#1A253E]"
+              className="flex flex-col gap-2 rounded-xl border border-[#1F2942] bg-[#161F33] p-4 text-left transition-all hover:border-[#00F0FF] hover:bg-[#1A253E]"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#10B981]/10 text-[#10B981]">
-                <Layers className="h-5 w-5" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#10B981]/10 text-[#10B981]">
+                <Compass className="h-4 w-4" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-[#F1F5F9]">Minimalist Studio Apartment</h4>
-                <p className="text-xs text-[#94A3B8]">Open-concept living, sleeping & bathroom (42.0 m²)</p>
+                <h4 className="text-sm font-semibold text-[#F1F5F9]">Minimalist Studio</h4>
+                <p className="text-[11px] text-[#94A3B8] mt-0.5">Open-concept living, sleeping & bath (42.0 m²)</p>
               </div>
             </button>
           </div>

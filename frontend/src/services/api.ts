@@ -59,6 +59,52 @@ export async function updateModelApi(projectId: string, model: ArchitecturalMode
   return res.json();
 }
 
+export interface GeneratePlanOptions {
+  prompt?: string;
+  plot_width?: number;
+  plot_depth?: number;
+  target_area_sqm?: number;
+  building_type?: string;
+  bedrooms_count?: number;
+  bathrooms_count?: number;
+  style?: string;
+  orientation?: string;
+}
+
+export async function generateCandidatePlansApi(options: GeneratePlanOptions): Promise<{ count: number; candidates: ArchitecturalModel[] }> {
+  const res = await fetch(`${API_BASE}/generate-plan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options)
+  });
+  if (!res.ok) throw new Error('Failed to generate algorithmic floor plans');
+  return res.json();
+}
+
+export async function getCheckpointsApi(projectId: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/checkpoints`);
+  if (!res.ok) throw new Error('Failed to fetch checkpoints');
+  return res.json();
+}
+
+export async function createCheckpointApi(projectId: string, name: string, changeSummary?: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/checkpoints`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, change_summary: changeSummary })
+  });
+  if (!res.ok) throw new Error('Failed to save checkpoint');
+  return res.json();
+}
+
+export async function restoreCheckpointApi(projectId: string, checkpointId: string) {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/restore-checkpoint/${checkpointId}`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Failed to restore checkpoint');
+  return res.json();
+}
+
 export async function chatAssistantApi(projectId: string, prompt: string) {
   const res = await fetch(`${API_BASE}/assistant/chat`, {
     method: 'POST',

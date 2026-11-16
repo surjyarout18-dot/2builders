@@ -115,7 +115,7 @@ export function exportArchitecturalPDF(model: ArchitecturalModel) {
   // Title Block Header
   doc.setTextColor(0, 240, 255);
   doc.setFontSize(22);
-  doc.text("SKETCH2SPACE ARCHITECTURAL REPORT", 20, 25);
+  doc.text("2BUILDERS PRECISION BLUEPRINT & SPEC SHEET", 20, 25);
 
   doc.setTextColor(241, 245, 249);
   doc.setFontSize(14);
@@ -123,7 +123,7 @@ export function exportArchitecturalPDF(model: ArchitecturalModel) {
 
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(10);
-  doc.text(`Generated: ${new Date().toLocaleDateString()} | Units: Metric (Meters) | Status: 100% Free Forever`, 20, 42);
+  doc.text(`Generated: ${new Date().toLocaleDateString()} | Units: ${model.unit_system || 'Metric'} | 100% Free Forever Architecture`, 20, 42);
 
   // Summary Card Box
   doc.setFillColor(22, 31, 51);
@@ -131,24 +131,24 @@ export function exportArchitecturalPDF(model: ArchitecturalModel) {
 
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(9);
-  doc.text("TOTAL MEASURED LIVING AREA", 30, 58);
-  doc.text("TOTAL WALLS", 110, 58);
+  doc.text("MEASURED LIVING AREA", 30, 58);
+  doc.text("WALLS & PARTITIONS", 110, 58);
   doc.text("DOORS & WINDOWS", 170, 58);
-  doc.text("FURNITURE COUNT", 230, 58);
+  doc.text("FLOORS / STAIRS", 230, 58);
 
   doc.setTextColor(0, 240, 255);
   doc.setFontSize(15);
   doc.text(`${totalArea.toFixed(1)} m² (${(totalArea * 10.7639).toFixed(0)} sqft)`, 30, 68);
 
   doc.setTextColor(241, 245, 249);
-  doc.text(`${floor.walls.length}`, 110, 68);
+  doc.text(`${floor.walls.length} Walls`, 110, 68);
   doc.text(`${floor.doors.length} Doors / ${floor.windows.length} Windows`, 170, 68);
-  doc.text(`${floor.furniture.length} items`, 230, 68);
+  doc.text(`${model.floors.length} Levels / ${(floor.stairs || []).length} Stairs`, 230, 68);
 
   // Room Schedule Table
   doc.setTextColor(0, 240, 255);
   doc.setFontSize(12);
-  doc.text("ROOM SCHEDULE & SPECIFICATIONS", 20, 92);
+  doc.text("ROOM SCHEDULE & FINISH SPECIFICATIONS", 20, 92);
 
   doc.setFillColor(31, 41, 66);
   doc.rect(20, 96, 257, 8, 'F');
@@ -156,7 +156,7 @@ export function exportArchitecturalPDF(model: ArchitecturalModel) {
   doc.setTextColor(241, 245, 249);
   doc.setFontSize(9);
   doc.text("ROOM NAME", 25, 101);
-  doc.text("TYPE", 90, 101);
+  doc.text("CATEGORY", 90, 101);
   doc.text("AREA (m²)", 140, 101);
   doc.text("AREA (sq ft)", 180, 101);
   doc.text("FLOOR MATERIAL", 220, 101);
@@ -176,7 +176,7 @@ export function exportArchitecturalPDF(model: ArchitecturalModel) {
     doc.setTextColor(241, 245, 249);
     doc.text(`${r.area_sqft.toFixed(1)} sq ft`, 180, currentY);
     doc.setTextColor(148, 163, 184);
-    doc.text(r.floor_material.replace('_', ' '), 220, currentY);
+    doc.text(r.floor_material.replace(/_/g, ' '), 220, currentY);
 
     currentY += 8;
   });
@@ -184,7 +184,98 @@ export function exportArchitecturalPDF(model: ArchitecturalModel) {
   // Footer
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text("Sketch2Space Open Architecture • 100% Free Forever • Precision CAD Dark Engine", 20, 200);
+  doc.text("2builders Open Architecture CAD Engine • 100% Free Forever • Unwatermarked", 20, 200);
 
   doc.save(`${model.name.replace(/\s+/g, '_')}_spec.pdf`);
+}
+
+export function exportCSV(model: ArchitecturalModel) {
+  const rows: string[][] = [];
+
+  rows.push(["=== 2BUILDERS ARCHITECTURAL SCHEDULE & QUANTITY TAKEOFF ==="]);
+  rows.push(["Project Name", model.name]);
+  rows.push(["Unit System", model.unit_system || "metric"]);
+  rows.push(["Total Floors", `${model.floors.length}`]);
+  rows.push(["Generated Date", new Date().toISOString()]);
+  rows.push([]);
+
+  // 1. ROOM SCHEDULE
+  rows.push(["--- ROOM SCHEDULE & AREAS ---"]);
+  rows.push(["Floor", "Room Name", "Room Type", "Area (m²)", "Area (sq ft)", "Floor Finish", "Finish Area +10% Waste (m²)"]);
+
+  let totalM2 = 0;
+  let totalSqft = 0;
+
+  model.floors.forEach((f) => {
+    f.rooms.forEach((r) => {
+      totalM2 += r.area_sqm;
+      totalSqft += r.area_sqft;
+      const wasteArea = (r.area_sqm * 1.10).toFixed(2);
+      rows.push([
+        f.name,
+        `"${r.name}"`,
+        r.room_type,
+        r.area_sqm.toFixed(2),
+        r.area_sqft.toFixed(1),
+        `"${r.floor_material.replace(/_/g, ' ')}"`,
+        wasteArea
+      ]);
+    });
+  });
+
+  rows.push(["TOTALS", "", "", totalM2.toFixed(2), totalSqft.toFixed(1), "", (totalM2 * 1.10).toFixed(2)]);
+  rows.push([]);
+
+  // 2. WALL TAKEOFF
+  rows.push(["--- WALL & PARTITION SCHEDULE ---"]);
+  rows.push(["Floor", "Wall ID", "Type", "Length (m)", "Length (ft)", "Thickness (m)", "Height (m)", "Wall Face Area (m²)"]);
+
+  let totalWallLength = 0;
+  let totalWallFaceArea = 0;
+
+  model.floors.forEach((f) => {
+    f.walls.forEach((w) => {
+      const dx = w.end.x - w.start.x;
+      const dz = w.end.z - w.start.z;
+      const lenM = Math.sqrt(dx * dx + dz * dz);
+      const faceArea = lenM * w.height;
+      totalWallLength += lenM;
+      totalWallFaceArea += faceArea;
+      rows.push([
+        f.name,
+        w.id,
+        w.wall_type,
+        lenM.toFixed(2),
+        (lenM * 3.28084).toFixed(2),
+        w.thickness.toFixed(2),
+        w.height.toFixed(2),
+        faceArea.toFixed(2)
+      ]);
+    });
+  });
+
+  rows.push(["TOTALS", "", "", totalWallLength.toFixed(2), (totalWallLength * 3.28084).toFixed(2), "", "", totalWallFaceArea.toFixed(2)]);
+  rows.push([]);
+
+  // 3. FENESTRATION & CIRCULATION SCHEDULE
+  rows.push(["--- DOORS, WINDOWS, STAIRS & COLUMNS ---"]);
+  rows.push(["Floor", "Element Type", "ID", "Dimensions / Rise", "Type / Material"]);
+
+  model.floors.forEach((f) => {
+    f.doors.forEach((d) => {
+      rows.push([f.name, "Door", d.id, `${d.width}m x ${d.height}m`, `${d.door_type} (${d.swing_direction})`]);
+    });
+    f.windows.forEach((w) => {
+      rows.push([f.name, "Window", w.id, `${w.width}m x ${w.height}m (Sill: ${w.sill_height}m)`, w.window_type]);
+    });
+    (f.stairs || []).forEach((st) => {
+      rows.push([f.name, "Staircase", st.id, `Rise: ${st.height}m, Width: ${st.width}m, Risers: ${st.risers_count}`, st.stair_type]);
+    });
+    (f.columns || []).forEach((c) => {
+      rows.push([f.name, "Column", c.id, `Size: ${c.radius_or_size}m, Height: ${c.height}m`, c.shape]);
+    });
+  });
+
+  const csvContent = rows.map((r) => r.join(",")).join("\n");
+  downloadFile(csvContent, `${model.name.replace(/\s+/g, '_')}_quantity_takeoffs.csv`, 'text/csv');
 }

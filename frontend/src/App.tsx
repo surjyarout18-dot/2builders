@@ -7,6 +7,10 @@ import { ProjectDashboard } from './components/dashboard/ProjectDashboard';
 import { ExportModal } from './components/export/ExportModal';
 import { FurnitureCatalog } from './components/furniture/FurnitureCatalog';
 import { AiAssistantDrawer } from './components/assistant/AiAssistantDrawer';
+import { PromptToPlanModal } from './components/generator/PromptToPlanModal';
+import { RecognitionReviewModal } from './components/recognition/RecognitionReviewModal';
+import { ScheduleTakeoffsModal } from './components/schedule/ScheduleTakeoffsModal';
+import { FloorLevelBar } from './components/floors/FloorLevelBar';
 import { useFloorPlanStore } from './store/useFloorPlanStore';
 
 export default function App() {
@@ -16,6 +20,9 @@ export default function App() {
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
   const [isFurnitureOpen, setIsFurnitureOpen] = useState<boolean>(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState<boolean>(false);
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
+  const [isReviewOpen, setIsReviewOpen] = useState<boolean>(false);
+  const [isTakeoffsOpen, setIsTakeoffsOpen] = useState<boolean>(false);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0A0D14] text-[#F1F5F9] font-sans antialiased">
@@ -25,6 +32,9 @@ export default function App() {
         onOpenExport={() => setIsExportOpen(true)}
         onOpenFurniture={() => setIsFurnitureOpen(true)}
         onOpenAssistant={() => setIsAssistantOpen(true)}
+        onOpenGenerator={() => setIsGeneratorOpen(true)}
+        onOpenTakeoffs={() => setIsTakeoffsOpen(true)}
+        onOpenReview={() => setIsReviewOpen(true)}
       />
 
       {/* Main Workspace Body */}
@@ -48,12 +58,15 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW MODE: 3D FULL */}
-        {viewMode === '3d' && (
+        {/* VIEW MODE: 3D FULL or WALKTHROUGH */}
+        {(viewMode === '3d' || viewMode === 'walkthrough') && (
           <div className="h-full w-full relative">
             <BuildingScene />
           </div>
         )}
+
+        {/* Floating Multi-Floor Level Switcher */}
+        <FloorLevelBar />
 
         {/* Right Properties Inspector */}
         <PropertiesPanel onOpenFurnitureCatalog={() => setIsFurnitureOpen(true)} />
@@ -78,6 +91,21 @@ export default function App() {
       <AiAssistantDrawer
         isOpen={isAssistantOpen}
         onClose={() => setIsAssistantOpen(false)}
+      />
+
+      <PromptToPlanModal
+        isOpen={isGeneratorOpen}
+        onClose={() => setIsGeneratorOpen(false)}
+      />
+
+      <RecognitionReviewModal
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+      />
+
+      <ScheduleTakeoffsModal
+        isOpen={isTakeoffsOpen}
+        onClose={() => setIsTakeoffsOpen(false)}
       />
     </div>
   );

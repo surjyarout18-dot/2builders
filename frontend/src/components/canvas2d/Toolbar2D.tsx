@@ -11,7 +11,10 @@ import {
   EyeOff,
   Magnet,
   Maximize,
-  Sparkles
+  Sparkles,
+  Milestone,
+  Columns3,
+  BoxSelect
 } from 'lucide-react';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 import { CADTool } from '../../types/architectural';
@@ -43,8 +46,12 @@ export const Toolbar2D: React.FC<Toolbar2DProps> = ({
   const tools: { id: CADTool; label: string; icon: React.ReactNode }[] = [
     { id: 'select', label: 'Select (V)', icon: <MousePointer className="h-4 w-4" /> },
     { id: 'wall', label: 'Draw Wall (W)', icon: <Square className="h-4 w-4" /> },
+    { id: 'rect_room', label: 'Box Room (R)', icon: <BoxSelect className="h-4 w-4" /> },
     { id: 'door', label: 'Add Door (D)', icon: <DoorOpen className="h-4 w-4" /> },
     { id: 'window', label: 'Add Window (N)', icon: <Maximize2 className="h-4 w-4" /> },
+    { id: 'stair', label: 'Draw Stair (S)', icon: <Milestone className="h-4 w-4" /> },
+    { id: 'column', label: 'Place Column (C)', icon: <Columns3 className="h-4 w-4" /> },
+    { id: 'dimension', label: 'Dimension (L)', icon: <Ruler className="h-4 w-4" /> },
     { id: 'measure', label: 'Measure (M)', icon: <Ruler className="h-4 w-4" /> },
   ];
 
@@ -107,33 +114,37 @@ export const Toolbar2D: React.FC<Toolbar2DProps> = ({
           {showDetectionOverlay ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </button>
 
-        {/* Fit to View */}
-        <button
-          onClick={onResetView}
-          title="Reset View"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9]"
-        >
-          <Maximize className="h-4 w-4" />
-        </button>
-
         <div className="mx-1 h-5 w-[1px] bg-[#1F2942]" />
 
-        {/* Undo / Redo */}
+        {/* Undo */}
         <button
           onClick={undo}
           disabled={historyIndex <= 0}
           title="Undo (Ctrl+Z)"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9] disabled:opacity-30 disabled:hover:bg-transparent"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9] transition-all disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <Undo2 className="h-4 w-4" />
         </button>
+
+        {/* Redo */}
         <button
           onClick={redo}
           disabled={historyIndex >= history.length - 1}
           title="Redo (Ctrl+Y)"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9] disabled:opacity-30 disabled:hover:bg-transparent"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9] transition-all disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <Redo2 className="h-4 w-4" />
+        </button>
+
+        <div className="mx-1 h-5 w-[1px] bg-[#1F2942]" />
+
+        {/* Reset View */}
+        <button
+          onClick={onResetView}
+          title="Reset Canvas Center"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9] transition-all"
+        >
+          <Maximize className="h-4 w-4" />
         </button>
       </div>
     </div>

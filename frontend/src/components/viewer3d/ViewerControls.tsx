@@ -6,7 +6,8 @@ import {
   Compass,
   Maximize,
   User,
-  Eye
+  Eye,
+  Home
 } from 'lucide-react';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 
@@ -25,8 +26,12 @@ export const ViewerControls: React.FC<ViewerControlsProps> = ({
     dayNightMode,
     toggleDayNight,
     isFirstPerson,
-    toggleFirstPerson
+    toggleFirstPerson,
+    model,
+    toggleRoofVisibility
   } = useFloorPlanStore();
+
+  const isRoofVisible = model.building.roof?.visible ?? false;
 
   return (
     <div className="absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-xl border border-[#1F2942] bg-[#111726]/90 p-1.5 shadow-xl backdrop-blur-md">
@@ -51,6 +56,20 @@ export const ViewerControls: React.FC<ViewerControlsProps> = ({
       </button>
 
       <div className="mx-1 h-4 w-[1px] bg-[#1F2942]" />
+
+      {/* Roof Toggle */}
+      <button
+        onClick={toggleRoofVisibility}
+        title={isRoofVisible ? "Hide Roof (Interior View)" : "Show 3D Roof"}
+        className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium transition-all ${
+          isRoofVisible
+            ? 'bg-[#00F0FF] text-[#0A0D14] font-semibold shadow-md shadow-[#00F0FF]/20'
+            : 'text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9]'
+        }`}
+      >
+        <Home className="h-3.5 w-3.5" />
+        <span>Roof</span>
+      </button>
 
       {/* Dollhouse Cutaway */}
       <button
