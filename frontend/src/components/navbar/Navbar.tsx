@@ -26,6 +26,7 @@ interface NavbarProps {
   onOpenGenerator: () => void;
   onOpenTakeoffs: () => void;
   onOpenReview: () => void;
+  onOpenRealism: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,7 +36,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAssistant,
   onOpenGenerator,
   onOpenTakeoffs,
-  onOpenReview
+  onOpenReview,
+  onOpenRealism
 }) => {
   const {
     viewMode,
@@ -126,6 +128,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Primary Actions */}
       <div className="flex items-center gap-2">
+        {/* Realism Agent CTA */}
+        <button
+          id="btn-nav-realism"
+          onClick={onOpenRealism}
+          title="AI Realism & PBR Material Agent"
+          className="flex items-center gap-1.5 rounded-lg border border-[#F59E0B]/40 bg-[#F59E0B]/15 px-3 py-1.5 text-xs font-bold text-[#F59E0B] shadow-md shadow-[#F59E0B]/10 hover:bg-[#F59E0B]/25 transition-all"
+        >
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline">Realism Agent</span>
+        </button>
+
         {/* Prompt-to-Design Generator CTA */}
         <button
           onClick={onOpenGenerator}

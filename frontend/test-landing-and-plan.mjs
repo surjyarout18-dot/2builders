@@ -118,6 +118,19 @@ async function runTest() {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/08_duplex_template_loaded.png` });
 
+  // 9. Test AI Realism Agent
+  console.log('9. Testing AI Realism Agent (PBR & Staging)...');
+  await page.click('#btn-nav-realism');
+  await page.waitForSelector('text=AI Realism & Rendering Agent', { timeout: 5000 });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${SCREENSHOTS_DIR}/09_ai_realism_modal.png` });
+
+  // Click Apply Realism
+  await page.click('button:has-text("Apply Realism Agent (Browser PBR)")');
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${SCREENSHOTS_DIR}/10_ai_realism_applied_pbr.png` });
+  console.log('   Successfully applied AI Realism enhancements!');
+
   console.log('=== TEST SUITE COMPLETED SUCCESSFULLY ===');
   console.log(`Console Errors (${consoleErrors.length}):`, consoleErrors);
 

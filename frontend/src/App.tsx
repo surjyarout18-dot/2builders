@@ -10,6 +10,7 @@ import { AiAssistantDrawer } from './components/assistant/AiAssistantDrawer';
 import { PromptToPlanModal } from './components/generator/PromptToPlanModal';
 import { RecognitionReviewModal } from './components/recognition/RecognitionReviewModal';
 import { ScheduleTakeoffsModal } from './components/schedule/ScheduleTakeoffsModal';
+import { RealismControlsModal } from './components/viewer3d/RealismControlsModal';
 import { FloorLevelBar } from './components/floors/FloorLevelBar';
 import { LandingPage } from './components/landing/LandingPage';
 import { useFloorPlanStore } from './store/useFloorPlanStore';
@@ -24,6 +25,7 @@ export default function App() {
   const [isGeneratorOpen, setIsGeneratorOpen] = useState<boolean>(false);
   const [isReviewOpen, setIsReviewOpen] = useState<boolean>(false);
   const [isTakeoffsOpen, setIsTakeoffsOpen] = useState<boolean>(false);
+  const [isRealismOpen, setIsRealismOpen] = useState<boolean>(false);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0A0D14] text-[#F1F5F9] font-sans antialiased">
@@ -42,6 +44,7 @@ export default function App() {
             onOpenGenerator={() => setIsGeneratorOpen(true)}
             onOpenTakeoffs={() => setIsTakeoffsOpen(true)}
             onOpenReview={() => setIsReviewOpen(true)}
+            onOpenRealism={() => setIsRealismOpen(true)}
           />
 
           {/* Main Workspace Body */}
@@ -115,6 +118,11 @@ export default function App() {
       <ScheduleTakeoffsModal
         isOpen={isTakeoffsOpen}
         onClose={() => setIsTakeoffsOpen(false)}
+      />
+
+      <RealismControlsModal
+        isOpen={isRealismOpen}
+        onClose={() => setIsRealismOpen(false)}
       />
     </div>
   );

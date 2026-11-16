@@ -114,3 +114,32 @@ export async function chatAssistantApi(projectId: string, prompt: string) {
   if (!res.ok) throw new Error('Failed to query assistant');
   return res.json();
 }
+
+export async function enhanceRealismApi(
+  model: ArchitecturalModel,
+  style: string = "contemporary_warm",
+  orientation: string = "south",
+  day_night: string = "day"
+): Promise<ArchitecturalModel> {
+  const res = await fetch(`${API_BASE}/agents/enhance-realism`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      project_id: model.project_id,
+      model,
+      style,
+      orientation,
+      day_night
+    })
+  });
+  if (!res.ok) throw new Error('Failed to execute Realism Agent enhancement');
+  return res.json();
+}
+
+export async function downloadBlenderScriptApi(projectId: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/export/blender-script`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Failed to export Blender Python scene script');
+  return res.text();
+}
