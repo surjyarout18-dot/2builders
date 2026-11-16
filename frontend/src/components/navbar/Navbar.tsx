@@ -27,6 +27,7 @@ interface NavbarProps {
   onOpenTakeoffs: () => void;
   onOpenReview: () => void;
   onOpenRealism: () => void;
+  onOpenHistory: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,7 +38,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenGenerator,
   onOpenTakeoffs,
   onOpenReview,
-  onOpenRealism
+  onOpenRealism,
+  onOpenHistory
 }) => {
   const {
     viewMode,
@@ -52,8 +54,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isCheckpointsOpen, setIsCheckpointsOpen] = useState(false);
 
   const viewModes: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
+    { id: '2d', label: 'Edit (2D)', icon: <Square className="h-4 w-4" /> },
     { id: 'split', label: 'Split CAD', icon: <Split className="h-4 w-4" /> },
-    { id: '2d', label: '2D Plan', icon: <Square className="h-4 w-4" /> },
     { id: '3d', label: '3D Scene', icon: <Box className="h-4 w-4" /> },
     { id: 'walkthrough', label: 'Walk (FPS)', icon: <User className="h-4 w-4" /> },
   ];
@@ -180,50 +182,25 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* AI Assistant */}
         <button
           onClick={onOpenAssistant}
+          title="AI Architectural Assistant"
           className="flex items-center gap-1.5 rounded-lg border border-[#1F2942] bg-[#161F33] px-2.5 py-1.5 text-xs font-semibold text-[#94A3B8] hover:border-[#00F0FF] hover:text-[#00F0FF] transition-colors"
         >
           <Sparkles className="h-4 w-4 text-[#00F0FF]" />
         </button>
 
-        {/* Version Checkpoints Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setIsCheckpointsOpen(!isCheckpointsOpen)}
-            title="Version Checkpoints"
-            className="flex items-center gap-1.5 rounded-lg border border-[#1F2942] bg-[#161F33] px-2.5 py-1.5 text-xs font-semibold text-[#94A3B8] hover:border-[#00F0FF] hover:text-[#00F0FF] transition-colors"
-          >
-            <History className="h-4 w-4" />
-            <span className="font-mono text-[11px] text-[#00F0FF]">
-              {(model.checkpoints || []).length}
-            </span>
-          </button>
-
-          {isCheckpointsOpen && (
-            <div className="absolute right-0 top-12 w-64 rounded-xl border border-[#1F2942] bg-[#111726] p-3 shadow-2xl z-50 animate-in fade-in">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-[#F1F5F9]">Version Checkpoints</span>
-                <button
-                  onClick={() => {
-                    createCheckpoint(`Checkpoint ${(model.checkpoints || []).length + 1}`);
-                  }}
-                  className="rounded bg-[#00F0FF]/15 px-2 py-0.5 text-[10px] font-bold text-[#00F0FF] hover:bg-[#00F0FF]/25"
-                >
-                  + Save Now
-                </button>
-              </div>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {(model.checkpoints || []).map((cp) => (
-                  <div key={cp.id} className="rounded-lg bg-[#161F33] p-2 text-xs">
-                    <div className="font-semibold text-[#F1F5F9]">{cp.name}</div>
-                    <div className="font-mono text-[10px] text-[#94A3B8]">
-                      {new Date(cp.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {cp.change_summary}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Dedicated /history Navigation Button */}
+        <button
+          id="btn-nav-history"
+          onClick={onOpenHistory}
+          title="Architectural Revision History & Checkpoints (/history, Ctrl+H)"
+          className="flex items-center gap-1.5 rounded-lg border border-[#1F2942] bg-[#161F33] px-3 py-1.5 text-xs font-semibold text-[#F1F5F9] hover:border-[#00F0FF] hover:text-[#00F0FF] transition-all"
+        >
+          <History className="h-4 w-4 text-[#00F0FF]" />
+          <span className="hidden md:inline font-mono text-[11px]">/history</span>
+          <span className="rounded-full bg-[#00F0FF]/15 px-1.5 py-0.2 font-mono text-[10px] font-bold text-[#00F0FF]">
+            {(model.checkpoints || []).length}
+          </span>
+        </button>
 
         {/* Export CTA */}
         <button

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/navbar/Navbar';
 import { Canvas2D } from './components/canvas2d/Canvas2D';
 import { BuildingScene } from './components/viewer3d/BuildingScene';
@@ -11,12 +11,13 @@ import { PromptToPlanModal } from './components/generator/PromptToPlanModal';
 import { RecognitionReviewModal } from './components/recognition/RecognitionReviewModal';
 import { ScheduleTakeoffsModal } from './components/schedule/ScheduleTakeoffsModal';
 import { RealismControlsModal } from './components/viewer3d/RealismControlsModal';
+import { HistoryModal } from './components/history/HistoryModal';
 import { FloorLevelBar } from './components/floors/FloorLevelBar';
 import { LandingPage } from './components/landing/LandingPage';
 import { useFloorPlanStore } from './store/useFloorPlanStore';
 
 export default function App() {
-  const { viewMode, currentPage } = useFloorPlanStore();
+  const { viewMode, setViewMode, currentPage } = useFloorPlanStore();
 
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
@@ -26,6 +27,20 @@ export default function App() {
   const [isReviewOpen, setIsReviewOpen] = useState<boolean>(false);
   const [isTakeoffsOpen, setIsTakeoffsOpen] = useState<boolean>(false);
   const [isRealismOpen, setIsRealismOpen] = useState<boolean>(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+
+  // Global hotkeys for /history and /edit navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+H or Cmd+H to toggle Revision History
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setIsHistoryOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0A0D14] text-[#F1F5F9] font-sans antialiased">
@@ -45,6 +60,7 @@ export default function App() {
             onOpenTakeoffs={() => setIsTakeoffsOpen(true)}
             onOpenReview={() => setIsReviewOpen(true)}
             onOpenRealism={() => setIsRealismOpen(true)}
+            onOpenHistory={() => setIsHistoryOpen(true)}
           />
 
           {/* Main Workspace Body */}
@@ -123,6 +139,11 @@ export default function App() {
       <RealismControlsModal
         isOpen={isRealismOpen}
         onClose={() => setIsRealismOpen(false)}
+      />
+
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
       />
     </div>
   );

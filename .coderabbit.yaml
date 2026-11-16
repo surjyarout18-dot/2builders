@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit configuration for 2builders architectural CAD studio
+language: "en-US"
+tone_instructions: "Maintain strict architectural rigor, zero regression tolerance, clean TypeScript/React composition, and pure Python domain boundaries."
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    ignore_title_keywords:
+      - "WIP"
+      - "draft"
+    drafts: false
+    base_branches:
+      - "main"
+      - "robin"
+  path_filters:
+    - "!dist/**"
+    - "!node_modules/**"
+    - "!.pytest_cache/**"
+    - "!__pycache__/**"
+    - "!*.png"
+    - "!*.glb"
+    - "!*.obj"
+  tools:
+    ast-grep:
+      enabled: true
+    shellcheck:
+      enabled: true
+    ruff:
+      enabled: true
+    biome:
+      enabled: true
+
+chat:
+  auto_reply: true

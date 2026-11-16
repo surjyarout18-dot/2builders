@@ -135,6 +135,7 @@ export interface VersionCheckpoint {
   name: string;
   timestamp: number;
   change_summary: string;
+  snapshot?: ArchitecturalModel;
 }
 
 export type UnitSystem = 'metric' | 'imperial';

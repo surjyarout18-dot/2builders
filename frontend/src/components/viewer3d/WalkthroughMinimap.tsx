@@ -37,7 +37,8 @@ export const WalkthroughMinimap: React.FC = () => {
     navigateToPoint,
     navigateToRoom,
     showMinimap,
-    toggleMinimap
+    toggleMinimap,
+    viewMode
   } = useFloorPlanStore();
 
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -85,8 +86,10 @@ export const WalkthroughMinimap: React.FC = () => {
     };
   }, [activeFloor]);
 
-  // Dimension settings
-  const mapWidth = isExpanded ? 360 : 220;
+  // Dimension settings (adaptive for split vs full 3D viewport)
+  const isSplit = viewMode === 'split';
+  const defaultWidth = isSplit ? 190 : 220;
+  const mapWidth = isExpanded ? (isSplit ? 280 : 360) : defaultWidth;
   const mapHeight = Math.round((mapWidth * bounds.height) / bounds.width);
 
   // Coordinate conversion: floor (x, z) to SVG (sx, sy)

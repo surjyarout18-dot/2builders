@@ -28,7 +28,7 @@ export const WalkthroughTourBar: React.FC = () => {
     navigateToRoom,
     walkthroughPosition,
     walkthroughSpeed,
-    setUnitSystem
+    viewMode
   } = useFloorPlanStore();
 
   const activeFloor = model.floors[activeFloorIndex] || model.floors[0] || {
@@ -52,8 +52,13 @@ export const WalkthroughTourBar: React.FC = () => {
   ];
   const currentTourRoom = rooms[autoTourRoomIndex] || rooms[0];
 
+  const isSplit = viewMode === 'split';
+  const containerPosition = isSplit
+    ? 'bottom-4 left-4 max-w-[calc(100%-250px)] items-start'
+    : 'bottom-5 left-1/2 -translate-x-1/2 max-w-[65vw] items-center';
+
   return (
-    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 max-w-[92vw] pointer-events-auto">
+    <div className={`absolute ${containerPosition} z-20 flex flex-col gap-2 pointer-events-auto transition-all duration-300`}>
       {/* Quick-Jump Room Pills Carousel */}
       <div className="flex items-center gap-1.5 overflow-x-auto max-w-full rounded-2xl border border-[#1F2942]/80 bg-[#070A14]/90 p-1.5 backdrop-blur-xl shadow-2xl scrollbar-none">
         {rooms.map((room, idx) => {

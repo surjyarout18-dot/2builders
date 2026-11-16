@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sliders,
   Trash2,
@@ -11,7 +11,9 @@ import {
   Milestone,
   Columns3,
   Home,
-  Compass
+  Compass,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 import { MaterialPicker } from './MaterialPicker';
@@ -21,6 +23,7 @@ interface PropertiesPanelProps {
 }
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onOpenFurnitureCatalog }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const {
     model,
     activeFloorIndex,
@@ -105,22 +108,70 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ onOpenFurnitur
     has_boundary_wall: true
   };
 
+  // Auto-expand inspector when user selects an architectural element
+  useEffect(() => {
+    if (selectedEntity.type && isCollapsed) {
+      setIsCollapsed(false);
+    }
+  }, [selectedEntity.type]);
+
+  if (isCollapsed) {
+    return (
+      <div className="flex h-full w-12 flex-col items-center justify-between border-l border-[#1F2942] bg-[#0E1424]/95 py-3 backdrop-blur-md select-none transition-all duration-300 z-20">
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#161F33] text-[#00F0FF] hover:bg-[#00F0FF]/20 transition-colors shadow-md"
+            title="Expand Properties Inspector (Ctrl+B)"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="h-4 w-px bg-[#1F2942]" />
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#161F33] hover:text-[#00F0FF] transition-colors"
+            title="Inspect Properties"
+          >
+            <Sliders className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onOpenFurnitureCatalog}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#161F33] hover:text-[#00F0FF] transition-colors"
+            title="Open Furniture Catalog"
+          >
+            <Armchair className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full w-80 flex-col border-l border-[#1F2942] bg-[#111726]/95 backdrop-blur-md select-none overflow-y-auto">
+    <div className="flex h-full w-80 flex-col border-l border-[#1F2942] bg-[#111726]/95 backdrop-blur-md select-none overflow-y-auto transition-all duration-300">
       {/* Panel Header */}
       <div className="flex items-center justify-between border-b border-[#1F2942] px-4 py-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-[#F1F5F9]">
           <Sliders className="h-4 w-4 text-[#00F0FF]" />
           <span>Properties Inspector</span>
         </div>
-        {selectedEntity.type && (
+        <div className="flex items-center gap-1">
+          {selectedEntity.type && (
+            <button
+              onClick={() => setSelectedEntity({ type: null, id: null })}
+              className="rounded p-1 text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9] transition-colors"
+              title="Clear Selection"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
           <button
-            onClick={() => setSelectedEntity({ type: null, id: null })}
-            className="rounded p-1 text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#F1F5F9]"
+            onClick={() => setIsCollapsed(true)}
+            className="rounded p-1 text-[#94A3B8] hover:bg-[#1F2942] hover:text-[#00F0FF] transition-colors"
+            title="Collapse Inspector (Expand Canvas View)"
           >
-            <X className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" />
           </button>
-        )}
+        </div>
       </div>
 
       <div className="p-4 space-y-5">

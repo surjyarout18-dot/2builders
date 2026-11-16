@@ -16,13 +16,27 @@ export const FloorLevelBar: React.FC = () => {
     setActiveFloorIndex,
     addFloor,
     duplicateFloor,
-    deleteFloor
+    deleteFloor,
+    viewMode
   } = useFloorPlanStore();
 
   const floors = model.floors || [];
 
+  // In Walkthrough mode, minimap handles floor switching to keep center clear for tour bar
+  if (viewMode === 'walkthrough') return null;
+
+  // Responsive, non-overlapping positioning based on active view mode
+  const positionClass =
+    viewMode === '3d'
+      ? 'bottom-14 left-4' // Neatly stacked above 3D status pill, clearing center and right
+      : viewMode === 'split'
+      ? 'bottom-4 left-[25%] -translate-x-1/2' // Centered under 2D CAD canvas, clearing 3D half
+      : 'bottom-4 left-1/2 -translate-x-1/2'; // Standard 2D centered
+
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-xl border border-[#1F2942] bg-[#111726]/95 p-1.5 shadow-2xl backdrop-blur-md select-none font-sans">
+    <div
+      className={`absolute ${positionClass} z-20 flex items-center gap-1.5 rounded-xl border border-[#1F2942] bg-[#111726]/95 p-1.5 shadow-2xl backdrop-blur-md select-none font-sans transition-all duration-300`}
+    >
       <div className="flex items-center gap-1.5 px-2 text-[11px] font-mono text-[#00F0FF]">
         <Layers className="h-3.5 w-3.5" />
         <span className="font-bold">LEVELS</span>

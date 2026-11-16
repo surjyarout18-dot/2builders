@@ -188,21 +188,23 @@ export const BuildingScene: React.FC = () => {
         />
       </Canvas>
 
-      {/* 3D Mode HUD Indicator */}
-      <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 rounded-lg border border-[#1F2942] bg-[#111726]/90 px-3 py-1.5 text-xs text-[#94A3B8] backdrop-blur-md font-mono">
-        <span className="flex h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
-        <span className="text-[#F1F5F9]">2builders 3D Engine</span>
-        <span>•</span>
-        <span>{model.floors.length} Levels</span>
-        <span>•</span>
-        <span>{activeFloor.walls.length} Walls</span>
-        {isDollhouseView && (
-          <span className="rounded bg-[#00F0FF]/10 px-1.5 py-0.5 text-[#00F0FF]">Dollhouse</span>
-        )}
-        {model.building.roof?.visible && (
-          <span className="rounded bg-[#10B981]/10 px-1.5 py-0.5 text-[#10B981]">Roof ON</span>
-        )}
-      </div>
+      {/* 3D Mode HUD Indicator - Hidden in first-person walkthrough for zero bottom HUD overlap */}
+      {!isFirstPerson && (
+        <div className="hidden sm:flex absolute bottom-4 left-4 z-20 items-center gap-2 rounded-lg border border-[#1F2942] bg-[#111726]/90 px-3 py-1.5 text-xs text-[#94A3B8] backdrop-blur-md font-mono">
+          <span className="flex h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
+          <span className="text-[#F1F5F9]">2builders 3D Engine</span>
+          <span>•</span>
+          <span>{model.floors.length} Levels</span>
+          <span>•</span>
+          <span>{activeFloor.walls.length} Walls</span>
+          {isDollhouseView && (
+            <span className="rounded bg-[#00F0FF]/10 px-1.5 py-0.5 text-[#00F0FF]">Dollhouse</span>
+          )}
+          {model.building.roof?.visible && (
+            <span className="rounded bg-[#10B981]/10 px-1.5 py-0.5 text-[#10B981]">Roof ON</span>
+          )}
+        </div>
+      )}
 
       {/* Walkthrough Instructions Overlay */}
       {isFirstPerson && (

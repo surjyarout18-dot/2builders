@@ -838,22 +838,36 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
     });
   },
 
-  // Checkpoints
+  // Checkpoints & Revision History
   createCheckpoint: (name, summary = "Manual checkpoint") => {
     const { model } = get();
+    // Deep clone model snapshot without recursive checkpoint references
+    const { checkpoints: _prevCps, ...modelToSnapshot } = model;
+    const snapshot: ArchitecturalModel = JSON.parse(JSON.stringify(modelToSnapshot));
     const newCheckpoint: VersionCheckpoint = {
       id: `cp_${Date.now()}`,
       name,
       timestamp: Date.now(),
-      change_summary: summary
+      change_summary: summary,
+      snapshot
     };
     const checkpoints = [...(model.checkpoints || []), newCheckpoint];
-    get().setModel({ ...model, checkpoints });
+    set({
+      model: { ...model, checkpoints }
+    });
   },
 
   restoreCheckpoint: (checkpointId) => {
-    // In our local state, checkpoints preserve history
-    console.log(`Restoring to checkpoint ${checkpointId}`);
+    const { model } = get();
+    const targetCp = (model.checkpoints || []).find((c) => c.id === checkpointId);
+    if (targetCp && targetCp.snapshot) {
+      // Deep restore snapshot while keeping full checkpoint audit trail
+      const restoredModel: ArchitecturalModel = {
+        ...JSON.parse(JSON.stringify(targetCp.snapshot)),
+        checkpoints: model.checkpoints
+      };
+      get().setModel(restoredModel);
+    }
   },
 
   // AI Layout Candidates
