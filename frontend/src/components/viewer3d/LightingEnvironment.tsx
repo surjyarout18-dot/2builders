@@ -1,4 +1,5 @@
 import React from 'react';
+import { Sky } from '@react-three/drei';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 
 export const LightingEnvironment: React.FC = () => {
@@ -50,11 +51,11 @@ export const LightingEnvironment: React.FC = () => {
       ) : (
         // Day Scene: Crisp architectural sunlight with soft ground bounce
         <>
-          <color attach="background" args={['#0A0D14']} />
-          <ambientLight intensity={0.65} color="#E2E8F0" />
+          <Sky sunPosition={[18, 30, 22]} turbidity={2.5} rayleigh={0.5} distance={1000} />
+          <ambientLight intensity={0.55} color="#E2E8F0" />
           <directionalLight
             position={[18, 30, 22]}
-            intensity={1.6}
+            intensity={1.8}
             color="#FFFBEB"
             castShadow
             shadow-mapSize-width={2048}

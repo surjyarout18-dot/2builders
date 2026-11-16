@@ -50,11 +50,17 @@ export const Hero3DPreview: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none overflow-hidden rounded-2xl border border-[#1F2942] bg-[#070A11] shadow-2xl">
-      {/* 3D Canvas */}
+      {/* 3D Canvas with ACES Filmic Tone Mapping */}
       <Canvas
         camera={{ position: [cx + 12, 10, cz + 14], fov: 42 }}
         shadows
-        gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
+        gl={{
+          antialias: true,
+          alpha: false,
+          preserveDrawingBuffer: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.15
+        }}
       >
         <color attach="background" args={[dayNightMode === 'night' ? '#070A12' : '#0B111E']} />
         

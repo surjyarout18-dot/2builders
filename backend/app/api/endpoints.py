@@ -20,6 +20,8 @@ from backend.app.ai_engine.layout_generator import generate_candidate_layouts
 from backend.app.agents.architectural_agent import ArchitecturalAgent
 from backend.app.agents.realism_agent import RealismAgent
 from backend.app.agents.blender_bridge import generate_blender_python_script
+from backend.app.agents.d5_exporter import export_d5_render_bundle
+from backend.app.agents.cubicasa_parser import CubiCasaSemanticParser
 from backend.app.geometry_engine.glb_exporter import export_model_to_glb, export_model_to_obj
 from backend.app.geometry_engine.roof_generator import generate_roof_mesh
 
@@ -566,6 +568,24 @@ def export_blender_script(project_id: str) -> Response:
         media_type="text/x-python",
         headers={"Content-Disposition": f'attachment; filename="{model.name.replace(" ", "_")}_blender_scene.py"'}
     )
+
+@router.post("/projects/{project_id}/export/d5-render")
+def export_d5_render(project_id: str) -> Dict[str, Any]:
+    """
+    Generates a production asset bundle for D5 Render (Ray Tracing + DLSS 3.5)
+    and Unreal Engine 5 with linked OBJ, MTL, and project manifest.
+    """
+    model = MODELS_DB.get(project_id)
+    if not model:
+        arch_agent = ArchitecturalAgent()
+        model = arch_agent.synthesize_from_walls([
+            {"start": {"x": 0.0, "z": 0.0}, "end": {"x": 10.0, "z": 0.0}},
+            {"start": {"x": 10.0, "z": 0.0}, "end": {"x": 10.0, "z": 8.0}},
+            {"start": {"x": 10.0, "z": 8.0}, "end": {"x": 0.0, "z": 8.0}},
+            {"start": {"x": 0.0, "z": 8.0}, "end": {"x": 0.0, "z": 0.0}},
+        ])
+
+    return export_d5_render_bundle(model)
 
 @router.post("/agents/architectural-solve")
 def architectural_solve(req: ArchitecturalSolveRequest) -> ArchitecturalModel:

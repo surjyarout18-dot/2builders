@@ -143,3 +143,11 @@ export async function downloadBlenderScriptApi(projectId: string): Promise<strin
   if (!res.ok) throw new Error('Failed to export Blender Python scene script');
   return res.text();
 }
+
+export async function exportD5RenderApi(projectId: string): Promise<{ obj_content: string; mtl_content: string; manifest: any }> {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/export/d5-render`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Failed to export D5 Render bundle');
+  return res.json();
+}

@@ -8,9 +8,12 @@ import {
   Layers,
   X,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Video,
+  Cpu
 } from 'lucide-react';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
+import { downloadBlenderScriptApi, exportD5RenderApi } from '../../services/api';
 import {
   exportGLB,
   exportOBJ,
@@ -41,7 +44,42 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
 
   if (!isOpen) return null;
 
+  const handleExportD5 = async () => {
+    try {
+      const bundle = await exportD5RenderApi(model.project_id);
+      downloadFile(bundle.obj_content, `${model.name.replace(/\s+/g, '_')}_D5.obj`, 'text/plain');
+      downloadFile(bundle.mtl_content, `${model.name.replace(/\s+/g, '_')}_D5.mtl`, 'text/plain');
+    } catch (e) {
+      exportOBJ(model);
+    }
+  };
+
+  const handleExportBlender = async () => {
+    try {
+      const script = await downloadBlenderScriptApi(model.project_id);
+      downloadFile(script, `${model.name.replace(/\s+/g, '_')}_blender.py`, 'text/x-python');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const exportFormats = [
+    {
+      id: 'd5',
+      title: 'D5 Render & Unreal Engine (.obj + .mtl)',
+      desc: 'Configured for real-time ray-tracing, DLSS 3.5 reconstruction and PBR materials',
+      icon: <Cpu className="h-6 w-6 text-[#00F0FF]" />,
+      action: handleExportD5,
+      badge: 'D5 Ray-Tracing'
+    },
+    {
+      id: 'blender',
+      title: 'Blender 4.x Production Script (.py)',
+      desc: 'Automated Python scene generator with Cycles path-tracer, PBR nodes & OIDN denoiser',
+      icon: <Video className="h-6 w-6 text-[#F59E0B]" />,
+      action: handleExportBlender,
+      badge: 'Cycles Engine'
+    },
     {
       id: 'glb',
       title: '3D Binary glTF (.glb)',

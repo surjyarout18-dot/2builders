@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, ContactShadows } from '@react-three/drei';
+import { OrbitControls, ContactShadows, SoftShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 import { ParametricWallMesh } from './ParametricWallMesh';
@@ -87,13 +87,20 @@ export const BuildingScene: React.FC = () => {
         onResetCamera={handleResetCamera}
       />
 
-      {/* Main 3D WebGL Canvas */}
+      {/* Main 3D WebGL Canvas with ACES Filmic Tone Mapping */}
       <Canvas
         shadows
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.15
+        }}
         camera={{ position: [14, 12, 14], fov: 42 }}
         onPointerMissed={handlePointerMissed}
         className="h-full w-full"
       >
+        {/* Real-time Soft Shadow Penumbra (D5 / Ray-tracing grade) */}
+        <SoftShadows size={14} samples={16} focus={0.5} />
         <LightingEnvironment />
 
         {/* Orbit Controls (Disabled when Walkthrough is active) */}
