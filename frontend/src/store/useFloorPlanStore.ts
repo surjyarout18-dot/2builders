@@ -18,6 +18,12 @@ import {
   VersionCheckpoint,
   PointXZ
 } from '../types/architectural';
+import {
+  Inhabitant,
+  RoomClimate,
+  DEFAULT_INHABITANTS,
+  DEFAULT_ROOM_CLIMATES
+} from '../types/presence';
 
 const INITIAL_MODEL: ArchitecturalModel = {
   schema_version: "1.0",
@@ -215,6 +221,78 @@ const INITIAL_MODEL: ArchitecturalModel = {
           color: "#78350F"
         },
         {
+          id: "furn_rug_living",
+          floor_id: "floor_0",
+          room_id: "rm_living",
+          asset_id: "rug_area",
+          name: "Nordic Woven Living Rug",
+          category: "decor",
+          position: { x: 2.2, y: 0.015, z: 2.2 },
+          rotation_y: 0,
+          dimensions: { x: 2.8, y: 0.02, z: 2.4 },
+          color: "#475569"
+        },
+        {
+          id: "furn_tv_console",
+          floor_id: "floor_0",
+          room_id: "rm_living",
+          asset_id: "tv_console",
+          name: "OLED TV & Media Console",
+          category: "living",
+          position: { x: 2.2, y: 0.35, z: 0.5 },
+          rotation_y: 0,
+          dimensions: { x: 2.0, y: 0.55, z: 0.45 },
+          color: "#1E293B"
+        },
+        {
+          id: "furn_plant_living",
+          floor_id: "floor_0",
+          room_id: "rm_living",
+          asset_id: "plant_fiddle",
+          name: "Fiddle Leaf Fig Planter",
+          category: "decor",
+          position: { x: 0.6, y: 0.7, z: 0.6 },
+          rotation_y: 0,
+          dimensions: { x: 0.55, y: 1.4, z: 0.55 },
+          color: "#15803D"
+        },
+        {
+          id: "furn_floor_lamp",
+          floor_id: "floor_0",
+          room_id: "rm_living",
+          asset_id: "floor_lamp",
+          name: "Architectural Arc Floor Lamp",
+          category: "decor",
+          position: { x: 4.6, y: 0.8, z: 1.2 },
+          rotation_y: 0,
+          dimensions: { x: 0.45, y: 1.6, z: 0.45 },
+          color: "#F59E0B"
+        },
+        {
+          id: "furn_dining_table",
+          floor_id: "floor_0",
+          room_id: "rm_living",
+          asset_id: "dining_table_6",
+          name: "6-Seater Oak Dining Table",
+          category: "dining",
+          position: { x: 2.2, y: 0.45, z: 4.2 },
+          rotation_y: 0,
+          dimensions: { x: 1.8, y: 0.75, z: 0.9 },
+          color: "#B45309"
+        },
+        {
+          id: "furn_kitchen_island",
+          floor_id: "floor_0",
+          room_id: "rm_living",
+          asset_id: "kitchen_island",
+          name: "Calacatta Quartz Island",
+          category: "kitchen",
+          position: { x: 4.4, y: 0.45, z: 4.0 },
+          rotation_y: 0,
+          dimensions: { x: 1.6, y: 0.9, z: 0.8 },
+          color: "#F1F5F9"
+        },
+        {
           id: "furn_bed_master",
           floor_id: "floor_0",
           room_id: "rm_master",
@@ -227,6 +305,30 @@ const INITIAL_MODEL: ArchitecturalModel = {
           color: "#0284C7"
         },
         {
+          id: "furn_rug_master",
+          floor_id: "floor_0",
+          room_id: "rm_master",
+          asset_id: "rug_area",
+          name: "Plush Bedroom Wool Rug",
+          category: "decor",
+          position: { x: 7.8, y: 0.015, z: 2.2 },
+          rotation_y: 0,
+          dimensions: { x: 2.4, y: 0.02, z: 2.4 },
+          color: "#334155"
+        },
+        {
+          id: "furn_plant_master",
+          floor_id: "floor_0",
+          room_id: "rm_master",
+          asset_id: "plant_fiddle",
+          name: "Monstera Botanical Planter",
+          category: "decor",
+          position: { x: 9.3, y: 0.65, z: 0.7 },
+          rotation_y: 0,
+          dimensions: { x: 0.5, y: 1.3, z: 0.5 },
+          color: "#16A34A"
+        },
+        {
           id: "furn_bed2",
           floor_id: "floor_0",
           room_id: "rm_bed2",
@@ -237,6 +339,30 @@ const INITIAL_MODEL: ArchitecturalModel = {
           rotation_y: 0,
           dimensions: { x: 1.4, y: 0.9, z: 2.0 },
           color: "#475569"
+        },
+        {
+          id: "furn_vanity",
+          floor_id: "floor_0",
+          room_id: "rm_bath",
+          asset_id: "vanity_sink",
+          name: "Floating Oak Vanity",
+          category: "bathroom",
+          position: { x: 0.8, y: 0.45, z: 6.0 },
+          rotation_y: 0,
+          dimensions: { x: 0.9, y: 0.85, z: 0.5 },
+          color: "#E2E8F0"
+        },
+        {
+          id: "furn_bathtub",
+          floor_id: "floor_0",
+          room_id: "rm_bath",
+          asset_id: "bathtub_freestanding",
+          name: "Freestanding Soak Tub",
+          category: "bathroom",
+          position: { x: 2.0, y: 0.35, z: 7.0 },
+          rotation_y: 0,
+          dimensions: { x: 1.6, y: 0.6, z: 0.8 },
+          color: "#FFFFFF"
         }
       ]
     }
@@ -346,6 +472,20 @@ interface FloorPlanState {
   setCandidateLayouts: (candidates: ArchitecturalModel[]) => void;
   selectCandidateLayout: (index: number) => void;
 
+  // PadSpan Atlas Inhabitant Presence & Atmosphere
+  inhabitants: Inhabitant[];
+  roomClimates: Record<string, RoomClimate>;
+  showInhabitants: boolean;
+  toggleShowInhabitants: () => void;
+  floorPerimeterGlow: boolean;
+  toggleFloorPerimeterGlow: () => void;
+  showClimateBadges: boolean;
+  toggleShowClimateBadges: () => void;
+  selectedInhabitantId: string | null;
+  setSelectedInhabitantId: (id: string | null) => void;
+  wallMode: 'cut' | 'up' | 'down';
+  setWallMode: (mode: 'cut' | 'up' | 'down') => void;
+
   setCalibration: (pixelDist: number, realMeters: number) => void;
   undo: () => void;
   redo: () => void;
@@ -363,7 +503,7 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
   history: [INITIAL_MODEL],
   historyIndex: 0,
   showDetectionOverlay: false,
-  isDollhouseView: false,
+  isDollhouseView: true,
   isFirstPerson: false,
   dayNightMode: 'day',
   unitSystem: 'metric',
@@ -375,6 +515,20 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
   autoTourTarget: null,
   showMinimap: true,
   candidateLayouts: [],
+
+  // PadSpan Atlas Inhabitant Presence
+  inhabitants: DEFAULT_INHABITANTS,
+  roomClimates: DEFAULT_ROOM_CLIMATES,
+  showInhabitants: true,
+  toggleShowInhabitants: () => set((s) => ({ showInhabitants: !s.showInhabitants })),
+  floorPerimeterGlow: true,
+  toggleFloorPerimeterGlow: () => set((s) => ({ floorPerimeterGlow: !s.floorPerimeterGlow })),
+  showClimateBadges: true,
+  toggleShowClimateBadges: () => set((s) => ({ showClimateBadges: !s.showClimateBadges })),
+  selectedInhabitantId: null,
+  setSelectedInhabitantId: (id) => set({ selectedInhabitantId: id }),
+  wallMode: 'cut',
+  setWallMode: (mode) => set({ wallMode: mode, isDollhouseView: mode === 'cut' }),
 
   setCurrentPage: (page) => set({ currentPage: page }),
   setWalkthroughPosition: (pos) => set({ walkthroughPosition: pos }),
@@ -428,19 +582,26 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
     }
   },
   navigateToRoom: (roomId) => {
-    const { model, activeFloorIndex } = get();
-    const fl = model.floors[activeFloorIndex] || model.floors[0];
-    const room = fl.rooms.find((r) => r.id === roomId);
-    if (room && room.polygon.length > 0) {
-      const cx = room.polygon.reduce((a, b) => a + b.x, 0) / room.polygon.length;
-      const cz = room.polygon.reduce((a, b) => a + b.z, 0) / room.polygon.length;
-      const roomIdx = fl.rooms.indexOf(room);
-      set({
-        viewMode: 'walkthrough',
-        isFirstPerson: true,
-        autoTourRoomIndex: roomIdx >= 0 ? roomIdx : 0,
-        autoTourTarget: { x: cx, z: cz }
-      });
+    const { model, viewMode } = get();
+    for (let fIdx = 0; fIdx < model.floors.length; fIdx++) {
+      const fl = model.floors[fIdx];
+      const room = fl.rooms.find((r) => r.id === roomId);
+      if (room && room.polygon.length > 0) {
+        const cx = room.polygon.reduce((a, b) => a + b.x, 0) / room.polygon.length;
+        const cz = room.polygon.reduce((a, b) => a + b.z, 0) / room.polygon.length;
+        const roomIdx = fl.rooms.indexOf(room);
+        const updates: Partial<FloorPlanState> = {
+          activeFloorIndex: fIdx,
+          autoTourRoomIndex: roomIdx >= 0 ? roomIdx : 0,
+          autoTourTarget: { x: cx, z: cz },
+          selectedEntity: { type: 'room', id: room.id }
+        };
+        if (viewMode === 'walkthrough') {
+          updates.walkthroughPosition = { x: cx, z: cz, angle: 0 };
+        }
+        set(updates);
+        break;
+      }
     }
   },
   navigateToPoint: (x, z) => {

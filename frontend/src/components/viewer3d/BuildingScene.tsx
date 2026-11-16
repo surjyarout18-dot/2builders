@@ -15,6 +15,8 @@ import { FirstPersonWalkthrough } from './FirstPersonWalkthrough';
 import { LightingEnvironment } from './LightingEnvironment';
 import { ViewerControls } from './ViewerControls';
 import { ParametricFurnitureMesh } from '../furniture/ParametricFurnitureMesh';
+import { ParametricInhabitantAvatar } from './ParametricInhabitantAvatar';
+import { AtlasPresenceRibbon } from './AtlasPresenceRibbon';
 import { WalkthroughMinimap } from './WalkthroughMinimap';
 import { WalkthroughTourBar } from './WalkthroughTourBar';
 
@@ -27,7 +29,9 @@ export const BuildingScene: React.FC = () => {
     activeFloorIndex,
     walkthroughEyeHeight,
     walkthroughSpeed,
-    toggleFirstPerson
+    toggleFirstPerson,
+    inhabitants,
+    showInhabitants
   } = useFloorPlanStore();
   const controlsRef = useRef<any>(null);
 
@@ -83,6 +87,9 @@ export const BuildingScene: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none overflow-hidden bg-[#0A0D14]">
+      {/* PadSpan Atlas Live Room Presence & Activity Ribbon */}
+      <AtlasPresenceRibbon />
+
       {/* 3D Floating Action Controls */}
       <ViewerControls
         onSetCameraView={handleSetCameraView}
@@ -171,6 +178,25 @@ export const BuildingScene: React.FC = () => {
             {(fl.furniture || []).map((item) => (
               <ParametricFurnitureMesh key={item.id} item={item} />
             ))}
+
+            {/* Inhabitants & Live Beacon Avatars (PadSpan Atlas style) */}
+            {showInhabitants && (fl.rooms || []).map((room) => {
+              const inhInRoom = inhabitants.filter((i) => i.roomId === room.id);
+              if (inhInRoom.length === 0 || room.polygon.length < 3) return null;
+              const sum = room.polygon.reduce((acc, p) => ({ x: acc.x + p.x, z: acc.z + p.z }), { x: 0, z: 0 });
+              const centroid: [number, number, number] = [
+                sum.x / room.polygon.length,
+                0.02,
+                sum.z / room.polygon.length
+              ];
+              return inhInRoom.map((inh) => (
+                <ParametricInhabitantAvatar
+                  key={inh.id}
+                  inhabitant={inh}
+                  roomCentroid={centroid}
+                />
+              ));
+            })}
           </group>
         ))}
 

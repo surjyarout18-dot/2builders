@@ -191,11 +191,16 @@ export const ParametricWallMesh: React.FC<ParametricWallMeshProps> = ({
 
       const angleY = Math.atan2(dx, dz);
 
+      const isTopBlock = isDollhouse && Math.abs(b.y1 - wallHeight) < 0.05;
+
       return {
         key: `${wall.id}_blk_${idx}_${b.s0.toFixed(3)}_${b.y0.toFixed(3)}`,
         position: [posX, midY, posZ] as [number, number, number],
         rotation: [0, angleY, 0] as [number, number, number],
         size: [wall.thickness, segHeight, segLen] as [number, number, number],
+        isTopBlock,
+        capPosition: [posX, b.y1 + 0.012, posZ] as [number, number, number],
+        capSize: [wall.thickness + 0.016, 0.024, segLen + 0.005] as [number, number, number],
       };
     });
   }, [wall, doors, windows, wallHeight, isDollhouse, allWalls]);
@@ -208,28 +213,47 @@ export const ParametricWallMesh: React.FC<ParametricWallMeshProps> = ({
   const wallColor = isSelected
     ? '#00F0FF'
     : wall.wall_type === 'exterior'
-    ? '#E2E8F0'
+    ? '#D8DEE9'
     : '#CBD5E1';
 
   return (
     <group onClick={handleClick}>
       {blocks.map((blk) => (
-        <mesh
-          key={blk.key}
-          position={blk.position}
-          rotation={blk.rotation}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={blk.size} />
-          <meshStandardMaterial
-            color={wallColor}
-            roughness={0.7}
-            metalness={0.05}
-            emissive={isSelected ? '#00F0FF' : '#000000'}
-            emissiveIntensity={isSelected ? 0.25 : 0}
-          />
-        </mesh>
+        <React.Fragment key={blk.key}>
+          {/* Main Wall Segment */}
+          <mesh
+            position={blk.position}
+            rotation={blk.rotation}
+            castShadow
+            receiveShadow
+          >
+            <boxGeometry args={blk.size} />
+            <meshStandardMaterial
+              color={wallColor}
+              roughness={0.7}
+              metalness={0.05}
+              emissive={isSelected ? '#00F0FF' : '#000000'}
+              emissiveIntensity={isSelected ? 0.25 : 0}
+            />
+          </mesh>
+
+          {/* Architectural Top-Cap Trim for Dollhouse Sliced Walls (PadSpan Atlas style) */}
+          {blk.isTopBlock && (
+            <mesh
+              position={blk.capPosition}
+              rotation={blk.rotation}
+              castShadow
+              receiveShadow
+            >
+              <boxGeometry args={blk.capSize} />
+              <meshStandardMaterial
+                color="#F8FAFC"
+                roughness={0.3}
+                metalness={0.05}
+              />
+            </mesh>
+          )}
+        </React.Fragment>
       ))}
     </group>
   );
