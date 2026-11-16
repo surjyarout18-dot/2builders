@@ -59,23 +59,32 @@ async function runTest() {
   await atlasRibbon.waitFor({ state: 'visible', timeout: 5000 });
   console.log('   ✓ Atlas 3D Live Engine ribbon mounted!');
 
-  const peopleCount = page.locator('text=People:');
-  await peopleCount.waitFor({ state: 'visible', timeout: 5000 });
-  console.log('   ✓ People count badge visible:', await peopleCount.innerText());
+  const spacesBadge = page.locator('text=Live Spaces:').first();
+  await spacesBadge.waitFor({ state: 'visible', timeout: 5000 });
+  console.log('   ✓ Spaces status banner visible!');
 
-  const motionIndicator = page.locator('text=Motion:');
-  await motionIndicator.waitFor({ state: 'visible', timeout: 5000 });
-  console.log('   ✓ Motion activity indicators active!');
+  const activeIndicator = page.locator('text=Active:').or(page.locator('text=Motion:'));
+  await activeIndicator.waitFor({ state: 'visible', timeout: 5000 });
+  console.log('   ✓ Space activity indicators active!');
 
   // Take screenshot of dollhouse with live presence
   await page.screenshot({ path: `${SCREENSHOTS_DIR}/26_atlas_3d_cutaway_dollhouse.png` });
   console.log('   ✓ Saved 26_atlas_3d_cutaway_dollhouse.png');
 
-  // 5. Verify Floating 3D Room Badges with Climate Readouts
-  console.log('5. Verifying 3D Floating Room Badges & Climate Readouts...');
+  // 5. Verify Floating 3D Room Badges with Pure Architectural Labels (NO people names)
+  console.log('5. Verifying 3D Floating Room Badges (Pure architectural labels, zero people names)...');
   const roomBadge = page.locator('text=Living').or(page.locator('text=Bed')).or(page.locator('text=Suite')).or(page.locator('text=Room')).first();
   await roomBadge.waitFor({ state: 'visible', timeout: 5000 });
-  console.log('   ✓ 3D room badge mounted with climate & presence!');
+  console.log('   ✓ 3D room badge mounted with architectural name!');
+
+  // Confirm NO people names (Alex, Jordan, Sam) exist on the room badges
+  const alexBadge = page.locator('text=Alex (Owner)').or(page.locator('text=Jordan (Guest)'));
+  const hasPeopleNames = await alexBadge.isVisible();
+  if (!hasPeopleNames) {
+    console.log('   ✓ VERIFIED: Zero people names present on 3D room badges!');
+  } else {
+    throw new Error('People names were found on the 3D room badges!');
+  }
 
   // Check temperature and humidity
   const tempReading = page.locator('text=°').first();

@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import { Inhabitant } from '../../types/presence';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 
@@ -124,43 +123,15 @@ export const ParametricInhabitantAvatar: React.FC<ParametricInhabitantAvatarProp
           </mesh>
         </group>
       ) : (
-        // Device / Tag Pin (Keys, AirTag)
-        <group position={[0, 0.5, 0]}>
+        // Device / Sensor Beacon Pin
+        <group position={[0, 0.4, 0]}>
           <mesh castShadow>
-            <cylinderGeometry args={[0.08, 0.08, 0.04, 24]} />
+            <cylinderGeometry args={[0.07, 0.07, 0.04, 24]} />
             <meshStandardMaterial color="#E2E8F0" metalness={0.8} roughness={0.2} />
           </mesh>
           <pointLight color="#8B5CF6" intensity={0.8} distance={2} decay={2} />
         </group>
       )}
-
-      {/* Floating PadSpan Atlas Inhabitant Tag Pill */}
-      <Html position={[0, 1.95, 0]} center distanceFactor={14}>
-        <div
-          onClick={handleClick}
-          className={`cursor-pointer select-none whitespace-nowrap rounded-full border px-2.5 py-1 text-center font-mono shadow-2xl backdrop-blur-xl transition-all hover:scale-105 ${
-            isSelected
-              ? 'border-[#00F0FF] bg-[#00F0FF] text-[#0A0D14] font-bold shadow-[0_0_20px_rgba(0,240,255,0.6)]'
-              : 'border-[#334155]/80 bg-[#070A14]/90 text-[#F1F5F9]'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 text-xs font-semibold">
-            <span
-              className="h-2 w-2 rounded-full animate-ping"
-              style={{ backgroundColor: inhabitant.color }}
-            />
-            <span>{inhabitant.name}</span>
-            <span className={`text-[10px] font-normal ${isSelected ? 'text-[#0A0D14]/80' : 'text-[#94A3B8]'}`}>
-              • {inhabitant.role}
-            </span>
-          </div>
-          {inhabitant.device && (
-            <div className={`text-[9px] ${isSelected ? 'text-[#0A0D14]/80' : 'text-[#64748B]'}`}>
-              {inhabitant.device}
-            </div>
-          )}
-        </div>
-      </Html>
     </group>
   );
 };

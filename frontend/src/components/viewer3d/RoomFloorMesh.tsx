@@ -189,7 +189,7 @@ export const RoomFloorMesh: React.FC<RoomFloorMeshProps> = ({ room }) => {
               <span>{room.name}</span>
             </div>
 
-            {/* Middle Row: Climate Readout & Motion */}
+            {/* Middle Row: Climate Readout & Area */}
             <div className="mt-1 flex items-center justify-center gap-2 font-mono text-[10px]">
               <span className="flex items-center gap-0.5 text-[#F59E0B]">
                 <Thermometer className="h-2.5 w-2.5" />
@@ -203,24 +203,13 @@ export const RoomFloorMesh: React.FC<RoomFloorMeshProps> = ({ room }) => {
               <span className="text-[#94A3B8]">{(room.area_sqm || 0).toFixed(1)}m²</span>
             </div>
 
-            {/* Bottom Row: Inhabitant Badges if present */}
+            {/* Bottom Row: Pure Architectural Zone Status (Zero people names) */}
             {hasInhabitants && (
-              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1 pt-1 border-t border-[#1F2942]/70">
-                {roomInhabitants.map((inh) => (
-                  <span
-                    key={inh.id}
-                    className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-mono font-medium shadow-sm"
-                    style={{
-                      backgroundColor: `${inh.color}22`,
-                      color: inh.color,
-                      border: `1px solid ${inh.color}55`
-                    }}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full animate-ping" style={{ backgroundColor: inh.color }} />
-                    <span>{inh.name}</span>
-                    <span className="opacity-75">({inh.role})</span>
-                  </span>
-                ))}
+              <div className="mt-1.5 flex items-center justify-center pt-1 border-t border-[#1F2942]/70">
+                <span className="flex items-center gap-1 rounded-full bg-[#10B981]/15 px-2 py-0.5 text-[9px] font-mono font-medium text-[#10B981] border border-[#10B981]/30">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-ping" />
+                  <span>Active Space</span>
+                </span>
               </div>
             )}
           </div>

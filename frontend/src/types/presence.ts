@@ -1,7 +1,7 @@
 export interface Inhabitant {
   id: string;
   name: string;
-  role: 'Owner' | 'Family' | 'Guest' | 'Pet' | 'Device';
+  role: 'ScaleFigure' | 'Occupant' | 'Zone' | 'Sensor' | 'Device' | 'Owner' | 'Family' | 'Guest' | 'Pet';
   roomId: string;
   status: 'home' | 'away' | 'motion_active';
   color: string;
@@ -23,53 +23,53 @@ export interface RoomClimate {
 
 export const DEFAULT_INHABITANTS: Inhabitant[] = [
   {
-    id: 'inh_alex',
-    name: 'Alex',
-    role: 'Owner',
+    id: 'inh_living',
+    name: 'Scale Figure',
+    role: 'ScaleFigure',
     roomId: 'rm_living',
     status: 'home',
     color: '#00F0FF',
     avatarIcon: '👤',
-    device: 'iPhone 15 Pro',
+    device: 'Zone Active',
     beaconId: 'beacon_living_proxy',
     lastSeen: 'Just now',
     positionOffset: [-0.6, 0.4]
   },
   {
-    id: 'inh_jordan',
-    name: 'Jordan',
-    role: 'Guest',
+    id: 'inh_master',
+    name: 'Scale Figure',
+    role: 'ScaleFigure',
     roomId: 'rm_master',
     status: 'home',
     color: '#F59E0B',
-    avatarIcon: '🧑‍💻',
-    device: 'MacBook Air · Guest Tag',
+    avatarIcon: '👤',
+    device: 'Zone Active',
     beaconId: 'beacon_master_proxy',
     lastSeen: '1m ago',
     positionOffset: [0.5, -0.3]
   },
   {
-    id: 'inh_sam',
-    name: 'Sam',
-    role: 'Family',
+    id: 'inh_bath',
+    name: 'Scale Figure',
+    role: 'ScaleFigure',
     roomId: 'rm_bath',
     status: 'motion_active',
     color: '#10B981',
-    avatarIcon: '🏃',
-    device: 'Apple Watch Ultra',
+    avatarIcon: '👤',
+    device: 'Zone Active',
     beaconId: 'beacon_bath_proxy',
     lastSeen: 'Just now',
     positionOffset: [0.0, 0.0]
   },
   {
-    id: 'inh_keys',
-    name: 'Keys',
-    role: 'Device',
+    id: 'inh_beacon',
+    name: 'Sensor Beacon',
+    role: 'Sensor',
     roomId: 'rm_bed2',
     status: 'home',
     color: '#8B5CF6',
     avatarIcon: '🏷️',
-    device: 'AirTag (Living Credenza)',
+    device: 'Proxy Online',
     beaconId: 'beacon_bed2_proxy',
     lastSeen: 'Just now',
     positionOffset: [0.3, 0.5]
