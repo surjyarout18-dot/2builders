@@ -262,6 +262,22 @@ interface FloorPlanState {
   // Walkthrough navigation
   walkthroughEyeHeight: number;
   walkthroughSpeed: number;
+  walkthroughPosition: { x: number; z: number; angle: number };
+  isAutoTouring: boolean;
+  autoTourRoomIndex: number;
+  autoTourTarget: { x: number; z: number; targetAngle?: number } | null;
+  showMinimap: boolean;
+
+  setWalkthroughPosition: (pos: { x: number; z: number; angle: number }) => void;
+  startAutoTour: () => void;
+  pauseAutoTour: () => void;
+  resumeAutoTour: () => void;
+  stopAutoTour: () => void;
+  nextTourRoom: () => void;
+  prevTourRoom: () => void;
+  navigateToRoom: (roomId: string) => void;
+  navigateToPoint: (x: number, z: number) => void;
+  toggleMinimap: () => void;
 
   // AI Generator Candidate Layouts
   candidateLayouts: ArchitecturalModel[];
@@ -353,9 +369,88 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
   unitSystem: 'metric',
   walkthroughEyeHeight: 1.65,
   walkthroughSpeed: 3.5,
+  walkthroughPosition: { x: 2.5, z: 4.0, angle: 0 },
+  isAutoTouring: false,
+  autoTourRoomIndex: 0,
+  autoTourTarget: null,
+  showMinimap: true,
   candidateLayouts: [],
 
   setCurrentPage: (page) => set({ currentPage: page }),
+  setWalkthroughPosition: (pos) => set({ walkthroughPosition: pos }),
+  startAutoTour: () => {
+    const { model, activeFloorIndex } = get();
+    const fl = model.floors[activeFloorIndex] || model.floors[0];
+    if (fl && fl.rooms.length > 0) {
+      const firstRoom = fl.rooms[0];
+      const cx = firstRoom.polygon.reduce((a, b) => a + b.x, 0) / firstRoom.polygon.length;
+      const cz = firstRoom.polygon.reduce((a, b) => a + b.z, 0) / firstRoom.polygon.length;
+      set({
+        viewMode: 'walkthrough',
+        isFirstPerson: true,
+        isAutoTouring: true,
+        autoTourRoomIndex: 0,
+        autoTourTarget: { x: cx, z: cz }
+      });
+    } else {
+      set({ viewMode: 'walkthrough', isFirstPerson: true, isAutoTouring: true });
+    }
+  },
+  pauseAutoTour: () => set({ isAutoTouring: false }),
+  resumeAutoTour: () => set({ isAutoTouring: true }),
+  stopAutoTour: () => set({ isAutoTouring: false, autoTourTarget: null }),
+  nextTourRoom: () => {
+    const { model, activeFloorIndex, autoTourRoomIndex } = get();
+    const fl = model.floors[activeFloorIndex] || model.floors[0];
+    if (fl && fl.rooms.length > 0) {
+      const nextIdx = (autoTourRoomIndex + 1) % fl.rooms.length;
+      const targetRoom = fl.rooms[nextIdx];
+      const cx = targetRoom.polygon.reduce((a, b) => a + b.x, 0) / targetRoom.polygon.length;
+      const cz = targetRoom.polygon.reduce((a, b) => a + b.z, 0) / targetRoom.polygon.length;
+      set({
+        autoTourRoomIndex: nextIdx,
+        autoTourTarget: { x: cx, z: cz }
+      });
+    }
+  },
+  prevTourRoom: () => {
+    const { model, activeFloorIndex, autoTourRoomIndex } = get();
+    const fl = model.floors[activeFloorIndex] || model.floors[0];
+    if (fl && fl.rooms.length > 0) {
+      const prevIdx = (autoTourRoomIndex - 1 + fl.rooms.length) % fl.rooms.length;
+      const targetRoom = fl.rooms[prevIdx];
+      const cx = targetRoom.polygon.reduce((a, b) => a + b.x, 0) / targetRoom.polygon.length;
+      const cz = targetRoom.polygon.reduce((a, b) => a + b.z, 0) / targetRoom.polygon.length;
+      set({
+        autoTourRoomIndex: prevIdx,
+        autoTourTarget: { x: cx, z: cz }
+      });
+    }
+  },
+  navigateToRoom: (roomId) => {
+    const { model, activeFloorIndex } = get();
+    const fl = model.floors[activeFloorIndex] || model.floors[0];
+    const room = fl.rooms.find((r) => r.id === roomId);
+    if (room && room.polygon.length > 0) {
+      const cx = room.polygon.reduce((a, b) => a + b.x, 0) / room.polygon.length;
+      const cz = room.polygon.reduce((a, b) => a + b.z, 0) / room.polygon.length;
+      const roomIdx = fl.rooms.indexOf(room);
+      set({
+        viewMode: 'walkthrough',
+        isFirstPerson: true,
+        autoTourRoomIndex: roomIdx >= 0 ? roomIdx : 0,
+        autoTourTarget: { x: cx, z: cz }
+      });
+    }
+  },
+  navigateToPoint: (x, z) => {
+    set({
+      viewMode: 'walkthrough',
+      isFirstPerson: true,
+      autoTourTarget: { x, z }
+    });
+  },
+  toggleMinimap: () => set((s) => ({ showMinimap: !s.showMinimap })),
   setModel: (newModel) => {
     set((state) => ({
       model: newModel,

@@ -109,6 +109,27 @@ def process_floor_plan(
             wall_color=r["wall_color"]
         ))
 
+    # If OpenCV contour detector did not find closed rooms, use AI Space Topology Engine
+    if len(metric_rooms) == 0 and len(metric_walls) > 0:
+        try:
+            from backend.app.agents.space_topology import SpaceTopologyEngine
+            walls_data = [w.model_dump() for w in metric_walls]
+            c_walls, extracted_rooms = SpaceTopologyEngine.extract_rooms_and_classify_walls(walls_data)
+            for er in extracted_rooms:
+                metric_rooms.append(RoomSchema(
+                    id=er["id"],
+                    floor_id="floor_0",
+                    name=er["name"],
+                    room_type=er.get("room_type", "living"),
+                    area_sqm=er["area_sqm"],
+                    area_sqft=er["area_sqft"],
+                    polygon=[PointXZ(x=pt["x"], z=pt["z"]) for pt in er["polygon"]],
+                    floor_material=er.get("floor_material", "hardwood_oak"),
+                    wall_color=er.get("wall_color", "#F8FAFC")
+                ))
+        except Exception as e:
+            pass
+
     # Assemble ground floor
     ground_floor = FloorSchema(
         id="floor_0",

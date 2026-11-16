@@ -15,6 +15,8 @@ import { FirstPersonWalkthrough } from './FirstPersonWalkthrough';
 import { LightingEnvironment } from './LightingEnvironment';
 import { ViewerControls } from './ViewerControls';
 import { ParametricFurnitureMesh } from '../furniture/ParametricFurnitureMesh';
+import { WalkthroughMinimap } from './WalkthroughMinimap';
+import { WalkthroughTourBar } from './WalkthroughTourBar';
 
 export const BuildingScene: React.FC = () => {
   const {
@@ -216,6 +218,12 @@ export const BuildingScene: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Interactive Architectural Minimap HUD (PadSpan style with radar vision cone & room presence) */}
+      <WalkthroughMinimap />
+
+      {/* Guided Tour & Room Jump Controller (Planova style) */}
+      <WalkthroughTourBar />
     </div>
   );
 };
