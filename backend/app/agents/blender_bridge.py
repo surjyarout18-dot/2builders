@@ -77,8 +77,8 @@ mat_roof = create_pbr_material("Mat_Roof", (0.28, 0.32, 0.36, 1.0), roughness=0.
 # 4. Ingest Model Data
 model_data = json.loads(\'\'\'{model_json}\'\'\')
 
-# Helper: Extrude Wall Mesh
-def create_wall_mesh(wall_dict, floor_elevation=0.0):
+# Helper: Extrude Wall Mesh (with zero block overlap)
+def create_wall_mesh(wall_dict, floor_elevation=0.0, all_walls=None):
     sx = wall_dict['start']['x']
     sz = wall_dict['start']['z']
     ex = wall_dict['end']['x']
@@ -92,20 +92,64 @@ def create_wall_mesh(wall_dict, floor_elevation=0.0):
     length = math.hypot(dx, dz)
     if length < 0.01:
         return
+
+    ux = dx / length
+    uz = dz / length
+    trim_start = 0.0
+    trim_end = 0.0
+
+    if all_walls and len(all_walls) > 1:
+        for other in all_walls:
+            if other.get('id') == wall_dict.get('id'):
+                continue
+            ox1, oz1 = other['start']['x'], other['start']['z']
+            ox2, oz2 = other['end']['x'], other['end']['z']
+            odx, odz = ox2 - ox1, oz2 - oz1
+            olen = math.hypot(odx, odz)
+            if olen < 0.05:
+                continue
+            half_ot = other.get('thickness', 0.2) / 2.0
+
+            # Start point corner check
+            if math.hypot(sx - ox1, sz - oz1) < 0.08 or math.hypot(sx - ox2, sz - oz2) < 0.08:
+                if (wall_dict.get('wall_type') == 'interior' and other.get('wall_type') == 'exterior') or (
+                    wall_dict.get('wall_type') == other.get('wall_type') and (
+                        olen > length + 0.05 or (abs(olen - length) <= 0.05 and str(wall_dict.get('id')) > str(other.get('id')))
+                    )
+                ):
+                    trim_start = max(trim_start, half_ot)
+
+            # End point corner check
+            if math.hypot(ex - ox1, ez - oz1) < 0.08 or math.hypot(ex - ox2, ez - oz2) < 0.08:
+                if (wall_dict.get('wall_type') == 'interior' and other.get('wall_type') == 'exterior') or (
+                    wall_dict.get('wall_type') == other.get('wall_type') and (
+                        olen > length + 0.05 or (abs(olen - length) <= 0.05 and str(wall_dict.get('id')) > str(other.get('id')))
+                    )
+                ):
+                    trim_end = max(trim_end, half_ot)
+
+    trim_start = min(trim_start, length * 0.35)
+    trim_end = min(trim_end, length * 0.35)
+
+    sx_eff = sx + ux * trim_start
+    sz_eff = sz + uz * trim_start
+    ex_eff = ex - ux * trim_end
+    ez_eff = ez - uz * trim_end
+
     nx = -dz / length * (thickness / 2.0)
     nz = dx / length * (thickness / 2.0)
     
     # 4 Base Vertices (Blender Z is UP, so Y=Z_cad, Z=Y_height)
-    v0 = (sx - nx, sz - nz, floor_elevation)
-    v1 = (sx + nx, sz + nz, floor_elevation)
-    v2 = (ex + nx, ez + nz, floor_elevation)
-    v3 = (ex - nx, ez - nz, floor_elevation)
+    v0 = (sx_eff - nx, sz_eff - nz, floor_elevation)
+    v1 = (sx_eff + nx, sz_eff + nz, floor_elevation)
+    v2 = (ex_eff + nx, ez_eff + nz, floor_elevation)
+    v3 = (ex_eff - nx, ez_eff - nz, floor_elevation)
     
     # 4 Top Vertices
-    v4 = (sx - nx, sz - nz, floor_elevation + height)
-    v5 = (sx + nx, sz + nz, floor_elevation + height)
-    v6 = (ex + nx, ez + nz, floor_elevation + height)
-    v7 = (ex - nx, ez - nz, floor_elevation + height)
+    v4 = (sx_eff - nx, sz_eff - nz, floor_elevation + height)
+    v5 = (sx_eff + nx, sz_eff + nz, floor_elevation + height)
+    v6 = (ex_eff + nx, ez_eff + nz, floor_elevation + height)
+    v7 = (ex_eff - nx, ez_eff - nz, floor_elevation + height)
     
     mesh = bpy.data.meshes.new(f"WallMesh_{{wall_dict['id']}}")
     obj = bpy.data.objects.new(f"Wall_{{wall_dict['id']}}", mesh)
@@ -132,8 +176,9 @@ all_z = []
 
 for floor in model_data.get('floors', []):
     elev = floor.get('elevation', 0.0)
-    for wall in floor.get('walls', []):
-        create_wall_mesh(wall, elev)
+    floor_walls = floor.get('walls', [])
+    for wall in floor_walls:
+        create_wall_mesh(wall, elev, floor_walls)
         all_x.extend([wall['start']['x'], wall['end']['x']])
         all_z.extend([wall['start']['z'], wall['end']['z']])
 

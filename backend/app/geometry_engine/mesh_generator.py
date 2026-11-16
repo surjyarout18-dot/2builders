@@ -16,11 +16,12 @@ class MeshGenerator:
         self,
         wall: WallSchema,
         doors: List[DoorSchema] = [],
-        windows: List[WindowSchema] = []
+        windows: List[WindowSchema] = [],
+        all_walls: List[WallSchema] = []
     ) -> Dict[str, Any]:
         """
         Extrudes a wall into 3D with clean boolean-style cutouts for doors and windows.
-        Produces watertight oriented 3D triangle mesh.
+        Produces watertight oriented 3D triangle mesh with ZERO overlapping corner blocks.
         """
         x1, z1 = wall.start.x, wall.start.z
         x2, z2 = wall.end.x, wall.end.z
@@ -35,6 +36,64 @@ class MeshGenerator:
         half_t = wall.thickness / 2.0
         wall_h = wall.height
 
+        # 1. Calculate non-overlapping corner and T-junction trimming (Planova style)
+        trim_start = 0.0
+        trim_end = 0.0
+
+        if all_walls and len(all_walls) > 1:
+            for other in all_walls:
+                if other.id == wall.id:
+                    continue
+                ox1, oz1 = other.start.x, other.start.z
+                ox2, oz2 = other.end.x, other.end.z
+                odx, odz = ox2 - ox1, oz2 - oz1
+                other_len = math.hypot(odx, odz)
+                if other_len < 0.05:
+                    continue
+                half_other_t = other.thickness / 2.0
+
+                # Check start (x1, z1)
+                dist_s_o1 = math.hypot(x1 - ox1, z1 - oz1)
+                dist_s_o2 = math.hypot(x1 - ox2, z1 - oz2)
+                if dist_s_o1 < 0.08 or dist_s_o2 < 0.08:
+                    is_other_dominant = (
+                        (wall.wall_type == "interior" and other.wall_type == "exterior") or
+                        (wall.wall_type == other.wall_type and (
+                            other_len > wall_len + 0.05 or
+                            (abs(other_len - wall_len) <= 0.05 and wall.id > other.id)
+                        ))
+                    )
+                    if is_other_dominant:
+                        trim_start = max(trim_start, half_other_t)
+                else:
+                    dist_to_other = self._point_to_segment_dist(x1, z1, ox1, oz1, ox2, oz2)
+                    if dist_to_other < half_other_t + 0.04:
+                        trim_start = max(trim_start, half_other_t)
+
+                # Check end (x2, z2)
+                dist_e_o1 = math.hypot(x2 - ox1, z2 - oz1)
+                dist_e_o2 = math.hypot(x2 - ox2, z2 - oz2)
+                if dist_e_o1 < 0.08 or dist_e_o2 < 0.08:
+                    is_other_dominant = (
+                        (wall.wall_type == "interior" and other.wall_type == "exterior") or
+                        (wall.wall_type == other.wall_type and (
+                            other_len > wall_len + 0.05 or
+                            (abs(other_len - wall_len) <= 0.05 and wall.id > other.id)
+                        ))
+                    )
+                    if is_other_dominant:
+                        trim_end = max(trim_end, half_other_t)
+                else:
+                    dist_to_other = self._point_to_segment_dist(x2, z2, ox1, oz1, ox2, oz2)
+                    if dist_to_other < half_other_t + 0.04:
+                        trim_end = max(trim_end, half_other_t)
+
+        trim_start = min(trim_start, wall_len * 0.35)
+        trim_end = min(trim_end, wall_len * 0.35)
+
+        s_min = trim_start
+        s_max = max(s_min + 0.05, wall_len - trim_end)
+
         # Collect openings along this wall
         openings: List[Dict[str, float]] = []
 
@@ -44,8 +103,8 @@ class MeshGenerator:
                 # Project door position along wall
                 s = self._project_point(d.position.x, d.position.z, x1, z1, ux, uz)
                 half_w = d.width / 2.0
-                s_start = max(0.0, s - half_w)
-                s_end = min(wall_len, s + half_w)
+                s_start = max(s_min, min(s_max, s - half_w))
+                s_end = max(s_min, min(s_max, s + half_w))
                 if s_end > s_start:
                     openings.append({
                         "start": s_start,
@@ -60,8 +119,8 @@ class MeshGenerator:
             if w.wall_id == wall.id or self._is_point_on_wall(w.position.x, w.position.z, x1, z1, x2, z2):
                 s = self._project_point(w.position.x, w.position.z, x1, z1, ux, uz)
                 half_w = w.width / 2.0
-                s_start = max(0.0, s - half_w)
-                s_end = min(wall_len, s + half_w)
+                s_start = max(s_min, min(s_max, s - half_w))
+                s_end = max(s_min, min(s_max, s + half_w))
                 if s_end > s_start:
                     openings.append({
                         "start": s_start,
@@ -78,29 +137,34 @@ class MeshGenerator:
         # A block is defined by: s_min, s_max, y_min, y_max
         blocks: List[Tuple[float, float, float, float]] = []
 
-        current_s = 0.0
+        current_s = s_min
         for op in openings:
+            op_start = max(s_min, min(s_max, op["start"]))
+            op_end = max(s_min, min(s_max, op["end"]))
+            if op_end <= op_start:
+                continue
+
             # 1. Solid full-height wall before opening
-            if op["start"] > current_s + 0.01:
-                blocks.append((current_s, op["start"], 0.0, wall_h))
+            if op_start > current_s + 0.01:
+                blocks.append((current_s, op_start, 0.0, wall_h))
 
             # 2. Window sill below opening (if bottom > 0)
             if op["bottom"] > 0.01:
-                blocks.append((op["start"], op["end"], 0.0, op["bottom"]))
+                blocks.append((op_start, op_end, 0.0, op["bottom"]))
 
             # 3. Lintel segment above opening (if top < wall_h)
             if wall_h > op["top"] + 0.01:
-                blocks.append((op["start"], op["end"], op["top"], wall_h))
+                blocks.append((op_start, op_end, op["top"], wall_h))
 
-            current_s = max(current_s, op["end"])
+            current_s = max(current_s, op_end)
 
         # Remaining wall after last opening
-        if current_s < wall_len - 0.01:
-            blocks.append((current_s, wall_len, 0.0, wall_h))
+        if current_s < s_max - 0.01:
+            blocks.append((current_s, s_max, 0.0, wall_h))
 
         # If no openings, the whole wall is a single block
         if not blocks:
-            blocks.append((0.0, wall_len, 0.0, wall_h))
+            blocks.append((s_min, s_max, 0.0, wall_h))
 
         # Build 3D box meshes for each block and concatenate
         all_vertices: List[List[float]] = []
@@ -230,3 +294,12 @@ class MeshGenerator:
 
     def _project_point(self, px: float, pz: float, x1: float, z1: float, ux: float, uz: float) -> float:
         return (px - x1) * ux + (pz - z1) * uz
+
+    @staticmethod
+    def _point_to_segment_dist(px: float, pz: float, x1: float, z1: float, x2: float, z2: float) -> float:
+        dx, dz = x2 - x1, z2 - z1
+        len_sq = dx * dx + dz * dz
+        if len_sq == 0:
+            return math.hypot(px - x1, pz - z1)
+        u = max(0.0, min(1.0, ((px - x1) * dx + (pz - z1) * dz) / len_sq))
+        return math.hypot(px - (x1 + u * dx), pz - (z1 + u * dz))

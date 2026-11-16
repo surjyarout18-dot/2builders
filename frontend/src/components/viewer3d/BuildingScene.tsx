@@ -143,6 +143,7 @@ export const BuildingScene: React.FC = () => {
                 doors={fl.doors || []}
                 windows={fl.windows || []}
                 isDollhouse={isDollhouseView}
+                allWalls={fl.walls || []}
               />
             ))}
 

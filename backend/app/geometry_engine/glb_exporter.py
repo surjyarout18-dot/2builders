@@ -25,7 +25,7 @@ def export_model_to_glb(
 
     # 1. Walls
     for wall in walls:
-        m = generator.generate_wall_mesh(wall, doors, windows)
+        m = generator.generate_wall_mesh(wall, doors, windows, all_walls=walls)
         if len(m["vertices"]) > 0:
             submeshes.append({
                 "name": f"Wall_{wall.id}",
@@ -245,7 +245,7 @@ def export_model_to_obj(
 
     # Walls
     for wall in walls:
-        m = generator.generate_wall_mesh(wall, doors, windows)
+        m = generator.generate_wall_mesh(wall, doors, windows, all_walls=walls)
         if not m["vertices"]:
             continue
         lines.append(f"g Wall_{wall.id}")
