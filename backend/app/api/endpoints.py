@@ -17,6 +17,9 @@ from backend.app.schemas import (
 )
 from backend.app.ai_engine.pipeline import process_floor_plan
 from backend.app.ai_engine.layout_generator import generate_candidate_layouts
+from backend.app.agents.architectural_agent import ArchitecturalAgent
+from backend.app.agents.realism_agent import RealismAgent
+from backend.app.agents.blender_bridge import generate_blender_python_script
 from backend.app.geometry_engine.glb_exporter import export_model_to_glb, export_model_to_obj
 from backend.app.geometry_engine.roof_generator import generate_roof_mesh
 
@@ -57,6 +60,18 @@ class CreateCheckpointRequest(BaseModel):
 class AssistantChatRequest(BaseModel):
     project_id: str
     prompt: str
+
+class EnhanceRealismRequest(BaseModel):
+    project_id: Optional[str] = None
+    model: Optional[ArchitecturalModel] = None
+    style: str = "contemporary_warm"
+    orientation: str = "south"
+    day_night: str = "day"
+
+class ArchitecturalSolveRequest(BaseModel):
+    raw_walls: List[Dict[str, Any]]
+    project_name: Optional[str] = "AI Solved Architectural Plan"
+    default_height: float = 2.80
 
 @router.post("/projects")
 def create_project(req: CreateProjectRequest) -> Dict[str, Any]:
@@ -488,3 +503,79 @@ def assistant_chat(req: AssistantChatRequest) -> Dict[str, Any]:
         "prompt": req.prompt,
         "response": reply
     }
+
+@router.post("/agents/enhance-realism")
+def enhance_realism(req: EnhanceRealismRequest) -> ArchitecturalModel:
+    """
+    Applies Realism Agent enhancements: PBR materials, contextual furniture,
+    lighting environment, and landscaping while guaranteeing Geometry Invariance.
+    """
+    realism_agent = RealismAgent()
+    base_model = req.model
+
+    if not base_model and req.project_id:
+        base_model = MODELS_DB.get(req.project_id)
+
+    if not base_model or (len(base_model.floors) > 0 and len(base_model.floors[0].walls) == 0):
+        # Baseline architectural structure if project has not been sketched yet
+        arch_agent = ArchitecturalAgent()
+        base_model = arch_agent.synthesize_from_walls([
+            {"start": {"x": 0.0, "z": 0.0}, "end": {"x": 10.0, "z": 0.0}},
+            {"start": {"x": 10.0, "z": 0.0}, "end": {"x": 10.0, "z": 8.0}},
+            {"start": {"x": 10.0, "z": 8.0}, "end": {"x": 0.0, "z": 8.0}},
+            {"start": {"x": 0.0, "z": 8.0}, "end": {"x": 0.0, "z": 0.0}},
+            {"start": {"x": 5.0, "z": 0.0}, "end": {"x": 5.0, "z": 8.0}},
+        ], project_name=base_model.name if base_model else "Synthesized Architectural Model")
+
+    enhanced = realism_agent.apply_realism(
+        base_model=base_model,
+        style=req.style,
+        orientation=req.orientation,
+        day_night=req.day_night
+    )
+
+    if req.project_id:
+        MODELS_DB[req.project_id] = enhanced
+
+    return enhanced
+
+@router.post("/projects/{project_id}/export/blender-script")
+def export_blender_script(project_id: str) -> Response:
+    """
+    Generates a standalone, fully executable Python script for Blender 3.x/4.x
+    to render the 2builders architectural scene with Cycles / EEVEE path-tracing.
+    """
+    model = MODELS_DB.get(project_id)
+    if not model:
+        # Synthesize fallback sample model
+        arch_agent = ArchitecturalAgent()
+        model = arch_agent.synthesize_from_walls([
+            {"start": {"x": 0.0, "z": 0.0}, "end": {"x": 10.0, "z": 0.0}},
+            {"start": {"x": 10.0, "z": 0.0}, "end": {"x": 10.0, "z": 8.0}},
+            {"start": {"x": 10.0, "z": 8.0}, "end": {"x": 0.0, "z": 8.0}},
+            {"start": {"x": 0.0, "z": 8.0}, "end": {"x": 0.0, "z": 0.0}},
+        ])
+
+    script_content = generate_blender_python_script(
+        model=model,
+        output_render_path=f"{model.name.replace(' ', '_')}_render.png"
+    )
+
+    return Response(
+        content=script_content,
+        media_type="text/x-python",
+        headers={"Content-Disposition": f'attachment; filename="{model.name.replace(" ", "_")}_blender_scene.py"'}
+    )
+
+@router.post("/agents/architectural-solve")
+def architectural_solve(req: ArchitecturalSolveRequest) -> ArchitecturalModel:
+    """
+    Applies Architectural Agent to raw wall segments: classifies exterior/interior walls,
+    calculates closed room polygons, and returns a verified 100% editable ArchitecturalModel.
+    """
+    arch_agent = ArchitecturalAgent()
+    return arch_agent.synthesize_from_walls(
+        raw_walls=req.raw_walls,
+        project_name=req.project_name,
+        default_height=req.default_height
+    )
