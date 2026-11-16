@@ -244,6 +244,7 @@ const INITIAL_MODEL: ArchitecturalModel = {
 };
 
 interface FloorPlanState {
+  currentPage: 'landing' | 'studio';
   model: ArchitecturalModel;
   viewMode: ViewMode;
   activeTool: CADTool;
@@ -266,6 +267,7 @@ interface FloorPlanState {
   candidateLayouts: ArchitecturalModel[];
 
   // Actions
+  setCurrentPage: (page: 'landing' | 'studio') => void;
   setModel: (model: ArchitecturalModel) => void;
   setViewMode: (mode: ViewMode) => void;
   setActiveTool: (tool: CADTool) => void;
@@ -335,6 +337,7 @@ interface FloorPlanState {
 }
 
 export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
+  currentPage: 'landing',
   model: INITIAL_MODEL,
   viewMode: 'split',
   activeTool: 'select',
@@ -352,6 +355,7 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
   walkthroughSpeed: 3.5,
   candidateLayouts: [],
 
+  setCurrentPage: (page) => set({ currentPage: page }),
   setModel: (newModel) => {
     set((state) => ({
       model: newModel,
@@ -1031,5 +1035,6 @@ export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
       };
       get().setModel(studioModel);
     }
+    set({ currentPage: 'studio', activeFloorIndex: 0 });
   }
 }));

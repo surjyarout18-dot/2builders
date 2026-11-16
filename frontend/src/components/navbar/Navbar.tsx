@@ -12,7 +12,8 @@ import {
   FileSpreadsheet,
   History,
   User,
-  Wand2
+  Wand2,
+  Home
 } from 'lucide-react';
 import { useFloorPlanStore } from '../../store/useFloorPlanStore';
 import { ViewMode } from '../../types/architectural';
@@ -42,7 +43,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     model,
     unitSystem,
     toggleUnitSystem,
-    createCheckpoint
+    createCheckpoint,
+    setCurrentPage
   } = useFloorPlanStore();
 
   const [isCheckpointsOpen, setIsCheckpointsOpen] = useState(false);
@@ -57,9 +59,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="flex h-14 w-full items-center justify-between border-b border-[#1F2942] bg-[#0A0D14] px-4 select-none z-30">
       {/* Brand & Project Info */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00F0FF]/15 text-[#00F0FF] shadow-md shadow-[#00F0FF]/10 ring-1 ring-[#00F0FF]/30">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setCurrentPage('landing')}
+          title="Return to Hero Landing Page (Preserves Session)"
+          className="flex items-center gap-2.5 group text-left hover:opacity-90 transition-opacity"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00F0FF]/15 text-[#00F0FF] shadow-md shadow-[#00F0FF]/10 ring-1 ring-[#00F0FF]/30 group-hover:ring-[#00F0FF]/60 transition-all">
             <Boxes className="h-5 w-5" />
           </div>
           <div>
@@ -72,11 +78,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                 100% Free Forever
               </span>
             </div>
-            <div className="font-mono text-[10px] text-[#94A3B8] leading-none line-clamp-1">
+            <div className="font-mono text-[10px] text-[#94A3B8] leading-none line-clamp-1 group-hover:text-[#00F0FF] transition-colors">
               {model.name}
             </div>
           </div>
-        </div>
+        </button>
+
+        {/* Back to Home Button */}
+        <button
+          onClick={() => setCurrentPage('landing')}
+          title="Return to Landing Page"
+          className="hidden lg:flex items-center gap-1.5 rounded-lg border border-[#1F2942] bg-[#111726] px-2.5 py-1 text-[11px] font-semibold text-[#94A3B8] hover:border-[#00F0FF] hover:text-[#00F0FF] transition-all"
+        >
+          <Home className="h-3 w-3" />
+          <span>Home</span>
+        </button>
 
         {/* Unit Toggle Pill */}
         <button
@@ -130,7 +146,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Schedules & Takeoffs */}
         <button
+          id="btn-nav-takeoffs"
           onClick={onOpenTakeoffs}
+          title="BIM Schedules & Quantity Takeoffs"
           className="flex items-center gap-1.5 rounded-lg border border-[#1F2942] bg-[#161F33] px-3 py-1.5 text-xs font-semibold text-[#F1F5F9] hover:border-[#10B981] hover:text-[#10B981] transition-colors"
         >
           <FileSpreadsheet className="h-4 w-4" />

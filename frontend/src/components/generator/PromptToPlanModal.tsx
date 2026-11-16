@@ -21,7 +21,7 @@ interface PromptToPlanModalProps {
 }
 
 export const PromptToPlanModal: React.FC<PromptToPlanModalProps> = ({ isOpen, onClose }) => {
-  const { setModel, unitSystem, candidateLayouts, setCandidateLayouts } = useFloorPlanStore();
+  const { setModel, unitSystem, candidateLayouts, setCandidateLayouts, setCurrentPage } = useFloorPlanStore();
 
   const [prompt, setPrompt] = useState<string>("Modern 3-bedroom villa with expansive great room, ensuite master wing, and central hallway");
   const [plotWidth, setPlotWidth] = useState<number>(16.0);
@@ -74,6 +74,7 @@ export const PromptToPlanModal: React.FC<PromptToPlanModalProps> = ({ isOpen, on
 
   const handleApplyCandidate = (model: ArchitecturalModel) => {
     setModel(model);
+    setCurrentPage('studio');
     onClose();
   };
 
